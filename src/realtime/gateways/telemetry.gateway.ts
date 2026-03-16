@@ -1,4 +1,4 @@
-import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Logger, UseFilters, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -20,10 +20,12 @@ import { DataStreamDto } from '../dto/data-stream.dto';
 import { DATA_ACK, DATA_STREAM } from '../events/telemetry.events';
 import { SESSION_ERROR } from '../events/live.events';
 import type { AuthenticatedSocket } from '../interfaces/authenticated-socket.interface';
+import { WsExceptionFilter } from '../filters/ws-exception.filter';
 
 // cors: true — mobile-only clients (Flutter) don't enforce CORS.
 // Tighten to a specific origin allowlist if a web client is added.
 @WebSocketGateway({ namespace: '/telemetry', cors: true })
+@UseFilters(WsExceptionFilter)
 @UseGuards(WsAuthGuard, WsPayloadSizeGuard, WsRateLimitGuard)
 @UsePipes(new ValidationPipe({ whitelist: true }))
 export class TelemetryGateway
@@ -72,6 +74,7 @@ export class TelemetryGateway
     const session = this.activityEngine.getActiveSession(userId);
 
     if (!session) {
+      this.logger.warn(`data:stream rejected — NO_SESSION for userId=${userId} dtoSessionId=${dto.sessionId}`);
       client.emit(SESSION_ERROR, {
         code: 'NO_SESSION',
         message: 'No active session found',
@@ -81,6 +84,7 @@ export class TelemetryGateway
     }
 
     if (session.sessionId !== dto.sessionId) {
+      this.logger.warn(`data:stream rejected — SESSION_MISMATCH userId=${userId} activeSessionId=${session.sessionId} dtoSessionId=${dto.sessionId}`);
       client.emit(SESSION_ERROR, {
         code: 'SESSION_MISMATCH',
         message: 'Session ID does not match active session',

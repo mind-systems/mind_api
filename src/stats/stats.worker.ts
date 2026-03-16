@@ -15,7 +15,15 @@ export class StatsWorker {
     this.logger.log(
       `Stats finalising: userId=${event.userId} sessionId=${event.sessionId} durationMs=${durationMs}`,
     );
-    await this.statsService.finalise(event);
+    try {
+      await this.statsService.finalise(event);
+      this.logger.log(`Stats finalised OK: userId=${event.userId} sessionId=${event.sessionId}`);
+    } catch (err: unknown) {
+      this.logger.error(
+        `Stats finalise FAILED: userId=${event.userId} sessionId=${event.sessionId}`,
+        err,
+      );
+    }
   }
 
   @OnEvent('session.abandoned')
@@ -24,6 +32,14 @@ export class StatsWorker {
     this.logger.log(
       `Stats finalising: userId=${event.userId} sessionId=${event.sessionId} durationMs=${durationMs}`,
     );
-    await this.statsService.finalise(event);
+    try {
+      await this.statsService.finalise(event);
+      this.logger.log(`Stats finalised OK: userId=${event.userId} sessionId=${event.sessionId}`);
+    } catch (err: unknown) {
+      this.logger.error(
+        `Stats finalise FAILED: userId=${event.userId} sessionId=${event.sessionId}`,
+        err,
+      );
+    }
   }
 }

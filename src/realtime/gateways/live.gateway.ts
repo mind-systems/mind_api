@@ -1,4 +1,4 @@
-import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Logger, UseFilters, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   ConnectedSocket,
@@ -32,10 +32,12 @@ import {
 import { RateLimiterService } from '../services/rate-limiter.service';
 import type { AuthenticatedSocket } from '../interfaces/authenticated-socket.interface';
 import { ActivityStartDto } from '../dto/activity-start.dto';
+import { WsExceptionFilter } from '../filters/ws-exception.filter';
 
 // cors: true — mobile-only clients (Flutter) don't enforce CORS.
 // Tighten to a specific origin allowlist if a web client is added.
 @WebSocketGateway({ namespace: '/live', cors: true })
+@UseFilters(WsExceptionFilter)
 @UseGuards(WsAuthGuard, WsPayloadSizeGuard, WsRateLimitGuard)
 @UsePipes(new ValidationPipe({ whitelist: true }))
 export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {

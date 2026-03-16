@@ -67,14 +67,22 @@ export class ActivityEngine {
 
   async endActivity(userId: string): Promise<LiveSession | null> {
     const state = this.stateStore.activityMap.get(userId);
-    if (!state) return null;
+    if (!state) {
+      this.logger.warn(`endActivity: no active session in memory for userId=${userId}`);
+      return null;
+    }
+
+    this.logger.debug(`endActivity: found state for userId=${userId} sessionId=${state.sessionId}`);
 
     const now = new Date();
     const session = await this.repo.findOne({ where: { id: state.sessionId } });
     if (!session) {
+      this.logger.warn(`endActivity: sessionId=${state.sessionId} not found in DB — clearing state`);
       this.stateStore.activityMap.delete(userId);
       return null;
     }
+
+    this.logger.debug(`endActivity: DB session status=${session.status} startedAt=${session.startedAt.toISOString()}`);
 
     session.status = SessionStatus.COMPLETED;
     session.endedAt = now;
@@ -86,10 +94,12 @@ export class ActivityEngine {
     });
 
     this.stateStore.activityMap.delete(userId);
+    const durationMs = saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0;
     this.logger.log(
-      `Session ended: userId=${userId} sessionId=${saved.id} durationMs=${saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0}`,
+      `Session ended: userId=${userId} sessionId=${saved.id} durationMs=${durationMs}`,
     );
 
+    this.logger.debug(`Emitting session.completed: userId=${userId} sessionId=${saved.id}`);
     this.eventEmitter.emit('session.completed', {
       sessionId: saved.id,
       userId,

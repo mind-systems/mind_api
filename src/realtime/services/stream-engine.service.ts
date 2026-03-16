@@ -104,7 +104,10 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
 
   async flush(sessionId: string): Promise<void> {
     const buffer = this.buffers.get(sessionId);
-    if (!buffer || buffer.samples.length === 0) return;
+    if (!buffer || buffer.samples.length === 0) {
+      this.logger.debug(`flush: nothing to flush for sessionId=${sessionId} (buffer=${buffer ? 'exists, empty' : 'missing'})`);
+      return;
+    }
 
     const samples = buffer.samples.slice();
     const now = new Date();
@@ -121,6 +124,8 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
     buffer.samples = [];
     buffer.byteSize = 0;
 
+    this.logger.log(`Flushed ${samples.length} samples for sessionId=${sessionId}`);
+
     // Fire-and-forget — not awaited; a failure here is non-critical
     this.liveSessionRepo
       .update({ id: sessionId }, { lastActivityAt: now })
@@ -130,10 +135,6 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
           err,
         );
       });
-
-    this.logger.log(
-      `Flushed ${samples.length} samples for sessionId=${sessionId}`,
-    );
   }
 
   async flushAll(): Promise<void> {
@@ -149,13 +150,17 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
 
   @OnEvent('session.completed')
   async onSessionCompleted(payload: { sessionId: string }): Promise<void> {
+    this.logger.log(`onSessionCompleted: flushing sessionId=${payload.sessionId}`);
     await this.flush(payload.sessionId);
     this.buffers.delete(payload.sessionId);
+    this.logger.log(`onSessionCompleted: buffer cleared for sessionId=${payload.sessionId}`);
   }
 
   @OnEvent('session.abandoned')
   async onSessionAbandoned(payload: { sessionId: string }): Promise<void> {
+    this.logger.log(`onSessionAbandoned: flushing sessionId=${payload.sessionId}`);
     await this.flush(payload.sessionId);
     this.buffers.delete(payload.sessionId);
+    this.logger.log(`onSessionAbandoned: buffer cleared for sessionId=${payload.sessionId}`);
   }
 }

@@ -30,6 +30,10 @@ export class StatsService {
   }
 
   async finalise(event: SessionEvent): Promise<void> {
+    this.logger.debug(
+      `finalise called: userId=${event.userId} sessionId=${event.sessionId} startedAt=${event.startedAt.toISOString()} endedAt=${event.endedAt.toISOString()}`,
+    );
+
     const durationSeconds = Math.floor(
       (event.endedAt.getTime() - event.startedAt.getTime()) / 1000,
     );
@@ -40,6 +44,10 @@ export class StatsService {
       );
       return;
     }
+
+    this.logger.debug(
+      `Stats writing: userId=${event.userId} sessionId=${event.sessionId} durationSeconds=${durationSeconds}`,
+    );
 
     const todayUtc = this.todayUtc();
 
