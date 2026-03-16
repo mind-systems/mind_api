@@ -167,6 +167,47 @@ export class ActivityEngine {
     });
   }
 
+  async stopActivity(userId: string): Promise<LiveSession | null> {
+    const state = this.stateStore.activityMap.get(userId);
+    if (!state) {
+      this.logger.warn(`stopActivity: no active session in memory for userId=${userId}`);
+      return null;
+    }
+
+    const now = new Date();
+    const session = await this.repo.findOne({ where: { id: state.sessionId } });
+    if (!session) {
+      this.logger.warn(`stopActivity: sessionId=${state.sessionId} not found in DB — clearing state`);
+      this.stateStore.activityMap.delete(userId);
+      return null;
+    }
+
+    session.status = SessionStatus.INTERRUPTED;
+    session.endedAt = now;
+    const saved = await this.repo.save(session);
+
+    this.streamEngine.push(state.sessionId, {
+      timestamp: Date.now(),
+      data: { dataType: 'session_event', event: 'session_interrupted' },
+    });
+
+    this.stateStore.activityMap.delete(userId);
+    const durationMs = saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0;
+    this.logger.log(
+      `Session interrupted: userId=${userId} sessionId=${saved.id} durationMs=${durationMs}`,
+    );
+
+    this.eventEmitter.emit('session.interrupted', {
+      sessionId: saved.id,
+      userId,
+      startedAt: saved.startedAt,
+      endedAt: saved.endedAt,
+      activityType: saved.activityType,
+    });
+
+    return saved;
+  }
+
   pauseActivity(userId: string): ActivityState {
     const state = this.stateStore.activityMap.get(userId);
     if (!state) {

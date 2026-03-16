@@ -42,4 +42,21 @@ export class StatsWorker {
       );
     }
   }
+
+  @OnEvent('session.interrupted')
+  async onSessionInterrupted(event: SessionEvent): Promise<void> {
+    const durationMs = event.endedAt.getTime() - event.startedAt.getTime();
+    this.logger.log(
+      `Stats finalising: userId=${event.userId} sessionId=${event.sessionId} durationMs=${durationMs}`,
+    );
+    try {
+      await this.statsService.finalise(event);
+      this.logger.log(`Stats finalised OK: userId=${event.userId} sessionId=${event.sessionId}`);
+    } catch (err: unknown) {
+      this.logger.error(
+        `Stats finalise FAILED: userId=${event.userId} sessionId=${event.sessionId}`,
+        err,
+      );
+    }
+  }
 }

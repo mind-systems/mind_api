@@ -163,4 +163,12 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
     this.buffers.delete(payload.sessionId);
     this.logger.log(`onSessionAbandoned: buffer cleared for sessionId=${payload.sessionId}`);
   }
+
+  @OnEvent('session.interrupted')
+  async onSessionInterrupted(payload: { sessionId: string }): Promise<void> {
+    this.logger.log(`onSessionInterrupted: flushing sessionId=${payload.sessionId}`);
+    await this.flush(payload.sessionId);
+    this.buffers.delete(payload.sessionId);
+    this.logger.log(`onSessionInterrupted: buffer cleared for sessionId=${payload.sessionId}`);
+  }
 }

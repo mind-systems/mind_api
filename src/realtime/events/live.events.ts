@@ -3,6 +3,7 @@ export const ACTIVITY_END = 'activity:end';
 export const PRESENCE_BACKGROUND = 'presence:background';
 export const PRESENCE_FOREGROUND = 'presence:foreground';
 export const SESSION_STATE = 'session:state';
+export const ACTIVITY_STOP = 'activity:stop';
 export const ACTIVITY_PAUSE = 'activity:pause';
 export const ACTIVITY_RESUME = 'activity:resume';
 export const SESSION_ERROR = 'session:error';

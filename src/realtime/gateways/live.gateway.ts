@@ -24,6 +24,7 @@ import {
   ACTIVITY_PAUSE,
   ACTIVITY_RESUME,
   ACTIVITY_START,
+  ACTIVITY_STOP,
   PRESENCE_BACKGROUND,
   PRESENCE_FOREGROUND,
   SESSION_ERROR,
@@ -211,6 +212,18 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     client.emit(SESSION_STATE, { liveSessionId: session.id, status: 'completed' });
     this.logger.log(`Activity ended: userId=${userId} sessionId=${session.id}`);
+  }
+
+  @SubscribeMessage(ACTIVITY_STOP)
+  async handleActivityStop(@ConnectedSocket() client: Socket): Promise<void> {
+    const userId = (client as AuthenticatedSocket).data.userId;
+    if (!userId) return;
+
+    const session = await this.activityEngine.stopActivity(userId);
+    if (!session) return;
+
+    client.emit(SESSION_STATE, { liveSessionId: session.id, status: 'interrupted' });
+    this.logger.log(`Activity stopped: userId=${userId} sessionId=${session.id}`);
   }
 
   @SubscribeMessage(ACTIVITY_PAUSE)
