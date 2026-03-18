@@ -1,4 +1,4 @@
-.PHONY: help build up down restart logs ps health
+.PHONY: help build up down restart logs ps health db-reset
 
 # Конфигурация по умолчанию
 COMPOSE_DEV = docker-compose.dev.yml
@@ -36,6 +36,10 @@ ps:
 
 health:
 	curl http://localhost:3002/health
+
+db-reset:
+	docker exec -it mind_api_database_dev_host psql -U mind_database_dev_user -d postgres -c "DROP DATABASE IF EXISTS mind_database_dev;" -c "CREATE DATABASE mind_database_dev;"
+	docker compose --env-file .env.dev -f $(COMPOSE_DEV) restart mind_api_dev
 
 build-prod:
 	docker compose --env-file .env.prod -f $(COMPOSE_PROD) build
