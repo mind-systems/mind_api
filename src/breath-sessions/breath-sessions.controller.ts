@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiOkResponse,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -25,6 +26,7 @@ import {
   ReplaceBreathSessionDto,
   ListQueryDto,
   BreathSessionListResponseDto,
+  SuggestionsQueryDto,
 } from './dto/breath-session.dto';
 import {
   UpdateBreathSessionSettingsDto,
@@ -99,6 +101,16 @@ export class BreathSessionsController {
       dto,
     );
     return { starred: settings.starred };
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get random session suggestions for a time of day' })
+  @ApiOkResponse({ type: [BreathSession] })
+  @Get('suggestions')
+  async getSuggestions(@Request() req, @Query() query: SuggestionsQueryDto) {
+    const userId = req.user.sub;
+    return this.breathSessionsService.findSuggestions(userId, query.timeOfDay);
   }
 
   @UseGuards(OptionalJwtAuthGuard)

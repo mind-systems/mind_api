@@ -13,6 +13,7 @@ import {
   ReplaceBreathSessionDto,
 } from './dto/breath-session.dto';
 import { calculateComplexity } from './complexity/breath-session-complexity.calculator';
+import { TimeOfDay } from './enums/time-of-day.enum';
 
 @Injectable()
 export class BreathSessionsService {
@@ -170,6 +171,19 @@ export class BreathSessionsService {
     session.complexity = calculateComplexity(dto.exercises);
 
     return this.breathSessionRepository.save(session);
+  }
+
+  async findSuggestions(
+    userId: string,
+    timeOfDay: TimeOfDay,
+  ): Promise<BreathSession[]> {
+    return this.breathSessionRepository
+      .createQueryBuilder('session')
+      .where('session.userId = :userId', { userId })
+      .andWhere('session.timeOfDay = :timeOfDay', { timeOfDay })
+      .orderBy('RANDOM()')
+      .limit(4)
+      .getMany();
   }
 
   async remove(id: string, userId: string): Promise<void> {

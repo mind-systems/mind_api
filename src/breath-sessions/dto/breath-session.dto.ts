@@ -151,3 +151,10 @@ export class BreathSessionListResponseDto {
   @ApiProperty({ example: 20 })
   pageSize: number;
 }
+
+export class SuggestionsQueryDto {
+  @ApiProperty({ enum: TimeOfDay })
+  @IsEnum(TimeOfDay)
+  @IsNotEmpty()
+  timeOfDay: TimeOfDay;
+}
