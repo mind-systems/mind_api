@@ -10,6 +10,8 @@ export interface SessionEvent {
   userId: string;
   startedAt: Date;
   endedAt: Date;
+  activityRefId?: string;
+  activityRefType?: string;
 }
 
 @Injectable()
@@ -17,6 +19,7 @@ export class StatsService {
   private readonly logger = new Logger(StatsService.name);
 
   private readonly minSessionDurationS: number;
+  private readonly EASE_IN_FACTOR = 0.3;
 
   constructor(
     @InjectRepository(UserStats)
@@ -93,6 +96,20 @@ export class StatsService {
       row.totalSessions += 1;
       row.totalDurationSeconds += durationSeconds;
 
+      // Complexity tracking: only for completed breath sessions
+      if (event.activityRefType === 'breath_session' && event.activityRefId) {
+        const result: Array<{ complexity: number }> = await manager.query(
+          `SELECT complexity FROM breath_sessions WHERE id = $1`,
+          [event.activityRefId],
+        );
+        if (result.length > 0) {
+          const complexity = result[0].complexity;
+          row.maxCompletedComplexity =
+            row.maxCompletedComplexity +
+            (complexity - row.maxCompletedComplexity) * this.EASE_IN_FACTOR;
+        }
+      }
+
       await manager.save(UserStats, row);
     });
 
@@ -111,6 +128,7 @@ export class StatsService {
         currentStreak: 0,
         longestStreak: 0,
         lastSessionDate: null,
+        maxCompletedComplexity: 0,
       };
     }
 
@@ -120,6 +138,7 @@ export class StatsService {
       currentStreak: row.currentStreak,
       longestStreak: row.longestStreak,
       lastSessionDate: row.lastSessionDate,
+      maxCompletedComplexity: row.maxCompletedComplexity,
     };
   }
 

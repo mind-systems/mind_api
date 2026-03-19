@@ -15,4 +15,7 @@ export class UserStatsResponseDto {
 
   @ApiProperty({ description: 'Date of the last qualifying session (YYYY-MM-DD), or null', nullable: true, type: String })
   lastSessionDate: string | null;
+
+  @ApiProperty({ description: 'Smoothed maximum complexity of completed breath sessions' })
+  maxCompletedComplexity: number;
 }

@@ -28,6 +28,9 @@ export class UserStats {
   @Column({ type: 'int', default: 0 })
   longestStreak: number;
 
+  @Column({ type: 'float', default: 0 })
+  maxCompletedComplexity: number;
+
   @Column({ type: 'date', nullable: true })
   lastSessionDate: string | null;
 

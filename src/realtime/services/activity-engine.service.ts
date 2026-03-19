@@ -106,6 +106,8 @@ export class ActivityEngine {
       startedAt: saved.startedAt,
       endedAt: saved.endedAt,
       activityType: saved.activityType,
+      activityRefId: saved.activityRefId,
+      activityRefType: saved.activityRefType,
     });
 
     return saved;
@@ -164,6 +166,8 @@ export class ActivityEngine {
       startedAt: saved.startedAt,
       endedAt: saved.endedAt,
       activityType: saved.activityType as ActivityType,
+      activityRefId: saved.activityRefId,
+      activityRefType: saved.activityRefType,
     });
   }
 
@@ -203,6 +207,8 @@ export class ActivityEngine {
       startedAt: saved.startedAt,
       endedAt: saved.endedAt,
       activityType: saved.activityType,
+      activityRefId: saved.activityRefId,
+      activityRefType: saved.activityRefType,
     });
 
     return saved;
