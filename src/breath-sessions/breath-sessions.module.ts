@@ -6,11 +6,13 @@ import { BreathSessionSettingsService } from './breath-session-settings.service'
 import { BreathSession } from './entities/breath-session.entity';
 import { BreathSessionSettings } from './entities/breath-session-settings.entity';
 import { AuthModule } from 'src/users/auth.module';
+import { StatsModule } from 'src/stats/stats.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([BreathSession, BreathSessionSettings]),
     AuthModule,
+    StatsModule,
   ],
   controllers: [BreathSessionsController],
   providers: [BreathSessionsService, BreathSessionSettingsService],

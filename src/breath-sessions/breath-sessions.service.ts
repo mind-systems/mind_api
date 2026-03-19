@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { BreathSession } from './entities/breath-session.entity';
 import { BreathSessionSettingsService } from './breath-session-settings.service';
 import {
@@ -14,14 +15,23 @@ import {
 } from './dto/breath-session.dto';
 import { calculateComplexity } from './complexity/breath-session-complexity.calculator';
 import { TimeOfDay } from './enums/time-of-day.enum';
+import { StatsService } from 'src/stats/stats.service';
 
 @Injectable()
 export class BreathSessionsService {
+  private readonly suggestionsComplexityThreshold: number;
+
   constructor(
     @InjectRepository(BreathSession)
     private readonly breathSessionRepository: Repository<BreathSession>,
     private readonly settingsService: BreathSessionSettingsService,
-  ) {}
+    private readonly statsService: StatsService,
+    private readonly configService: ConfigService,
+  ) {
+    this.suggestionsComplexityThreshold = Number(
+      this.configService.get('SUGGESTIONS_COMPLEXITY_THRESHOLD', 50),
+    );
+  }
 
   async create(
     userId: string,
@@ -177,13 +187,21 @@ export class BreathSessionsService {
     userId: string,
     timeOfDay: TimeOfDay,
   ): Promise<BreathSession[]> {
-    return this.breathSessionRepository
+    const stats = await this.statsService.getStats(userId);
+
+    const qb = this.breathSessionRepository
       .createQueryBuilder('session')
       .where('session.userId = :userId', { userId })
-      .andWhere('session.timeOfDay = :timeOfDay', { timeOfDay })
-      .orderBy('RANDOM()')
-      .limit(4)
-      .getMany();
+      .andWhere('session.timeOfDay = :timeOfDay', { timeOfDay });
+
+    if (stats.maxCompletedComplexity > 0) {
+      qb.andWhere('session.complexity <= :maxComplexity', {
+        maxComplexity:
+          stats.maxCompletedComplexity + this.suggestionsComplexityThreshold,
+      });
+    }
+
+    return qb.orderBy('RANDOM()').limit(4).getMany();
   }
 
   async remove(id: string, userId: string): Promise<void> {

@@ -10,5 +10,6 @@ import { StatsController } from './stats.controller';
   imports: [TypeOrmModule.forFeature([UserStats]), AuthModule],
   providers: [StatsService, StatsWorker],
   controllers: [StatsController],
+  exports: [StatsService],
 })
 export class StatsModule {}

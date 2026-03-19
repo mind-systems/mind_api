@@ -38,7 +38,14 @@ describe('BreathSessionsService', () => {
         ),
         save: jest.fn((entity: any) => Promise.resolve(entity)),
       };
-      service = new BreathSessionsService(repository, {} as any);
+      const mockStatsService = {} as any;
+      const mockConfigService = { get: jest.fn().mockReturnValue(50) } as any;
+      service = new BreathSessionsService(
+        repository,
+        {} as any,
+        mockStatsService,
+        mockConfigService,
+      );
     });
 
     it('computes complexity from exercises', async () => {
@@ -70,7 +77,14 @@ describe('BreathSessionsService', () => {
         findOne: jest.fn(),
         save: jest.fn((entity: any) => Promise.resolve(entity)),
       };
-      service = new BreathSessionsService(repository, {} as any);
+      const mockStatsService = {} as any;
+      const mockConfigService = { get: jest.fn().mockReturnValue(50) } as any;
+      service = new BreathSessionsService(
+        repository,
+        {} as any,
+        mockStatsService,
+        mockConfigService,
+      );
     });
 
     it('recalculates complexity when exercises change', async () => {
@@ -105,7 +119,14 @@ describe('BreathSessionsService', () => {
         findOne: jest.fn(),
         save: jest.fn((entity: any) => Promise.resolve(entity)),
       };
-      service = new BreathSessionsService(repository, {} as any);
+      const mockStatsService = {} as any;
+      const mockConfigService = { get: jest.fn().mockReturnValue(50) } as any;
+      service = new BreathSessionsService(
+        repository,
+        {} as any,
+        mockStatsService,
+        mockConfigService,
+      );
     });
 
     it('computes complexity from the new exercises', async () => {
@@ -140,7 +161,14 @@ describe('BreathSessionsService', () => {
         createQueryBuilder: jest.fn(),
       };
 
-      service = new BreathSessionsService(repository, settingsService as any);
+      const mockStatsService = {} as any;
+      const mockConfigService = { get: jest.fn().mockReturnValue(50) } as any;
+      service = new BreathSessionsService(
+        repository,
+        settingsService as any,
+        mockStatsService,
+        mockConfigService,
+      );
     });
 
     describe('anonymous path (userId = null)', () => {
