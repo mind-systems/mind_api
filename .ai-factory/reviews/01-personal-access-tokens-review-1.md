@@ -1,67 +1,41 @@
-# Review: Personal Access Tokens — Iteration 1
+## Code Review Summary
 
-**Plan:** `.ai-factory/plans/01-personal-access-tokens.md`
-**Scope:** 6 new files, 4 modified files
+**Files Reviewed:** 10 (6 new, 4 modified)
+**Risk Level:** 🟢 Low
 
----
+### Context Gates
 
-## Bug: `GET /auth/tokens` leaks `tokenHash` to the client
+- **ARCHITECTURE.md** — WARN: Entity has `@Index()` on `tokenHash` alongside `{ unique: true }`, which is technically redundant (unique constraint already creates an index). However, `synchronize: false` means the decorator is metadata-only, and this exactly mirrors the `UserSession` entity pattern (`@Index()` + `@Column({ unique: true })` on `tokenHash`). Consistent, no action needed.
+- **RULES.md** — OK. No non-null assertions in new code. No sensitive data logged (no logger added to the service at all, which aligns with "keep logs lean").
+- **ROADMAP.md** — OK. Milestone marked `[x]` in roadmap, matches plan scope exactly.
 
-**Severity:** High
-**File:** `src/users/service/personal-access-token.service.ts:33-38`
+### Critical Issues
 
-`list()` returns full `PersonalAccessToken[]` entity instances. The controller declares `TokenResponseDto[]` as the return type, but TypeScript types are erased at runtime — NestJS serializes the actual object. There is no `ClassSerializerInterceptor`, no `@Exclude()` on the entity, and no DTO mapping.
+None.
 
-The JSON response will include **`tokenHash`** and **`userId`** in addition to the expected fields. While SHA-256 of 32 random bytes is computationally infeasible to reverse, exposing internal hashes violates the project's own conventions (OTP hashes and session hashes are never exposed) and leaks implementation details.
+### Suggestions
 
-**Fix:** Map entities to DTOs in the service or use `select` to only fetch needed columns:
+**1. No `@MaxLength()` on `CreateTokenDto.name`**
+File: `src/users/dto/create-token.dto.ts:8`
 
+The `name` field has `@IsString()` + `@IsNotEmpty()` but no length cap. The DB column is `character varying` without a limit — PostgreSQL will accept strings up to ~1GB. A client could submit a megabyte-sized name string.
+
+Add a reasonable length constraint:
 ```typescript
-async list(userId: string): Promise<TokenResponseDto[]> {
-  const tokens = await this.patRepo.find({
-    where: { userId },
-    order: { createdAt: 'DESC' },
-    select: ['id', 'name', 'createdAt', 'lastUsedAt'],
-  });
-  return tokens;
-}
+@MaxLength(100)
+@IsString()
+@IsNotEmpty()
+name: string;
 ```
 
----
+### Positive Notes
 
-## Bug: Duplicate unique index on `tokenHash`
+- **Previous review issues fixed:** `tokenHash` leak resolved via `select` in `list()`, duplicate unique index removed from migration.
+- **Clean entity design** — follows the `UserSession` pattern precisely (column types, decorators, index strategy).
+- **Migration is correct** — timestamp ordering is valid (`1773909111537` > `1773652922852`), `up()` and `down()` are symmetric, column types match the entity.
+- **Guard integration is well-placed** — PAT check runs before JWT verification in `JwtAuthGuard`, avoiding wasted `verifyAsync` calls. `OptionalJwtAuthGuard` PAT branch is inside the existing `try/catch`, maintaining the guard's "silently fail" contract.
+- **Service follows established patterns** — `hash()` method mirrors `SessionService.hash()`, `create()` returns raw token only once, `revoke()` enforces ownership via compound `{ id, userId }` criteria.
+- **Module wiring is complete** — `PersonalAccessToken` registered in `TypeOrmModule.forFeature`, `PersonalAccessTokenService` in both `providers` and `exports`, guards can resolve the service in any module importing `AuthModule`.
+- **WebSocket auth correctly unaffected** — `WsAuthMiddleware` only handles JWT verification, PATs are scoped to HTTP REST (CLI/MCP) as intended by the milestone.
 
-**Severity:** Moderate
-**File:** `src/migrations/1773909111537-CreatePersonalAccessTokensTable.ts:18,26-28`
-
-The migration creates both a `UNIQUE` constraint (line 18) and a separate `CREATE UNIQUE INDEX` (lines 26-28) on `tokenHash`. In PostgreSQL, a UNIQUE constraint automatically creates a unique index internally. The result is two indexes on the same column — wasted storage and slower writes.
-
-**Fix:** Remove the explicit `CREATE UNIQUE INDEX` statement on lines 26-28. The UNIQUE constraint on line 18 is sufficient.
-
----
-
-## Minor: No `ParseUUIDPipe` on `DELETE /auth/tokens/:id`
-
-**Severity:** Low
-**File:** `src/users/auth.controller.ts:142`
-
-Passing a non-UUID string as `:id` will cause a raw Postgres error (500 Internal Server Error) rather than a clean 400 Bad Request. This is consistent with existing patterns in the codebase (no other endpoint uses `ParseUUIDPipe`), but worth noting.
-
----
-
-## Observation: `POST /auth/logout` is a no-op when authenticated with a PAT
-
-When a user authenticates with a PAT and calls `POST /auth/logout`, `AuthService.logout()` extracts the Bearer token and calls `sessionService.revoke(token)`. Since PATs don't create entries in `user_sessions`, the revoke finds nothing and returns silently. The endpoint succeeds but doesn't actually revoke the PAT. Not a security issue — PATs are revoked via `DELETE /auth/tokens/:id` — but could confuse API consumers.
-
----
-
-## Summary
-
-| # | Issue | Severity | Action |
-|---|-------|----------|--------|
-| 1 | `tokenHash` leaked in list response | High | Fix: add `select` or map to DTO |
-| 2 | Duplicate unique index on `tokenHash` | Moderate | Fix: remove redundant `CREATE UNIQUE INDEX` |
-| 3 | No UUID validation on delete param | Low | Optional |
-| 4 | Logout no-op with PAT auth | Info | Optional |
-
-Issues 1 and 2 should be fixed before merge.
+REVIEW_PASS
