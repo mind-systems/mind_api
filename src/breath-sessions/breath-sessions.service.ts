@@ -166,6 +166,7 @@ export class BreathSessionsService {
     session.description = dto.description;
     session.exercises = dto.exercises;
     session.shared = dto.shared;
+    session.timeOfDay = dto.timeOfDay ?? null;
     session.complexity = calculateComplexity(dto.exercises);
 
     return this.breathSessionRepository.save(session);

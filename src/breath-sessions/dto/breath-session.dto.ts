@@ -12,6 +12,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BreathSession } from '../entities/breath-session.entity';
+import { TimeOfDay } from '../enums/time-of-day.enum';
 
 class BreathStepDto {
   @ApiProperty({ enum: ['inhale', 'exhale', 'hold'] })
@@ -58,6 +59,11 @@ export class CreateBreathSessionDto {
   @IsBoolean()
   @IsOptional()
   shared?: boolean;
+
+  @ApiPropertyOptional({ enum: TimeOfDay })
+  @IsEnum(TimeOfDay)
+  @IsOptional()
+  timeOfDay?: TimeOfDay;
 }
 
 export class UpdateBreathSessionDto {
@@ -78,6 +84,11 @@ export class UpdateBreathSessionDto {
   @IsBoolean()
   @IsOptional()
   shared?: boolean;
+
+  @ApiPropertyOptional({ enum: TimeOfDay })
+  @IsEnum(TimeOfDay)
+  @IsOptional()
+  timeOfDay?: TimeOfDay;
 }
 
 export class ReplaceBreathSessionDto {
@@ -95,6 +106,11 @@ export class ReplaceBreathSessionDto {
   @ApiProperty({ example: false })
   @IsBoolean()
   shared: boolean;
+
+  @ApiPropertyOptional({ enum: TimeOfDay, nullable: true })
+  @IsEnum(TimeOfDay)
+  @IsOptional()
+  timeOfDay?: TimeOfDay | null;
 }
 
 export class ListQueryDto {

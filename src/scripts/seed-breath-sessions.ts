@@ -48,6 +48,9 @@ class BreathSession {
   @Index()
   shared: boolean;
 
+  @Column({ type: 'varchar', nullable: true })
+  timeOfDay: string | null;
+
   @Column('timestamptz', { name: 'createdAt' })
   @Index()
   createdAt: Date;
@@ -91,6 +94,7 @@ async function main() {
       exercises: s.exercises,
       complexity: s.complexity ?? 0,
       shared: s.shared ?? false,
+      timeOfDay: s.timeOfDay ?? null,
       createdAt: new Date(now.getTime() - i * 24 * 60 * 60 * 1000),
     }));
 

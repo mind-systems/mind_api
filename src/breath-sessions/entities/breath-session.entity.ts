@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from 'src/users/entities/user.entity';
+import { TimeOfDay } from '../enums/time-of-day.enum';
 
 export interface BreathStep {
   type: 'inhale' | 'exhale' | 'hold';
@@ -63,6 +64,10 @@ export class BreathSession {
   @Column('boolean', { default: false })
   @Index()
   shared: boolean;
+
+  @ApiProperty({ enum: TimeOfDay, example: TimeOfDay.MORNING, nullable: true })
+  @Column({ type: 'enum', enum: TimeOfDay, nullable: true, default: null })
+  timeOfDay: TimeOfDay | null;
 
   @ApiProperty({ example: '2026-02-27T12:48:00.000Z' })
   @CreateDateColumn()
