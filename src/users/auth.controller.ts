@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Res,
   UseGuards,
@@ -16,13 +19,20 @@ import {
 } from '@nestjs/swagger';
 import { AuthService } from './service/auth.service';
 import { AuthCodeService } from './service/auth-code.service';
+import { PersonalAccessTokenService } from './service/personal-access-token.service';
 import { UserResponseDto } from './dto/auth-response.dto';
 import { SendCodeDto } from './dto/send-code.dto';
 import { VerifyCodeDto } from './dto/verify-code.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
+import { CreateTokenDto } from './dto/create-token.dto';
+import {
+  CreateTokenResponseDto,
+  TokenResponseDto,
+} from './dto/token-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
 import type { Response } from 'express';
-import type { RequestWithUser } from './interfaces/auth.interface';
+import type { JwtPayload, RequestWithUser } from './interfaces/auth.interface';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -30,6 +40,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly authCodeService: AuthCodeService,
+    private readonly personalAccessTokenService: PersonalAccessTokenService,
   ) {}
 
   @ApiOperation({ summary: 'Send authentication code to email' })
@@ -94,5 +105,45 @@ export class AuthController {
   async logout(@Request() req: RequestWithUser) {
     await this.authService.logout(req);
     return { message: 'Logout successful.' };
+  }
+
+  @ApiOperation({ summary: 'Create a personal access token' })
+  @ApiResponse({ status: 201, type: CreateTokenResponseDto })
+  @ApiBearerAuth()
+  @Post('tokens')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async createToken(
+    @Body() dto: CreateTokenDto,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<CreateTokenResponseDto> {
+    return this.personalAccessTokenService.create(user.sub, dto.name);
+  }
+
+  @ApiOperation({ summary: 'List personal access tokens' })
+  @ApiResponse({ status: 200, type: [TokenResponseDto] })
+  @ApiBearerAuth()
+  @Get('tokens')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async listTokens(
+    @CurrentUser() user: JwtPayload,
+  ): Promise<TokenResponseDto[]> {
+    return this.personalAccessTokenService.list(user.sub);
+  }
+
+  @ApiOperation({ summary: 'Revoke a personal access token' })
+  @ApiResponse({ status: 200, description: 'Token revoked.' })
+  @ApiResponse({ status: 404, description: 'Token not found' })
+  @ApiBearerAuth()
+  @Delete('tokens/:id')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async revokeToken(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<{ message: string }> {
+    await this.personalAccessTokenService.revoke(id, user.sub);
+    return { message: 'Token revoked.' };
   }
 }

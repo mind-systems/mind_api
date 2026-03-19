@@ -7,12 +7,14 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload, RequestWithUser } from '../interfaces/auth.interface';
 import { SessionService } from '../service/session.service';
+import { PersonalAccessTokenService } from '../service/personal-access-token.service';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly sessionService: SessionService,
+    private readonly personalAccessTokenService: PersonalAccessTokenService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -21,6 +23,16 @@ export class JwtAuthGuard implements CanActivate {
 
     if (!token) {
       throw new UnauthorizedException('JWT token not found');
+    }
+
+    if (token.startsWith('pat_')) {
+      const payload =
+        await this.personalAccessTokenService.validateToken(token);
+      if (!payload) {
+        throw new UnauthorizedException('Invalid personal access token');
+      }
+      request.user = payload;
+      return true;
     }
 
     try {

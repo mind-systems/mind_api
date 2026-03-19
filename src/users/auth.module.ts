@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UserSession } from './entities/user-session.entity';
 import { AuthCode } from './entities/auth-code.entity';
+import { PersonalAccessToken } from './entities/personal-access-token.entity';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard';
@@ -12,11 +13,12 @@ import { AuthService } from './service/auth.service';
 import { SessionService } from './service/session.service';
 import { AuthCodeService } from './service/auth-code.service';
 import { GoogleTokenService } from './service/google-token.service';
+import { PersonalAccessTokenService } from './service/personal-access-token.service';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserSession, AuthCode]),
+    TypeOrmModule.forFeature([User, UserSession, AuthCode, PersonalAccessToken]),
     MailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -39,6 +41,7 @@ import { MailModule } from '../mail/mail.module';
     OptionalJwtAuthGuard,
     SessionService,
     GoogleTokenService,
+    PersonalAccessTokenService,
   ],
   exports: [
     AuthService,
@@ -47,6 +50,7 @@ import { MailModule } from '../mail/mail.module';
     SessionService,
     JwtModule,
     GoogleTokenService,
+    PersonalAccessTokenService,
   ],
 })
 export class AuthModule {}
