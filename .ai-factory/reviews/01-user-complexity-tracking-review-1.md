@@ -1,24 +1,22 @@
-# Review: User Complexity Tracking
+## Code Review Summary
 
-## Files reviewed
-- `src/migrations/1773945801918-AddMaxCompletedComplexity.ts` (new)
-- `src/stats/entities/user-stats.entity.ts` (modified)
-- `src/stats/stats.service.ts` (modified)
-- `src/stats/dto/user-stats-response.dto.ts` (modified)
-- `src/realtime/services/activity-engine.service.ts` (modified)
-- `src/stats/stats.service.spec.ts` (unchanged, checked for breakage)
-- `src/stats/stats.worker.spec.ts` (unchanged, checked for breakage)
-- `src/realtime/services/activity-engine.service.spec.ts` (unchanged, checked for breakage)
+**Files Reviewed:** 6
+**Risk Level:** 🟢 Low
 
-## Issues
+### Context Gates
 
-### 1. CRITICAL — `stats.service.spec.ts` `getStats` test will fail
+- **ARCHITECTURE.md** — WARN: `StatsService` uses a raw SQL query on `breath_sessions` table to avoid importing the entity from `BreathSessionsModule`. This is an intentional trade-off noted in the plan to respect module boundaries. Acceptable given the alternative (cross-module entity import) would be a stricter architecture violation.
+- **RULES.md** — OK. No `!` non-null assertions. No sensitive data logged. No unnecessary log lines added.
+- **ROADMAP.md** — OK. Milestone is listed and marked complete.
 
-**File:** `src/stats/stats.service.spec.ts:254`
+### Critical Issues
 
-The test uses `toEqual()` which requires an exact property match. `getStats()` now returns `maxCompletedComplexity: 0` in both branches, but the expected object in the test doesn't include it:
+**1. `stats.service.spec.ts:254` — `getStats` test will fail once pre-existing issue is fixed**
+
+The test uses `toEqual()` (exact match). `getStats()` now returns `maxCompletedComplexity: 0` in both branches, but the expected object doesn't include it:
 
 ```typescript
+// Line 254
 expect(stats).toEqual({
   totalSessions: 0,
   totalDurationSeconds: 0,
@@ -29,43 +27,31 @@ expect(stats).toEqual({
 });
 ```
 
-**Fix:** Add `maxCompletedComplexity: 0` to the expected object.
+Currently masked by a **pre-existing** issue: `makeService()` at line 85 passes only 1 argument (`repo`) but `StatsService` requires 2 (`repo`, `configService`). All 8 tests in this file crash with `TypeError: Cannot read properties of undefined (reading 'get')` before reaching any assertion. This predates this changeset.
 
-Note: all 8 tests in this file currently fail due to a **pre-existing** issue (missing `configService` mock in `makeService()` — passes only `repo` to the constructor). This is not caused by this changeset, but it masks the `getStats` failure. Once the pre-existing issue is fixed, the `getStats` test will still fail without the fix above.
-
-### 2. PRE-EXISTING — `stats.service.spec.ts` all tests broken (missing configService mock)
-
-**File:** `src/stats/stats.service.spec.ts:85`
+**Fix both together:**
 
 ```typescript
-const svc = new StatsService(repo as any); // configService is undefined
+function makeService(existingRow: Record<string, unknown> | null = null) {
+  const repo = makeRepo(existingRow);
+  const configService = { get: jest.fn().mockReturnValue(10) };
+  const svc = new StatsService(repo as any, configService as any);
+  return { service: svc, repo };
+}
 ```
 
-The `StatsService` constructor calls `this.configService.get(...)` which throws `Cannot read properties of undefined`. This predates this changeset but means no `StatsService` unit test runs at all. All 8 tests fail.
+And add `maxCompletedComplexity: 0` to the expected object in the `getStats` test.
 
-**Fix (not strictly part of this PR but blocks test verification):** Add a `configService` mock to `makeService()`:
-```typescript
-const configService = { get: jest.fn().mockReturnValue(10) };
-const svc = new StatsService(repo as any, configService as any);
-```
+### Suggestions
 
-## Verification
+None.
 
-| Test file | Result |
-|-----------|--------|
-| `stats.worker.spec.ts` | 2/2 PASS |
-| `activity-engine.service.spec.ts` | 12/12 PASS |
-| `stats.service.spec.ts` | 0/8 PASS (pre-existing `configService` mock issue) |
+### Positive Notes
 
-## No issues found in
-
-- **Migration** — correct SQL, proper `up`/`down`, column type matches entity (`float` -> `double precision`), `DEFAULT 0` ensures existing rows are backfilled.
-- **Entity** — field placement and decorator are correct.
-- **SessionEvent** — new optional fields are backward-compatible.
-- **ActivityEngine** — all three emit sites (`endActivity`, `stopActivity`, `abandonActivity`) consistently include the new fields. Values come from `saved.activityRefId` / `saved.activityRefType` which are nullable on `LiveSession` — matches the optional typing on `SessionEvent`.
-- **EaseIn logic** — formula matches the spec. Parameterized query prevents SQL injection. Query runs inside the existing pessimistic-write transaction. Gracefully skips when `activityRefType` is not `breath_session` or the breath session row is missing.
-- **Module boundaries** — raw query on `breath_sessions` avoids importing `BreathSession` entity or `BreathSessionsModule`.
+- **Migration** — correct SQL with `double precision NOT NULL DEFAULT 0`. Proper `up`/`down` pair. Column type matches entity (`float` → `double precision`). Existing rows are backfilled to `0`.
+- **Module boundaries** — raw query on `breath_sessions` avoids importing `BreathSession` entity or `BreathSessionsModule`. Clean cross-module boundary.
+- **SessionEvent enrichment** — new optional fields (`activityRefId?`, `activityRefType?`) are backward-compatible. All three emit sites in `ActivityEngine` (`endActivity`, `stopActivity`, `abandonActivity`) consistently include the new fields. Values from `saved.activityRefId` / `saved.activityRefType` are nullable on `LiveSession` — matches the optional typing.
+- **EaseIn formula** — correctly implements the smoothing spec. Parameterized `$1` prevents SQL injection. Runs inside the existing pessimistic-write transaction. Gracefully skips when `activityRefType` is not `breath_session` or the breath session row is missing.
 - **Upsert path** — the `orIgnore()` INSERT doesn't specify `maxCompletedComplexity`, which is correct: PostgreSQL uses the column default (`0`).
-- **API response** — both `getStats()` branches return `maxCompletedComplexity`. Swagger decorator is present.
-
-REVIEW_PASS
+- **API response** — both `getStats()` branches return `maxCompletedComplexity`. Swagger `@ApiProperty` decorator is present with clear description.
+- **Test verification** — `stats.worker.spec.ts` 2/2 PASS, `activity-engine.service.spec.ts` 12/12 PASS.

@@ -45,6 +45,7 @@ function makeRepo(existingRow: Record<string, unknown> | null = null) {
       saved.push(row as Record<string, unknown>);
       return Promise.resolve(row);
     }),
+    query: jest.fn().mockResolvedValue([]),
   };
 
   return {
@@ -81,8 +82,9 @@ describe('StatsService', () => {
     repo: ReturnType<typeof makeRepo>;
   } {
     const repo = makeRepo(existingRow);
+    const configService = { get: jest.fn().mockReturnValue(10) };
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    const svc = new StatsService(repo as any);
+    const svc = new StatsService(repo as any, configService as any);
     return { service: svc, repo };
   }
 
@@ -257,6 +259,7 @@ describe('StatsService', () => {
         currentStreak: 0,
         longestStreak: 0,
         lastSessionDate: null,
+        maxCompletedComplexity: 0,
       });
     });
   });
