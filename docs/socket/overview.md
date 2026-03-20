@@ -22,7 +22,7 @@ WebSocket-канал открывается при старте приложен
 
 ## Модульная структура
 
-Весь реалтайм-код живёт в двух NestJS-модулях. `RealtimeModule` объединяет `LiveGateway`, `TelemetryGateway`, `WsAuthMiddleware`, `WsRateLimitGuard`, `WsExceptionFilter`, `RateLimiterService`, `PresenceService`, `ActivityEngine`, `StreamEngine`, `StateStore` и `EventBus`. Это единица оркестрации транспорта. `StatsModule` стоит отдельно: он подписывается на события завершения сессий через `EventBus` и занимается долгосрочной аналитикой через `StatsWorker`, `StatsService` и REST-эндпоинт `GET /users/me/stats`.
+Весь реалтайм-код живёт в двух NestJS-модулях. `RealtimeModule` объединяет `LiveGateway`, `TelemetryGateway`, `WsAuthMiddleware`, `WsRateLimitGuard`, `WsExceptionFilter`, `RateLimiterService`, `PresenceService`, `ActivityEngine`, `StreamEngine`, `StateStore`, `EventBus` и `SyncNotifierService`. `SyncNotifierService` подписывается на внутреннее событие `changelog.logged` через `EventEmitter2` и push-уведомляет подключённого пользователя через `sync:changed`, если он онлайн. Это единица оркестрации транспорта. `StatsModule` стоит отдельно: он подписывается на события завершения сессий через `EventBus` и занимается долгосрочной аналитикой через `StatsWorker`, `StatsService` и REST-эндпоинт `GET /users/me/stats`.
 
 ## In-memory состояние
 

@@ -29,6 +29,7 @@
 | `session:state` | Отправляется при подключении и после `activity:start`, `activity:stop`, `activity:pause`, `activity:resume`. Payload: `liveSessionId`, `status`, `startedAt`, `resumed`, `isPaused`. При подключении с незавершённой сессией в grace-периоде — `resumed: true`. При паузе/возобновлении — `isPaused: true/false`. |
 | `session:error` | Ошибка протокола или аутентификации. Содержит `code`, `message` и `timestamp`. |
 | `exception` | Ошибка валидации или бизнес-логики, перехваченная `WsExceptionFilter`. Payload: `{ status: 'error', event: '<имя события>', message: ['описание ошибки'] }`. Массив `message` может содержать несколько ошибок валидации. |
+| `sync:changed` | Push-уведомление об изменениях в данных пользователя. Payload: `{ events: [{ id, entity, refId, action }] }`. Несколько изменений, произошедших в течение 300 мс, объединяются в одно сообщение. Получив событие, клиент должен запросить `GET /sync/changes?after=<cursor>` для получения полных данных. Подробнее — в [Синхронизации](../sync/sync.md). |
 
 ## Пространство имён `/telemetry`
 
