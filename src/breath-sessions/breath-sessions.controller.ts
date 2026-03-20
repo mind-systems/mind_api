@@ -15,7 +15,6 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
-  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -118,11 +117,6 @@ export class BreathSessionsController {
   @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Fetch multiple breath sessions by IDs' })
   @ApiResponse({ status: 200, type: [BreathSession] })
-  @ApiQuery({
-    name: 'ids',
-    required: true,
-    description: 'Comma-separated UUIDs (max 50)',
-  })
   @Get('batch')
   async findBatch(@Request() req, @Query() query: BatchQueryDto) {
     const userId = req.user?.sub ?? null;
