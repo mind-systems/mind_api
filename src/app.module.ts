@@ -12,6 +12,7 @@ import { DeviceModule } from './device/device.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { StatsModule } from './stats/stats.module';
 import { ChangelogModule } from './changelog/changelog.module';
+import { SyncModule } from './sync/sync.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -33,6 +34,7 @@ import { ChangelogModule } from './changelog/changelog.module';
     RealtimeModule,
     StatsModule,
     ChangelogModule,
+    SyncModule,
   ],
   controllers: [HealthController],
 })
