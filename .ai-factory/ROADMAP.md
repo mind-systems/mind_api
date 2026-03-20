@@ -3,7 +3,7 @@
 ## Milestones
 
 - [x] **Soft Delete for Breath Sessions** — add nullable `deletedAt` column to `breath_sessions`; migration; update all repository queries to filter `WHERE deletedAt IS NULL`; `remove()` sets `deletedAt = now()` instead of deleting the row
-- [ ] **Change Events Table** — new `change_events` entity (id serial, entity varchar, refId uuid, action varchar, userId uuid, createdAt timestamp); migration with index on `(user_id, id)`; `ChangeLogService` with `log()`, `logForRecipients()`, `getChanges()`, `getMinEventId()`, `purge()`; see [note](notes/change-events-sync.md)
+- [x] **Change Events Table** — new `change_events` entity (id serial, entity varchar, refId uuid, action varchar, userId uuid, createdAt timestamp); migration with index on `(user_id, id)`; `ChangeLogService` with `log()`, `logForRecipients()`, `getChanges()`, `getMinEventId()`, `purge()`; see [note](notes/change-events-sync.md)
 - [ ] **Change Event Emission** — integrate `ChangeLogService.log()` into `BreathSessionsService` for create, update, and soft-delete; explicit call after each mutation; emit NestJS `EventEmitter` event for WebSocket layer to pick up
 - [ ] **Sync REST Endpoint** — `GET /sync/changes?after=lastEventId&limit=100`; new `SyncController` + `SyncModule`; response: `{ events[], cursor, hasMore }`; when `after < minEventId` → respond `{ fullResync: true }`; requires JWT auth
 - [ ] **Batch Fetch Endpoint** — `GET /breath_sessions/batch?ids=uuid1,uuid2,...`; new controller method; returns matching sessions array; ownership/visibility rules same as `findOne`; cap at 50 IDs per request
