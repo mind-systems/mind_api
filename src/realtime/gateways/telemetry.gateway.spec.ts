@@ -2,6 +2,7 @@ import { TelemetryGateway } from './telemetry.gateway';
 import { ActivityEngine } from '../services/activity-engine.service';
 import { StreamEngine } from '../services/stream-engine.service';
 import { RateLimiterService } from '../services/rate-limiter.service';
+import { WsAuthMiddleware } from '../middleware/ws-auth.middleware';
 import { AuthenticatedSocket } from '../interfaces/authenticated-socket.interface';
 import { ActivityType } from '../enums/activity-type.enum';
 import { DATA_ACK } from '../events/telemetry.events';
@@ -58,10 +59,15 @@ describe('TelemetryGateway', () => {
   beforeEach(() => {
     activityEngine = makeActivityEngine();
     streamEngine = makeStreamEngine();
+    const wsAuthMiddleware = {
+      middleware: jest.fn(),
+    } as unknown as jest.Mocked<WsAuthMiddleware>;
+
     gateway = new TelemetryGateway(
       activityEngine,
       streamEngine,
       makeRateLimiterService(),
+      wsAuthMiddleware,
     );
   });
 

@@ -11,6 +11,7 @@ import { LiveSession } from '../entities/live-session.entity';
 import { ActivityStartDto } from '../dto/activity-start.dto';
 import { SESSION_ERROR, SESSION_STATE } from '../events/live.events';
 import { GraceTimerManager } from '../services/grace-timer.service';
+import { WsAuthMiddleware } from '../middleware/ws-auth.middleware';
 import { WsErrorCode } from '../constants/ws-error-codes';
 
 function makeSocket(
@@ -53,6 +54,7 @@ describe('LiveGateway — single-connection policy', () => {
   let activityEngine: jest.Mocked<ActivityEngine>;
   let graceTimerManager: jest.Mocked<GraceTimerManager>;
   let rateLimiterService: jest.Mocked<RateLimiterService>;
+  let wsAuthMiddleware: jest.Mocked<WsAuthMiddleware>;
 
   function makeConfigService(): ConfigService {
     return {
@@ -78,12 +80,17 @@ describe('LiveGateway — single-connection policy', () => {
       evict: jest.fn(),
     } as unknown as jest.Mocked<RateLimiterService>;
 
+    wsAuthMiddleware = {
+      middleware: jest.fn(),
+    } as unknown as jest.Mocked<WsAuthMiddleware>;
+
     gateway = new LiveGateway(
       stateStore,
       presenceService,
       activityEngine,
       graceTimerManager,
       rateLimiterService,
+      wsAuthMiddleware,
       makeConfigService(),
     );
   });
