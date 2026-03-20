@@ -1,10 +1,11 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { BreathSession } from './entities/breath-session.entity';
 import { BreathSessionSettingsService } from './breath-session-settings.service';
@@ -19,6 +20,7 @@ import { StatsService } from 'src/stats/stats.service';
 
 @Injectable()
 export class BreathSessionsService {
+  private readonly logger = new Logger(BreathSessionsService.name);
   private readonly suggestionsComplexityThreshold: number;
 
   constructor(
@@ -191,7 +193,14 @@ export class BreathSessionsService {
 
     const qb = this.breathSessionRepository
       .createQueryBuilder('session')
-      .where('session.userId = :userId', { userId })
+      .where(
+        new Brackets((qb) => {
+          qb.where('session.userId = :userId', { userId }).orWhere(
+            'session.shared = :shared',
+            { shared: true },
+          );
+        }),
+      )
       .andWhere('session.timeOfDay = :timeOfDay', { timeOfDay });
 
     if (stats.maxCompletedComplexity > 0) {
@@ -201,7 +210,15 @@ export class BreathSessionsService {
       });
     }
 
-    return qb.orderBy('RANDOM()').limit(4).getMany();
+    const results = await qb.orderBy('RANDOM()').limit(4).getMany();
+
+    if (results.length === 0) {
+      this.logger.debug(
+        `No suggestions found for user=${userId}, timeOfDay=${timeOfDay}`,
+      );
+    }
+
+    return results;
   }
 
   async remove(id: string, userId: string): Promise<void> {
