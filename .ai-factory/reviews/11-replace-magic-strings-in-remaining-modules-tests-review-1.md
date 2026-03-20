@@ -1,60 +1,27 @@
-# Review 1 — Replace Magic Strings in Remaining Modules & Tests
+## Code Review Summary
 
-## Scope
+**Files Reviewed:** 6
+**Risk Level:** :green_circle: Low
 
-- `src/stats/stats.worker.ts` — replaced 3 `@OnEvent` raw strings with `SessionEvents.*`
-- `src/realtime/services/activity-engine.service.spec.ts` — replaced 2 event name strings
-- `src/realtime/gateways/live.gateway.spec.ts` — replaced 4 status strings + 1 error code
-- `src/realtime/gateways/telemetry.gateway.spec.ts` — replaced 2 error code strings
-- `src/realtime/guards/ws-rate-limit.guard.spec.ts` — replaced 1 error code string
-- `src/realtime/services/stream-engine.service.spec.ts` — replaced 3 config key strings
+### Context Gates
 
-## Correctness
+- **Architecture** (`ARCHITECTURE.md`): WARN — `stats.worker.ts` imports `SessionEvents` from `src/realtime/events/session.events.ts`, a cross-module constant import. This is a value constant, not a provider, and follows the same pattern established in milestone 10. No boundary violation.
+- **Rules** (`RULES.md`): No violations. No non-null assertions, no sensitive data in logs, no unnecessary logging added.
+- **Roadmap** (`ROADMAP.md`): Milestone correctly marked as completed.
 
-All replacements are value-preserving:
+### Critical Issues
 
-| Constant | Resolved value | Matches original string |
-|---|---|---|
-| `SessionEvents.COMPLETED` | `'session.completed'` | Yes |
-| `SessionEvents.ABANDONED` | `'session.abandoned'` | Yes |
-| `SessionEvents.INTERRUPTED` | `'session.interrupted'` | Yes |
-| `SessionStatus.ACTIVE` | `'active'` | Yes |
-| `SessionStatus.COMPLETED` | `'completed'` | Yes |
-| `SessionStatus.RESUMED` | `'resumed'` | Yes |
-| `WsErrorCode.RATE_LIMIT_EXCEEDED` | `'RATE_LIMIT_EXCEEDED'` | Yes |
-| `WsErrorCode.NO_SESSION` | `'NO_SESSION'` | Yes |
-| `WsErrorCode.SESSION_MISMATCH` | `'SESSION_MISMATCH'` | Yes |
-| `RealtimeConfig.STREAM_MAX_BUFFER_BYTES` | `'WS_STREAM_MAX_BUFFER_BYTES'` | Yes |
-| `RealtimeConfig.STREAM_MAX_SESSIONS` | `'WS_STREAM_MAX_SESSIONS'` | Yes |
-| `RealtimeConfig.BACKPRESSURE_SAMPLES_PER_SEC` | `'WS_BACKPRESSURE_SAMPLES_PER_SEC'` | Yes |
+None.
 
-All imports resolve to existing files. No new exports, no new modules, no runtime behavior change.
+### Suggestions
 
-## Test results
+None.
 
-4 of 5 test suites pass. 1 suite fails (**live.gateway.spec.ts** — 18 failures), all with:
+### Positive Notes
 
-```
-TypeError: Cannot read properties of undefined (reading 'get')
-  at new LiveGateway (live.gateway.ts:66:45)
-```
-
-### Root cause — pre-existing, NOT introduced by this changeset
-
-Commit `b369453` (March 15) added `wsAuthMiddleware: WsAuthMiddleware` as constructor parameter 6, shifting `configService` to position 7. The spec file was never updated — it still passes 6 arguments, so `configService` is `undefined`.
-
-The diff for this changeset only adds the `WsErrorCode` import and replaces string literals — it does not touch the constructor call at line 81. These tests were already broken before this work.
-
-### Recommendation
-
-Fix the constructor call in a follow-up (add `wsAuthMiddleware` mock at position 6). This is out of scope for the current refactoring task.
-
-## Issues
-
-No issues found in this changeset.
-
-## Verdict
-
-All changes are mechanical string-to-constant replacements. Each constant resolves to the exact same value. No logic changes, no new behavior, no security implications.
+- All 13 replacements are value-preserving — each constant resolves to the exact string it replaces. Verified against source definitions in `session.events.ts`, `session-status.enum.ts`, `ws-error-codes.ts`, and `realtime-config.ts`.
+- Computed property names in `stream-engine.service.spec.ts` (`[RealtimeConfig.X]: value`) are the correct JavaScript syntax for using constants as object keys.
+- TypeScript compiles clean (`tsc --noEmit` passes with zero errors).
+- Imports are well-targeted: each file imports only the constants it needs, no barrel re-exports or unnecessary dependencies.
 
 REVIEW_PASS
