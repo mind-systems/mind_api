@@ -99,7 +99,7 @@ export class StatsService {
       // Complexity tracking: only for completed breath sessions
       if (event.activityRefType === 'breath_session' && event.activityRefId) {
         const result: Array<{ complexity: number }> = await manager.query(
-          `SELECT complexity FROM breath_sessions WHERE id = $1`,
+          `SELECT complexity FROM breath_sessions WHERE id = $1 AND "deletedAt" IS NULL`,
           [event.activityRefId],
         );
         if (result.length > 0) {

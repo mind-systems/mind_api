@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   Index,
   ManyToOne,
   JoinColumn,
@@ -77,4 +78,8 @@ export class BreathSession {
   @ApiProperty({ example: '2026-02-27T12:48:00.000Z' })
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @ApiProperty({ example: null, nullable: true })
+  @DeleteDateColumn()
+  deletedAt: Date | null;
 }

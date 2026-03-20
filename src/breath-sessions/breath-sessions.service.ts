@@ -237,6 +237,6 @@ export class BreathSessionsService {
       );
     }
 
-    await this.breathSessionRepository.remove(session);
+    await this.breathSessionRepository.softRemove(session);
   }
 }
