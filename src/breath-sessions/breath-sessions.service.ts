@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BreathSession } from './entities/breath-session.entity';
@@ -123,6 +123,29 @@ export class BreathSessionsService {
     }));
 
     return { data, total, page, pageSize };
+  }
+
+  async findBatch(
+    ids: string[],
+    userId: string | null,
+  ): Promise<(BreathSession & { isStarred?: boolean })[]> {
+    const sessions = await this.breathSessionRepository.find({
+      where: { id: In(ids) },
+    });
+
+    if (!userId || sessions.length === 0) {
+      return sessions;
+    }
+
+    const settingsMap = await this.settingsService.findByUserAndSessions(
+      userId,
+      sessions.map((s) => s.id),
+    );
+
+    return sessions.map((session) => ({
+      ...session,
+      isStarred: settingsMap.get(session.id)?.starred ?? false,
+    }));
   }
 
   async findOne(

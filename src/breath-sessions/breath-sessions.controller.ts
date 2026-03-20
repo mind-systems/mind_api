@@ -15,6 +15,7 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -27,6 +28,7 @@ import {
   ListQueryDto,
   BreathSessionListResponseDto,
   SuggestionsQueryDto,
+  BatchQueryDto,
 } from './dto/breath-session.dto';
 import {
   UpdateBreathSessionSettingsDto,
@@ -111,6 +113,20 @@ export class BreathSessionsController {
   async getSuggestions(@Request() req, @Query() query: SuggestionsQueryDto) {
     const userId = req.user.sub;
     return this.breathSessionsService.findSuggestions(userId, query.timeOfDay);
+  }
+
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: 'Fetch multiple breath sessions by IDs' })
+  @ApiResponse({ status: 200, type: [BreathSession] })
+  @ApiQuery({
+    name: 'ids',
+    required: true,
+    description: 'Comma-separated UUIDs (max 50)',
+  })
+  @Get('batch')
+  async findBatch(@Request() req, @Query() query: BatchQueryDto) {
+    const userId = req.user?.sub ?? null;
+    return this.breathSessionsService.findBatch(query.ids, userId);
   }
 
   @UseGuards(OptionalJwtAuthGuard)

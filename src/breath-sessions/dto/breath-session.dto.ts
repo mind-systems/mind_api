@@ -8,8 +8,11 @@ import {
   IsOptional,
   Min,
   IsNotEmpty,
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsUUID,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BreathSession } from '../entities/breath-session.entity';
 import { TimeOfDay } from '../enums/time-of-day.enum';
@@ -157,4 +160,22 @@ export class SuggestionsQueryDto {
   @IsEnum(TimeOfDay)
   @IsNotEmpty()
   timeOfDay: TimeOfDay;
+}
+
+export class BatchQueryDto {
+  @ApiProperty({
+    description: 'Comma-separated session UUIDs (max 50)',
+    example: 'uuid1,uuid2',
+  })
+  @Transform(({ value }) =>
+    String(value)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  )
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50, { message: 'Maximum 50 IDs per request' })
+  @IsUUID('4', { each: true })
+  ids: string[];
 }
