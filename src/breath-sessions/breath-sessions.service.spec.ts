@@ -40,11 +40,15 @@ describe('BreathSessionsService', () => {
       };
       const mockStatsService = {} as any;
       const mockConfigService = { get: jest.fn().mockReturnValue(50) } as any;
+      const mockChangeLogService = { log: jest.fn().mockResolvedValue(undefined) } as any;
+      const mockEventEmitter = { emit: jest.fn() } as any;
       service = new BreathSessionsService(
         repository,
         {} as any,
         mockStatsService,
         mockConfigService,
+        mockChangeLogService,
+        mockEventEmitter,
       );
     });
 
@@ -79,11 +83,15 @@ describe('BreathSessionsService', () => {
       };
       const mockStatsService = {} as any;
       const mockConfigService = { get: jest.fn().mockReturnValue(50) } as any;
+      const mockChangeLogService = { log: jest.fn().mockResolvedValue(undefined) } as any;
+      const mockEventEmitter = { emit: jest.fn() } as any;
       service = new BreathSessionsService(
         repository,
         {} as any,
         mockStatsService,
         mockConfigService,
+        mockChangeLogService,
+        mockEventEmitter,
       );
     });
 
@@ -121,11 +129,15 @@ describe('BreathSessionsService', () => {
       };
       const mockStatsService = {} as any;
       const mockConfigService = { get: jest.fn().mockReturnValue(50) } as any;
+      const mockChangeLogService = { log: jest.fn().mockResolvedValue(undefined) } as any;
+      const mockEventEmitter = { emit: jest.fn() } as any;
       service = new BreathSessionsService(
         repository,
         {} as any,
         mockStatsService,
         mockConfigService,
+        mockChangeLogService,
+        mockEventEmitter,
       );
     });
 
@@ -163,11 +175,15 @@ describe('BreathSessionsService', () => {
 
       const mockStatsService = {} as any;
       const mockConfigService = { get: jest.fn().mockReturnValue(50) } as any;
+      const mockChangeLogService = { log: jest.fn().mockResolvedValue(undefined) } as any;
+      const mockEventEmitter = { emit: jest.fn() } as any;
       service = new BreathSessionsService(
         repository,
         settingsService as any,
         mockStatsService,
         mockConfigService,
+        mockChangeLogService,
+        mockEventEmitter,
       );
     });
 

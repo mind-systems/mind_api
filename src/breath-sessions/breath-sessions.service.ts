@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BreathSession } from './entities/breath-session.entity';
 import { BreathSessionSettingsService } from './breath-session-settings.service';
 import {
@@ -17,6 +18,11 @@ import {
 import { calculateComplexity } from './complexity/breath-session-complexity.calculator';
 import { TimeOfDay } from './enums/time-of-day.enum';
 import { StatsService } from 'src/stats/stats.service';
+import { ChangeLogService } from 'src/changelog/changelog.service';
+import {
+  CHANGE_EVENT_LOGGED,
+  ChangeEventPayload,
+} from 'src/changelog/changelog.events';
 
 @Injectable()
 export class BreathSessionsService {
@@ -29,6 +35,8 @@ export class BreathSessionsService {
     private readonly settingsService: BreathSessionSettingsService,
     private readonly statsService: StatsService,
     private readonly configService: ConfigService,
+    private readonly changeLogService: ChangeLogService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.suggestionsComplexityThreshold = Number(
       this.configService.get('SUGGESTIONS_COMPLEXITY_THRESHOLD', 50),
@@ -46,7 +54,18 @@ export class BreathSessionsService {
       complexity: calculateComplexity(createDto.exercises),
     });
 
-    return this.breathSessionRepository.save(session);
+    const saved = await this.breathSessionRepository.save(session);
+
+    await this.changeLogService.log('breath_session', saved.id, 'created', userId);
+    const payload: ChangeEventPayload = {
+      entity: 'breath_session',
+      refId: saved.id,
+      action: 'created',
+      userId,
+    };
+    this.eventEmitter.emit(CHANGE_EVENT_LOGGED, payload);
+
+    return saved;
   }
 
   async findList(userId: string | null, page: number, pageSize: number) {
@@ -154,7 +173,18 @@ export class BreathSessionsService {
     if (updateDto.exercises) {
       session.complexity = calculateComplexity(updateDto.exercises);
     }
-    return this.breathSessionRepository.save(session);
+    const updated = await this.breathSessionRepository.save(session);
+
+    await this.changeLogService.log('breath_session', updated.id, 'updated', userId);
+    const payload: ChangeEventPayload = {
+      entity: 'breath_session',
+      refId: updated.id,
+      action: 'updated',
+      userId,
+    };
+    this.eventEmitter.emit(CHANGE_EVENT_LOGGED, payload);
+
+    return updated;
   }
 
   async replace(
@@ -182,7 +212,18 @@ export class BreathSessionsService {
     session.timeOfDay = dto.timeOfDay ?? null;
     session.complexity = calculateComplexity(dto.exercises);
 
-    return this.breathSessionRepository.save(session);
+    const replaced = await this.breathSessionRepository.save(session);
+
+    await this.changeLogService.log('breath_session', replaced.id, 'updated', userId);
+    const payload: ChangeEventPayload = {
+      entity: 'breath_session',
+      refId: replaced.id,
+      action: 'updated',
+      userId,
+    };
+    this.eventEmitter.emit(CHANGE_EVENT_LOGGED, payload);
+
+    return replaced;
   }
 
   async findSuggestions(
@@ -238,5 +279,14 @@ export class BreathSessionsService {
     }
 
     await this.breathSessionRepository.softRemove(session);
+
+    await this.changeLogService.log('breath_session', id, 'deleted', userId);
+    const payload: ChangeEventPayload = {
+      entity: 'breath_session',
+      refId: id,
+      action: 'deleted',
+      userId,
+    };
+    this.eventEmitter.emit(CHANGE_EVENT_LOGGED, payload);
   }
 }
