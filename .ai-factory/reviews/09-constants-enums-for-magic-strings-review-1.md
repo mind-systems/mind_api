@@ -1,51 +1,28 @@
-# Review: 09 — Constants & Enums for Magic Strings
+## Code Review Summary
 
-**Scope:** Phase 1 (Tasks 1–5) — create constant objects and enums, type-tighten changelog signatures, replace changelog magic strings in breath-sessions.service.ts.
+**Files Reviewed:** 12 (6 new, 6 modified)
+**Risk Level:** 🟢 Low
 
-## Compilation
+### Context Gates
 
-No new TS errors introduced. Two pre-existing errors in test files (`live.gateway.spec.ts`, `telemetry.gateway.spec.ts`) — constructor argument count mismatches unrelated to this diff.
+- **ARCHITECTURE.md** — WARN: No boundary violations. New constant files live within their owning modules (`realtime/constants/`, `realtime/events/`, `changelog/`). `breath-sessions.service.ts` imports `ChangeEntity`/`ChangeAction` from `changelog/changelog.enums` — acceptable since the changelog module is an explicit dependency.
+- **RULES.md** — No violations. No non-null assertions, no sensitive data in logs, no unnecessary logging added.
+- **ROADMAP.md** — Milestone "Constants & Enums for Magic Strings" is marked `[x]` and listed in the active milestones. Not yet in the Completed table (missing date entry) — cosmetic, non-blocking.
 
-## New files — all correct
+### Critical Issues
 
-| File | Status |
-|------|--------|
-| `src/realtime/events/session.events.ts` | OK — `as const`, three event keys match codebase usage |
-| `src/changelog/changelog.enums.ts` | OK — `ChangeEntity` and `ChangeAction` values match all call sites |
-| `src/realtime/constants/ws-error-codes.ts` | OK — all seven error codes match existing magic strings exactly |
-| `src/realtime/constants/stream-data-types.ts` | OK — `StreamDataType` + `StreamSessionEvent` values verified against activity-engine.service.ts |
-| `src/realtime/constants/realtime-config.ts` | OK — seven WS_* config key strings verified against live.gateway, stream-engine, ws-rate-limit.guard |
+None.
 
-## Type-tightening — correct but incomplete at the boundary
+### Suggestions
 
-`changelog.events.ts` — `ChangeEventPayload.entity` changed from `string` to `ChangeEntity`, `.action` from `string` to `ChangeAction`. Good.
+None.
 
-`changelog.service.ts` — `log()` and `logForRecipients()` signatures accept enums. All four call sites in `breath-sessions.service.ts` updated to use enum values. Compiles clean.
+### Positive Notes
 
-**Observation (not a blocker):** `ChangeEvent` entity (`src/changelog/entities/change-event.entity.ts`) still declares `entity: string` and `action: string`. The service inserts enum values (which are strings at runtime) so there's no runtime bug, but the entity type doesn't reflect the narrowed domain. Tightening the entity type to the enums would be a pure TS-level improvement — no migration needed since the DB column is `varchar` and the enum values are identical strings. Consider for a follow-up.
-
-**Observation (not a blocker):** `PendingEntry` in `sync-notifier.service.ts:9-12` defines `entity: string; action: string`. The enum types from `ChangeEventPayload` widen to `string` when stored there. Out of scope for Phase 1 but a type-safety gap to close in Phase 2/3.
-
-## SessionStatus.RESUMED
-
-Added correctly. Currently unused — no code references `SessionStatus.RESUMED` yet. This is expected: Phase 2 (Task 7) will replace the raw `'resumed'` string in `live.gateway.ts` with this enum value.
-
-## breath-sessions.service.ts
-
-The diff replaces all four `changeLogService.log(...)` calls and all four `ChangeEventPayload` constructions with enum values. Also extracts `SUGGESTIONS_COMPLEXITY_THRESHOLD` to a top-of-file const. Both changes are clean.
-
-Note: the plan described the `SUGGESTIONS_COMPLEXITY_THRESHOLD` extraction as a Task 5 item but the changelog enum replacements as a Phase 3 item (Task 11). The implementation pulled those replacements into this diff — which is the right call since type-tightening the service signature in Task 2 would cause compile errors without updating the call sites.
-
-## Barrel export gap (minor)
-
-`src/changelog/index.ts` re-exports `CHANGE_EVENT_LOGGED` and `ChangeEventPayload` but not the new `ChangeEntity`/`ChangeAction` enums. `breath-sessions.service.ts` imports them directly from `src/changelog/changelog.enums` which works but bypasses the barrel. Not a bug — just inconsistent with `sync-notifier.service.ts` which imports via the barrel.
-
-## Dead code (pre-existing)
-
-`logForRecipients()` in `changelog.service.ts` has zero callers. Pre-existing, not introduced here.
-
-## Verdict
-
-No bugs. No security issues. No runtime breakage. The constant values exactly match the magic strings they will replace. Type-tightening is done correctly and all affected call sites are updated.
+- All six new constant files use `as const` (for plain objects) or TypeScript `enum` (for `ChangeEntity`/`ChangeAction`) consistently, providing literal types for downstream consumers.
+- Every constant value was verified against its usage sites across the codebase — zero mismatches.
+- Type-tightening in `changelog.events.ts` and `changelog.service.ts` (`entity: string` → `ChangeEntity`, `action: string` → `ChangeAction`) was done correctly, and all four call sites in `breath-sessions.service.ts` were updated in the same commit to avoid compile errors.
+- `SessionEvents` in `session.events.ts` (internal EventEmitter event names) is cleanly separated from `live.events.ts` (Socket.IO client-facing event names) — no naming collision or confusion.
+- `SUGGESTIONS_COMPLEXITY_THRESHOLD` extracted to a file-level `const` — appropriate scope since it's only used in one file.
 
 REVIEW_PASS
