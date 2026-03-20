@@ -30,6 +30,23 @@ Mind Awake API is a NestJS 11 REST backend for a mindfulness breathing app. It h
 | [.ai-factory/DESCRIPTION.md](.ai-factory/DESCRIPTION.md) | Project specification and tech stack |
 | [.ai-factory/ARCHITECTURE.md](.ai-factory/ARCHITECTURE.md) | Architecture decisions and guidelines |
 
+## Documentation
+| Document | Path | Description |
+|----------|------|-------------|
+| Email Auth | docs/auth/email-auth.md | Passwordless OTP flow |
+| Google Auth | docs/auth/google-auth.md | Google Sign-In flow |
+| Personal Access Tokens | docs/auth/personal-access-tokens.md | PAT endpoints, security |
+| User Profile | docs/auth/user-profile.md | Profile update, language |
+| Breath Sessions | docs/breath/breath-sessions.md | Complexity, timeOfDay |
+| Suggestions | docs/breath/suggestions.md | Smart suggestions, filtering |
+| Socket Overview | docs/socket/overview.md | Architecture, layers |
+| Socket Protocol | docs/socket/protocol.md | Events, rate limiting |
+| Session Lifecycle | docs/socket/session-lifecycle.md | States, pause, reconnect |
+| Telemetry Model | docs/socket/telemetry-model.md | Instruction timeline |
+| Socket Database | docs/socket/database.md | DB schemas |
+| Socket Config | docs/socket/configuration.md | WS_* env vars |
+| User Stats | docs/stats/stats.md | Stats endpoint, streaks |
+
 ## Key Conventions
 - **Migrations:** Always use explicit migrations (`npm run migration:run`). Never enable `synchronize: true`.
 - **Auth flow:** Client calls `POST /auth/send-code` → receives OTP by email → calls `POST /auth/verify-code` → gets JWT

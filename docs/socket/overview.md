@@ -10,7 +10,9 @@ WebSocket-канал открывается при старте приложен
 
 Система разбита на четыре строго разделённых слоя. Каждый слой взаимодействует только с соседним — нет прямых зависимостей между, например, шлюзом и бизнес-логикой активности.
 
-**Transport Layer** реализован через `LiveGateway` и отвечает только за протокол: аутентификацию при подключении, маршрутизацию входящих сообщений по обработчикам и отправку исходящих событий. Никакой доменной логики здесь нет.
+**Transport Layer** реализован через `LiveGateway` и отвечает только за протокол: маршрутизацию входящих сообщений по обработчикам и отправку исходящих событий. Аутентификация вынесена в `WsAuthMiddleware` — Socket.IO middleware, который выполняется **до** `handleConnection`. Middleware проверяет JWT из `handshake.auth.token`, валидирует подпись, проверяет наличие сессии в таблице `user_sessions` через `SessionService.isValid()`, и устанавливает `client.data.userId`. Если любая проверка не прошла — соединение отклоняется с ошибкой `Unauthorized`.
+
+Все обработчики сообщений защищены `WsRateLimitGuard` (ограничение частоты на уровне сокета) и `WsExceptionFilter` (перехватывает `WsException` и `HttpException`, отправляет клиенту событие `exception` с деталями ошибки вместо стандартного поведения NestJS, которое дублировало бы сообщения).
 
 **Presence Layer** управляет состоянием пользователя в сети через `PresenceService`. Он знает, находится ли клиент в активном режиме, свёрнут в фон или вовсе отключился, и обновляет эту информацию при каждом соответствующем событии.
 
@@ -20,7 +22,7 @@ WebSocket-канал открывается при старте приложен
 
 ## Модульная структура
 
-Весь реалтайм-код живёт в двух NestJS-модулях. `RealtimeModule` объединяет `LiveGateway`, `TelemetryGateway`, `WsAuthGuard`, `PresenceService`, `ActivityEngine`, `StreamEngine`, `StateStore` и `EventBus`. Это единица оркестрации транспорта. `StatsModule` стоит отдельно: он подписывается на события завершения сессий через `EventBus` и занимается долгосрочной аналитикой через `StatsWorker`, `StatsService` и REST-эндпоинт `GET /users/me/stats`.
+Весь реалтайм-код живёт в двух NestJS-модулях. `RealtimeModule` объединяет `LiveGateway`, `TelemetryGateway`, `WsAuthMiddleware`, `WsRateLimitGuard`, `WsExceptionFilter`, `RateLimiterService`, `PresenceService`, `ActivityEngine`, `StreamEngine`, `StateStore` и `EventBus`. Это единица оркестрации транспорта. `StatsModule` стоит отдельно: он подписывается на события завершения сессий через `EventBus` и занимается долгосрочной аналитикой через `StatsWorker`, `StatsService` и REST-эндпоинт `GET /users/me/stats`.
 
 ## In-memory состояние
 

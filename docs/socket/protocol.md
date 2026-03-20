@@ -16,6 +16,9 @@
 |---------|----------|
 | `activity:start` | Начало отслеживаемой сессии. Payload содержит `activityType` (например `breathing`), и опциональную пару `activityRefType` / `activityRefId` для привязки к конкретной записи в базе без жёсткого FK-ограничения. |
 | `activity:end` | Необязательный сигнал чистого завершения. Содержит `durationSeconds`. Сервер завершает сессию со статусом `completed` не дожидаясь разрыва соединения. |
+| `activity:stop` | Принудительная остановка сессии пользователем. Сервер завершает сессию со статусом `interrupted`. В отличие от `activity:end`, обозначает прерывание, а не штатное завершение. Payload не требуется. |
+| `activity:pause` | Приостановка активной сессии. Сервер ставит флаг `isPaused = true` в in-memory состоянии. В ответ клиент получает `session:state` с `isPaused: true`. Ошибки: `no_active_session`, `already_paused`. |
+| `activity:resume` | Возобновление приостановленной сессии. Сервер снимает `isPaused`. В ответ — `session:state` с `isPaused: false`. Ошибки: `no_active_session`, `not_paused`. |
 | `presence:background` | Приложение ушло в фон. Сервер обновляет статус пользователя. |
 | `presence:foreground` | Приложение вернулось на экран. |
 
@@ -23,8 +26,9 @@
 
 | Событие | Описание |
 |---------|----------|
-| `session:state` | Отправляется при подключении и после `activity:start`. Payload: `liveSessionId`, `status`, `startedAt`, `resumed`. Если при подключении сервер нашёл незавершённую сессию в grace-периоде — `resumed` будет `true`. |
-| `session:error` | Ошибка протокола или аутентификации. Содержит `code` и человекочитаемое `message`. |
+| `session:state` | Отправляется при подключении и после `activity:start`, `activity:stop`, `activity:pause`, `activity:resume`. Payload: `liveSessionId`, `status`, `startedAt`, `resumed`, `isPaused`. При подключении с незавершённой сессией в grace-периоде — `resumed: true`. При паузе/возобновлении — `isPaused: true/false`. |
+| `session:error` | Ошибка протокола или аутентификации. Содержит `code`, `message` и `timestamp`. |
+| `exception` | Ошибка валидации или бизнес-логики, перехваченная `WsExceptionFilter`. Payload: `{ status: 'error', event: '<имя события>', message: ['описание ошибки'] }`. Массив `message` может содержать несколько ошибок валидации. |
 
 ## Пространство имён `/telemetry`
 
@@ -45,3 +49,14 @@
 ## Валидация входящих сообщений
 
 Все входящие события проходят через pipeline валидации на основе `class-validator` до того, как попасть в бизнес-логику. Сообщения с неверной схемой или превышающие лимит размера отклоняются с ответом `session:error` — они не достигают `ActivityEngine` или `StreamEngine`.
+
+## Rate limiting
+
+Все входящие события проходят через двухуровневую систему ограничения частоты:
+
+| Уровень | Область | Лимит по умолчанию | Описание |
+|---------|---------|-------------------|----------|
+| Guard (`WsRateLimitGuard`) | Все события по сокету | 200 событий / 1000 мс | Скользящее окно по `socket.id`. Превышение — `WsException` с кодом `RATE_LIMIT_EXCEEDED`. |
+| Gateway | `activity:start` | 10 / мин | Дополнительный лимит на старт сессий — защита от спама запусков. Превышение — `session:error` с кодом `RATE_LIMIT_EXCEEDED`. |
+
+При получении ошибки `RATE_LIMIT_EXCEEDED` клиент должен снизить частоту отправки событий.

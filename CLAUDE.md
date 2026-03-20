@@ -97,8 +97,10 @@ Swagger UI is available at `/api/docs` and is disabled in production (`NODE_ENV 
 |----------|------|-------------|
 | Email Auth | `docs/auth/email-auth.md` | Passwordless OTP flow — endpoints, DB, mail, token lifecycle |
 | Google Auth | `docs/auth/google-auth.md` | Google Sign-In via server auth code flow |
+| Personal Access Tokens | `docs/auth/personal-access-tokens.md` | PAT endpoints, security, token format |
 | User Profile | `docs/auth/user-profile.md` | Profile update, language preference |
-| Breath Sessions | `docs/breath/breath-sessions.md` | Complexity calculation for breath sessions |
+| Breath Sessions | `docs/breath/breath-sessions.md` | Complexity calculation, timeOfDay field |
+| Suggestions | `docs/breath/suggestions.md` | Smart suggestions endpoint, filtering algorithm |
 | Socket Overview | `docs/socket/overview.md` | Layered architecture, modules, in-memory state |
 | Socket Protocol | `docs/socket/protocol.md` | Message envelope, /live and /telemetry namespaces, all events |
 | Session Lifecycle | `docs/socket/session-lifecycle.md` | States, reconnect, grace period, server restart recovery |
