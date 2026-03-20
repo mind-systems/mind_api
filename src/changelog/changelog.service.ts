@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { ChangeEvent } from './entities/change-event.entity';
 
 export interface ChangesResult {
@@ -81,7 +80,6 @@ export class ChangeLogService {
     return result?.min != null ? parseInt(result.min, 10) : null;
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async purge(olderThanDays = 30): Promise<void> {
     const result = await this.changeEventRepo
       .createQueryBuilder()
