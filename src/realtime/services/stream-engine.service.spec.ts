@@ -1,6 +1,7 @@
 import { StreamEngine } from './stream-engine.service';
 import { SessionStreamSample } from '../entities/session-stream-sample.entity';
 import { TelemetrySample } from '../interfaces/session-buffer.interface';
+import { RealtimeConfig } from '../constants/realtime-config';
 
 function makeRepo() {
   return {
@@ -17,9 +18,9 @@ function makeLiveSessionRepo() {
 
 function makeConfig(overrides: Record<string, number> = {}) {
   const defaults: Record<string, number> = {
-    WS_STREAM_MAX_BUFFER_BYTES: 1000,
-    WS_STREAM_MAX_SESSIONS: 3,
-    WS_BACKPRESSURE_SAMPLES_PER_SEC: 50,
+    [RealtimeConfig.STREAM_MAX_BUFFER_BYTES]: 1000,
+    [RealtimeConfig.STREAM_MAX_SESSIONS]: 3,
+    [RealtimeConfig.BACKPRESSURE_SAMPLES_PER_SEC]: 50,
   };
   const values = { ...defaults, ...overrides };
   return {

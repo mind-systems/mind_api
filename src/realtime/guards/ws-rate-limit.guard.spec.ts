@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { WsException } from '@nestjs/websockets';
 import { WsRateLimitGuard } from './ws-rate-limit.guard';
 import { RateLimiterService } from '../services/rate-limiter.service';
+import { WsErrorCode } from '../constants/ws-error-codes';
 
 describe('WsRateLimitGuard', () => {
   let guard: WsRateLimitGuard;
@@ -44,7 +45,7 @@ describe('WsRateLimitGuard', () => {
       message: string;
       timestamp: number;
     };
-    expect(error.code).toBe('RATE_LIMIT_EXCEEDED');
+    expect(error.code).toBe(WsErrorCode.RATE_LIMIT_EXCEEDED);
     expect(error.message).toBe('Too many requests');
     expect(typeof error.timestamp).toBe('number');
   });

@@ -11,6 +11,7 @@ import { LiveSession } from '../entities/live-session.entity';
 import { ActivityStartDto } from '../dto/activity-start.dto';
 import { SESSION_ERROR, SESSION_STATE } from '../events/live.events';
 import { GraceTimerManager } from '../services/grace-timer.service';
+import { WsErrorCode } from '../constants/ws-error-codes';
 
 function makeSocket(
   userId: string | undefined,
@@ -202,7 +203,7 @@ describe('LiveGateway — single-connection policy', () => {
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).toHaveBeenCalledWith(SESSION_ERROR, {
-        code: 'RATE_LIMIT_EXCEEDED',
+        code: WsErrorCode.RATE_LIMIT_EXCEEDED,
         message: expect.any(String),
         timestamp: expect.any(Number),
       });
@@ -236,7 +237,7 @@ describe('LiveGateway — single-connection policy', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
         liveSessionId: 'session-1',
-        status: 'active',
+        status: SessionStatus.ACTIVE,
       });
     });
 
@@ -260,7 +261,7 @@ describe('LiveGateway — single-connection policy', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
         liveSessionId: 'existing-session',
-        status: 'active',
+        status: SessionStatus.ACTIVE,
       });
     });
 
@@ -279,7 +280,7 @@ describe('LiveGateway — single-connection policy', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
         liveSessionId: 'session-1',
-        status: 'completed',
+        status: SessionStatus.COMPLETED,
       });
     });
 
@@ -331,7 +332,7 @@ describe('LiveGateway — single-connection policy', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).toHaveBeenCalledWith(SESSION_STATE, {
         liveSessionId: 'session-1',
-        status: 'resumed',
+        status: SessionStatus.RESUMED,
         isPaused: false,
       });
     });

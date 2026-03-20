@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { StatsService } from './stats.service';
 import type { SessionEvent } from './stats.service';
+import { SessionEvents } from '../realtime/events/session.events';
 
 @Injectable()
 export class StatsWorker {
@@ -9,7 +10,7 @@ export class StatsWorker {
 
   constructor(private readonly statsService: StatsService) {}
 
-  @OnEvent('session.completed')
+  @OnEvent(SessionEvents.COMPLETED)
   async onSessionCompleted(event: SessionEvent): Promise<void> {
     const durationMs = event.endedAt.getTime() - event.startedAt.getTime();
     this.logger.log(
@@ -26,7 +27,7 @@ export class StatsWorker {
     }
   }
 
-  @OnEvent('session.abandoned')
+  @OnEvent(SessionEvents.ABANDONED)
   async onSessionAbandoned(event: SessionEvent): Promise<void> {
     const durationMs = event.endedAt.getTime() - event.startedAt.getTime();
     this.logger.log(
@@ -43,7 +44,7 @@ export class StatsWorker {
     }
   }
 
-  @OnEvent('session.interrupted')
+  @OnEvent(SessionEvents.INTERRUPTED)
   async onSessionInterrupted(event: SessionEvent): Promise<void> {
     const durationMs = event.endedAt.getTime() - event.startedAt.getTime();
     this.logger.log(

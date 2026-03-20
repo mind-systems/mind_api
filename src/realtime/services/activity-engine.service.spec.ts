@@ -4,6 +4,7 @@ import { ActivityType } from '../enums/activity-type.enum';
 import { SessionStatus } from '../enums/session-status.enum';
 import { ActivityStartDto } from '../dto/activity-start.dto';
 import { LiveSession } from '../entities/live-session.entity';
+import { SessionEvents } from '../events/session.events';
 
 function makeRepo() {
   return {
@@ -98,7 +99,7 @@ describe('ActivityEngine', () => {
       expect(session.endedAt).toBeDefined();
       expect(stateStore.activityMap.has('user-1')).toBe(false);
       expect(emitter.emit).toHaveBeenCalledWith(
-        'session.completed',
+        SessionEvents.COMPLETED,
         expect.objectContaining({
           sessionId: savedSession.id,
           userId: 'user-1',
@@ -169,7 +170,7 @@ describe('ActivityEngine', () => {
       expect(session.endedAt).toBeDefined();
       expect(stateStore.activityMap.has('user-1')).toBe(false);
       expect(emitter.emit).toHaveBeenCalledWith(
-        'session.abandoned',
+        SessionEvents.ABANDONED,
         expect.objectContaining({
           sessionId: savedSession.id,
           userId: 'user-1',

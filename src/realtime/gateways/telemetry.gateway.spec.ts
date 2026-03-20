@@ -7,6 +7,7 @@ import { ActivityType } from '../enums/activity-type.enum';
 import { DATA_ACK } from '../events/telemetry.events';
 import { SESSION_ERROR } from '../events/live.events';
 import { DataStreamDto } from '../dto/data-stream.dto';
+import { WsErrorCode } from '../constants/ws-error-codes';
 
 function makeSocket(
   userId: string | undefined,
@@ -159,7 +160,7 @@ describe('TelemetryGateway', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).toHaveBeenCalledWith(
         SESSION_ERROR,
-        expect.objectContaining({ code: 'NO_SESSION' }),
+        expect.objectContaining({ code: WsErrorCode.NO_SESSION }),
       );
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(streamEngine.push).not.toHaveBeenCalled();
@@ -180,7 +181,7 @@ describe('TelemetryGateway', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(client.emit).toHaveBeenCalledWith(
         SESSION_ERROR,
-        expect.objectContaining({ code: 'SESSION_MISMATCH' }),
+        expect.objectContaining({ code: WsErrorCode.SESSION_MISMATCH }),
       );
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(streamEngine.push).not.toHaveBeenCalled();

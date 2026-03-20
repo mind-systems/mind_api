@@ -11,7 +11,7 @@
 - [x] **Change Events TTL** — `@Cron` daily job in `SyncModule`; deletes events older than 30 days; `getMinEventId()` used by sync endpoint for full resync detection
 - [x] **Constants & Enums for Magic Strings** — create `SessionEvents`, `ChangeEntity`/`ChangeAction`, `WsErrorCode`, `StreamDataType`/`StreamSessionEvent`, `RealtimeConfig` constants; add `RESUMED` to `SessionStatus`. Plan ready: copy Phase 1 (tasks 1–5) from `.ai-factory/plans/08-magic-strings-cleanup.md`
 - [x] **Replace Magic Strings in Realtime Module** — replace raw strings with constants in `activity-engine`, `live.gateway`, `telemetry.gateway`, `stream-engine`, `ws-rate-limit.guard`, `ws-exception.filter`. Plan ready: copy Phase 2 (tasks 6–10) from `.ai-factory/plans/08-magic-strings-cleanup.md`
-- [ ] **Replace Magic Strings in Remaining Modules & Tests** — replace raw strings in `breath-sessions.service`, `stats.worker`, and update all corresponding test files to use new constants. Plan ready: copy Phases 3–4 (tasks 11–13) from `.ai-factory/plans/08-magic-strings-cleanup.md`
+- [x] **Replace Magic Strings in Remaining Modules & Tests** — replace raw strings in `breath-sessions.service`, `stats.worker`, and update all corresponding test files to use new constants. Plan ready: copy Phases 3–4 (tasks 11–13) from `.ai-factory/plans/08-magic-strings-cleanup.md`
 
 ## Completed
 
