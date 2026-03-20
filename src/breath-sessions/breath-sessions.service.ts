@@ -23,6 +23,9 @@ import {
   CHANGE_EVENT_LOGGED,
   ChangeEventPayload,
 } from 'src/changelog/changelog.events';
+import { ChangeAction, ChangeEntity } from 'src/changelog/changelog.enums';
+
+const SUGGESTIONS_COMPLEXITY_THRESHOLD = 'SUGGESTIONS_COMPLEXITY_THRESHOLD';
 
 @Injectable()
 export class BreathSessionsService {
@@ -39,7 +42,7 @@ export class BreathSessionsService {
     private readonly eventEmitter: EventEmitter2,
   ) {
     this.suggestionsComplexityThreshold = Number(
-      this.configService.get('SUGGESTIONS_COMPLEXITY_THRESHOLD', 50),
+      this.configService.get(SUGGESTIONS_COMPLEXITY_THRESHOLD, 50),
     );
   }
 
@@ -56,12 +59,12 @@ export class BreathSessionsService {
 
     const saved = await this.breathSessionRepository.save(session);
 
-    const eventId = await this.changeLogService.log('breath_session', saved.id, 'created', userId);
+    const eventId = await this.changeLogService.log(ChangeEntity.BREATH_SESSION, saved.id, ChangeAction.CREATED, userId);
     const payload: ChangeEventPayload = {
       id: eventId,
-      entity: 'breath_session',
+      entity: ChangeEntity.BREATH_SESSION,
       refId: saved.id,
-      action: 'created',
+      action: ChangeAction.CREATED,
       userId,
     };
     this.eventEmitter.emit(CHANGE_EVENT_LOGGED, payload);
@@ -199,12 +202,12 @@ export class BreathSessionsService {
     }
     const updated = await this.breathSessionRepository.save(session);
 
-    const eventId = await this.changeLogService.log('breath_session', updated.id, 'updated', userId);
+    const eventId = await this.changeLogService.log(ChangeEntity.BREATH_SESSION, updated.id, ChangeAction.UPDATED, userId);
     const payload: ChangeEventPayload = {
       id: eventId,
-      entity: 'breath_session',
+      entity: ChangeEntity.BREATH_SESSION,
       refId: updated.id,
-      action: 'updated',
+      action: ChangeAction.UPDATED,
       userId,
     };
     this.eventEmitter.emit(CHANGE_EVENT_LOGGED, payload);
@@ -239,12 +242,12 @@ export class BreathSessionsService {
 
     const replaced = await this.breathSessionRepository.save(session);
 
-    const eventId = await this.changeLogService.log('breath_session', replaced.id, 'updated', userId);
+    const eventId = await this.changeLogService.log(ChangeEntity.BREATH_SESSION, replaced.id, ChangeAction.UPDATED, userId);
     const payload: ChangeEventPayload = {
       id: eventId,
-      entity: 'breath_session',
+      entity: ChangeEntity.BREATH_SESSION,
       refId: replaced.id,
-      action: 'updated',
+      action: ChangeAction.UPDATED,
       userId,
     };
     this.eventEmitter.emit(CHANGE_EVENT_LOGGED, payload);
@@ -306,12 +309,12 @@ export class BreathSessionsService {
 
     await this.breathSessionRepository.softRemove(session);
 
-    const eventId = await this.changeLogService.log('breath_session', id, 'deleted', userId);
+    const eventId = await this.changeLogService.log(ChangeEntity.BREATH_SESSION, id, ChangeAction.DELETED, userId);
     const payload: ChangeEventPayload = {
       id: eventId,
-      entity: 'breath_session',
+      entity: ChangeEntity.BREATH_SESSION,
       refId: id,
-      action: 'deleted',
+      action: ChangeAction.DELETED,
       userId,
     };
     this.eventEmitter.emit(CHANGE_EVENT_LOGGED, payload);

@@ -4,4 +4,5 @@ export enum SessionStatus {
   COMPLETED = 'completed',
   ABANDONED = 'abandoned',
   INTERRUPTED = 'interrupted',
+  RESUMED = 'resumed',
 }

@@ -1,0 +1,9 @@
+export const WsErrorCode = {
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+  NO_SESSION: 'NO_SESSION',
+  SESSION_MISMATCH: 'SESSION_MISMATCH',
+  NO_ACTIVE_SESSION: 'no_active_session',
+  ALREADY_PAUSED: 'already_paused',
+  NOT_PAUSED: 'not_paused',
+  SESSION_PAUSED: 'session_paused',
+} as const;

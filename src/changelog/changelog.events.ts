@@ -1,9 +1,11 @@
+import { ChangeAction, ChangeEntity } from './changelog.enums';
+
 export const CHANGE_EVENT_LOGGED = 'changelog.logged';
 
 export interface ChangeEventPayload {
   id: number;
-  entity: string;
+  entity: ChangeEntity;
   refId: string;
-  action: string;
+  action: ChangeAction;
   userId: string;
 }

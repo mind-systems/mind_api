@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChangeEvent } from './entities/change-event.entity';
+import { ChangeAction, ChangeEntity } from './changelog.enums';
 
 export interface ChangesResult {
   events: ChangeEvent[];
@@ -19,9 +20,9 @@ export class ChangeLogService {
   ) {}
 
   async log(
-    entity: string,
+    entity: ChangeEntity,
     refId: string,
-    action: string,
+    action: ChangeAction,
     userId: string,
   ): Promise<number> {
     const result = await this.changeEventRepo.insert({ entity, refId, action, userId });
@@ -29,9 +30,9 @@ export class ChangeLogService {
   }
 
   async logForRecipients(
-    entity: string,
+    entity: ChangeEntity,
     refId: string,
-    action: string,
+    action: ChangeAction,
     userIds: string[],
   ): Promise<void> {
     if (userIds.length === 0) return;
