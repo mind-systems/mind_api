@@ -10,3 +10,4 @@ export const SESSION_ERROR = 'session:error';
 export const LIVE_SESSION_PAUSED = 'live_session.paused';
 export const LIVE_SESSION_UNPAUSED = 'live_session.unpaused';
 export const SYNC_CHANGED = 'sync:changed';
+export const WS_EXCEPTION = 'exception';

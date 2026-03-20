@@ -21,6 +21,8 @@ import { DATA_ACK, DATA_STREAM } from '../events/telemetry.events';
 import { SESSION_ERROR } from '../events/live.events';
 import type { AuthenticatedSocket } from '../interfaces/authenticated-socket.interface';
 import { WsExceptionFilter } from '../filters/ws-exception.filter';
+import { WsErrorCode } from '../constants/ws-error-codes';
+import { StreamDataType } from '../constants/stream-data-types';
 
 // cors: true — mobile-only clients (Flutter) don't enforce CORS.
 // Tighten to a specific origin allowlist if a web client is added.
@@ -76,7 +78,7 @@ export class TelemetryGateway
     if (!session) {
       this.logger.warn(`data:stream rejected — NO_SESSION for userId=${userId} dtoSessionId=${dto.sessionId}`);
       client.emit(SESSION_ERROR, {
-        code: 'NO_SESSION',
+        code: WsErrorCode.NO_SESSION,
         message: 'No active session found',
         timestamp: Date.now(),
       });
@@ -86,15 +88,15 @@ export class TelemetryGateway
     if (session.sessionId !== dto.sessionId) {
       this.logger.warn(`data:stream rejected — SESSION_MISMATCH userId=${userId} activeSessionId=${session.sessionId} dtoSessionId=${dto.sessionId}`);
       client.emit(SESSION_ERROR, {
-        code: 'SESSION_MISMATCH',
+        code: WsErrorCode.SESSION_MISMATCH,
         message: 'Session ID does not match active session',
         timestamp: Date.now(),
       });
       return;
     }
 
-    if (session.isPaused && dto.data?.dataType === 'breath_phase') {
-      client.emit(DATA_ACK, { error: 'session_paused' });
+    if (session.isPaused && dto.data?.dataType === StreamDataType.BREATH_PHASE) {
+      client.emit(DATA_ACK, { error: WsErrorCode.SESSION_PAUSED });
       return;
     }
 

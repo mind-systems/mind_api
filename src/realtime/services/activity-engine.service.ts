@@ -13,6 +13,9 @@ import {
   LIVE_SESSION_PAUSED,
   LIVE_SESSION_UNPAUSED,
 } from '../events/live.events';
+import { SessionEvents } from '../events/session.events';
+import { StreamDataType, StreamSessionEvent } from '../constants/stream-data-types';
+import { WsErrorCode } from '../constants/ws-error-codes';
 
 @Injectable()
 export class ActivityEngine {
@@ -55,7 +58,7 @@ export class ActivityEngine {
 
     this.streamEngine.push(saved.id, {
       timestamp: Date.now(),
-      data: { dataType: 'session_event', event: 'session_started' },
+      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.STARTED },
     });
 
     this.logger.log(
@@ -90,7 +93,7 @@ export class ActivityEngine {
 
     this.streamEngine.push(state.sessionId, {
       timestamp: Date.now(),
-      data: { dataType: 'session_event', event: 'session_ended' },
+      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.ENDED },
     });
 
     this.stateStore.activityMap.delete(userId);
@@ -100,7 +103,7 @@ export class ActivityEngine {
     );
 
     this.logger.debug(`Emitting session.completed: userId=${userId} sessionId=${saved.id}`);
-    this.eventEmitter.emit('session.completed', {
+    this.eventEmitter.emit(SessionEvents.COMPLETED, {
       sessionId: saved.id,
       userId,
       startedAt: saved.startedAt,
@@ -152,7 +155,7 @@ export class ActivityEngine {
 
     this.streamEngine.push(state.sessionId, {
       timestamp: Date.now(),
-      data: { dataType: 'session_event', event: 'session_abandoned' },
+      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.ABANDONED },
     });
 
     this.stateStore.activityMap.delete(userId);
@@ -160,7 +163,7 @@ export class ActivityEngine {
       `Session abandoned: userId=${userId} sessionId=${saved.id} durationMs=${saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0}`,
     );
 
-    this.eventEmitter.emit('session.abandoned', {
+    this.eventEmitter.emit(SessionEvents.ABANDONED, {
       sessionId: saved.id,
       userId,
       startedAt: saved.startedAt,
@@ -192,7 +195,7 @@ export class ActivityEngine {
 
     this.streamEngine.push(state.sessionId, {
       timestamp: Date.now(),
-      data: { dataType: 'session_event', event: 'session_interrupted' },
+      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.INTERRUPTED },
     });
 
     this.stateStore.activityMap.delete(userId);
@@ -201,7 +204,7 @@ export class ActivityEngine {
       `Session interrupted: userId=${userId} sessionId=${saved.id} durationMs=${durationMs}`,
     );
 
-    this.eventEmitter.emit('session.interrupted', {
+    this.eventEmitter.emit(SessionEvents.INTERRUPTED, {
       sessionId: saved.id,
       userId,
       startedAt: saved.startedAt,
@@ -217,10 +220,10 @@ export class ActivityEngine {
   pauseActivity(userId: string): ActivityState {
     const state = this.stateStore.activityMap.get(userId);
     if (!state) {
-      throw new Error('no_active_session');
+      throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
     }
     if (state.isPaused) {
-      throw new Error('already_paused');
+      throw new Error(WsErrorCode.ALREADY_PAUSED);
     }
 
     state.isPaused = true;
@@ -228,7 +231,7 @@ export class ActivityEngine {
 
     this.streamEngine.push(state.sessionId, {
       timestamp: Date.now(),
-      data: { dataType: 'session_event', event: 'paused' },
+      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.PAUSED },
     });
 
     this.eventEmitter.emit(LIVE_SESSION_PAUSED, {
@@ -246,10 +249,10 @@ export class ActivityEngine {
   unpauseActivity(userId: string): ActivityState {
     const state = this.stateStore.activityMap.get(userId);
     if (!state) {
-      throw new Error('no_active_session');
+      throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
     }
     if (!state.isPaused) {
-      throw new Error('not_paused');
+      throw new Error(WsErrorCode.NOT_PAUSED);
     }
 
     state.isPaused = false;
@@ -257,7 +260,7 @@ export class ActivityEngine {
 
     this.streamEngine.push(state.sessionId, {
       timestamp: Date.now(),
-      data: { dataType: 'session_event', event: 'resumed' },
+      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.RESUMED },
     });
 
     this.eventEmitter.emit(LIVE_SESSION_UNPAUSED, {

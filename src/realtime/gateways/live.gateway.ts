@@ -34,6 +34,9 @@ import { RateLimiterService } from '../services/rate-limiter.service';
 import type { AuthenticatedSocket } from '../interfaces/authenticated-socket.interface';
 import { ActivityStartDto } from '../dto/activity-start.dto';
 import { WsExceptionFilter } from '../filters/ws-exception.filter';
+import { SessionStatus } from '../enums/session-status.enum';
+import { WsErrorCode } from '../constants/ws-error-codes';
+import { RealtimeConfig } from '../constants/realtime-config';
 
 // cors: true — mobile-only clients (Flutter) don't enforce CORS.
 // Tighten to a specific origin allowlist if a web client is added.
@@ -61,11 +64,11 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     configService: ConfigService,
   ) {
     this.activityStartLimit = configService.get<number>(
-      'WS_RATE_LIMIT_ACTIVITY_START_PER_MIN',
+      RealtimeConfig.RATE_LIMIT_ACTIVITY_START_PER_MIN,
       10,
     );
     this.rateLimitWindowMs = configService.get<number>(
-      'WS_RATE_LIMIT_WINDOW_MS',
+      RealtimeConfig.RATE_LIMIT_WINDOW_MS,
       60_000,
     );
   }
@@ -107,7 +110,7 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
           if (session) {
             client.emit(SESSION_STATE, {
               liveSessionId: session.id,
-              status: 'resumed',
+              status: SessionStatus.RESUMED,
               isPaused: false,
             });
             this.logger.log(
@@ -179,7 +182,7 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     );
     if (!allowed) {
       client.emit(SESSION_ERROR, {
-        code: 'RATE_LIMIT_EXCEEDED',
+        code: WsErrorCode.RATE_LIMIT_EXCEEDED,
         message: 'Too many activity:start requests',
         timestamp: Date.now(),
       });
@@ -190,13 +193,13 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     if (existing) {
       client.emit(SESSION_STATE, {
         liveSessionId: existing.sessionId,
-        status: 'active',
+        status: SessionStatus.ACTIVE,
       });
       return;
     }
 
     const session = await this.activityEngine.startActivity(userId, dto);
-    client.emit(SESSION_STATE, { liveSessionId: session.id, status: 'active' });
+    client.emit(SESSION_STATE, { liveSessionId: session.id, status: SessionStatus.ACTIVE });
     this.logger.log(
       `Activity started: userId=${userId} sessionId=${session.id}`,
     );
@@ -210,7 +213,7 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     const session = await this.activityEngine.endActivity(userId);
     if (!session) return;
 
-    client.emit(SESSION_STATE, { liveSessionId: session.id, status: 'completed' });
+    client.emit(SESSION_STATE, { liveSessionId: session.id, status: SessionStatus.COMPLETED });
     this.logger.log(`Activity ended: userId=${userId} sessionId=${session.id}`);
   }
 
@@ -222,7 +225,7 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     const session = await this.activityEngine.stopActivity(userId);
     if (!session) return;
 
-    client.emit(SESSION_STATE, { liveSessionId: session.id, status: 'interrupted' });
+    client.emit(SESSION_STATE, { liveSessionId: session.id, status: SessionStatus.INTERRUPTED });
     this.logger.log(`Activity stopped: userId=${userId} sessionId=${session.id}`);
   }
 
@@ -235,12 +238,12 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       const state = this.activityEngine.pauseActivity(userId);
       client.emit(SESSION_STATE, {
         liveSessionId: state.sessionId,
-        status: 'active',
+        status: SessionStatus.ACTIVE,
         isPaused: true,
       });
     } catch (err: unknown) {
       const code =
-        err instanceof Error ? err.message : 'no_active_session';
+        err instanceof Error ? err.message : WsErrorCode.NO_ACTIVE_SESSION;
       client.emit(SESSION_ERROR, {
         code,
         message: `Cannot pause: ${code}`,
@@ -258,12 +261,12 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       const state = this.activityEngine.unpauseActivity(userId);
       client.emit(SESSION_STATE, {
         liveSessionId: state.sessionId,
-        status: 'active',
+        status: SessionStatus.ACTIVE,
         isPaused: false,
       });
     } catch (err: unknown) {
       const code =
-        err instanceof Error ? err.message : 'no_active_session';
+        err instanceof Error ? err.message : WsErrorCode.NO_ACTIVE_SESSION;
       client.emit(SESSION_ERROR, {
         code,
         message: `Cannot resume: ${code}`,

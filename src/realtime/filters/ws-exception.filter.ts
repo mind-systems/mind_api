@@ -2,6 +2,7 @@ import { ArgumentsHost, Catch, Logger } from '@nestjs/common';
 import { BaseWsExceptionFilter, WsException } from '@nestjs/websockets';
 import { HttpException } from '@nestjs/common';
 import { Socket } from 'socket.io';
+import { WS_EXCEPTION } from '../events/live.events';
 
 @Catch(WsException, HttpException)
 export class WsExceptionFilter extends BaseWsExceptionFilter {
@@ -33,7 +34,7 @@ export class WsExceptionFilter extends BaseWsExceptionFilter {
       `WS validation error — event="${event ?? 'unknown'}" socketId=${client.id} errors=${JSON.stringify(messageList)}`,
     );
 
-    client.emit('exception', {
+    client.emit(WS_EXCEPTION, {
       status: 'error',
       event,
       message: messageList,

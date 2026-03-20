@@ -9,6 +9,8 @@ import {
   SessionBuffer,
   TelemetrySample,
 } from '../interfaces/session-buffer.interface';
+import { SessionEvents } from '../events/session.events';
+import { RealtimeConfig } from '../constants/realtime-config';
 
 export interface PushResult {
   accepted: boolean;
@@ -34,19 +36,19 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
     private readonly configService: ConfigService,
   ) {
     this.maxBufferBytes = this.configService.get<number>(
-      'WS_STREAM_MAX_BUFFER_BYTES',
+      RealtimeConfig.STREAM_MAX_BUFFER_BYTES,
       204800,
     );
     this.maxSessions = this.configService.get<number>(
-      'WS_STREAM_MAX_SESSIONS',
+      RealtimeConfig.STREAM_MAX_SESSIONS,
       1000,
     );
     this._maxSamplesPerSecond = this.configService.get<number>(
-      'WS_BACKPRESSURE_SAMPLES_PER_SEC',
+      RealtimeConfig.BACKPRESSURE_SAMPLES_PER_SEC,
       50,
     );
     this.flushIntervalMs = this.configService.get<number>(
-      'WS_STREAM_FLUSH_INTERVAL_MS',
+      RealtimeConfig.STREAM_FLUSH_INTERVAL_MS,
       5000,
     );
   }
@@ -148,7 +150,7 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
     }
   }
 
-  @OnEvent('session.completed')
+  @OnEvent(SessionEvents.COMPLETED)
   async onSessionCompleted(payload: { sessionId: string }): Promise<void> {
     this.logger.log(`onSessionCompleted: flushing sessionId=${payload.sessionId}`);
     await this.flush(payload.sessionId);
@@ -156,7 +158,7 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
     this.logger.log(`onSessionCompleted: buffer cleared for sessionId=${payload.sessionId}`);
   }
 
-  @OnEvent('session.abandoned')
+  @OnEvent(SessionEvents.ABANDONED)
   async onSessionAbandoned(payload: { sessionId: string }): Promise<void> {
     this.logger.log(`onSessionAbandoned: flushing sessionId=${payload.sessionId}`);
     await this.flush(payload.sessionId);
@@ -164,7 +166,7 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
     this.logger.log(`onSessionAbandoned: buffer cleared for sessionId=${payload.sessionId}`);
   }
 
-  @OnEvent('session.interrupted')
+  @OnEvent(SessionEvents.INTERRUPTED)
   async onSessionInterrupted(payload: { sessionId: string }): Promise<void> {
     this.logger.log(`onSessionInterrupted: flushing sessionId=${payload.sessionId}`);
     await this.flush(payload.sessionId);
