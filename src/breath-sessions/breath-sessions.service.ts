@@ -56,8 +56,9 @@ export class BreathSessionsService {
 
     const saved = await this.breathSessionRepository.save(session);
 
-    await this.changeLogService.log('breath_session', saved.id, 'created', userId);
+    const eventId = await this.changeLogService.log('breath_session', saved.id, 'created', userId);
     const payload: ChangeEventPayload = {
+      id: eventId,
       entity: 'breath_session',
       refId: saved.id,
       action: 'created',
@@ -198,8 +199,9 @@ export class BreathSessionsService {
     }
     const updated = await this.breathSessionRepository.save(session);
 
-    await this.changeLogService.log('breath_session', updated.id, 'updated', userId);
+    const eventId = await this.changeLogService.log('breath_session', updated.id, 'updated', userId);
     const payload: ChangeEventPayload = {
+      id: eventId,
       entity: 'breath_session',
       refId: updated.id,
       action: 'updated',
@@ -237,8 +239,9 @@ export class BreathSessionsService {
 
     const replaced = await this.breathSessionRepository.save(session);
 
-    await this.changeLogService.log('breath_session', replaced.id, 'updated', userId);
+    const eventId = await this.changeLogService.log('breath_session', replaced.id, 'updated', userId);
     const payload: ChangeEventPayload = {
+      id: eventId,
       entity: 'breath_session',
       refId: replaced.id,
       action: 'updated',
@@ -303,8 +306,9 @@ export class BreathSessionsService {
 
     await this.breathSessionRepository.softRemove(session);
 
-    await this.changeLogService.log('breath_session', id, 'deleted', userId);
+    const eventId = await this.changeLogService.log('breath_session', id, 'deleted', userId);
     const payload: ChangeEventPayload = {
+      id: eventId,
       entity: 'breath_session',
       refId: id,
       action: 'deleted',

@@ -24,8 +24,9 @@ export class ChangeLogService {
     refId: string,
     action: string,
     userId: string,
-  ): Promise<void> {
-    await this.changeEventRepo.insert({ entity, refId, action, userId });
+  ): Promise<number> {
+    const result = await this.changeEventRepo.insert({ entity, refId, action, userId });
+    return result.identifiers[0].id as number;
   }
 
   async logForRecipients(
