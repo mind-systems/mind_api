@@ -1,6 +1,7 @@
 import { Controller, Get, Query, Request, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiExtraModels,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -13,6 +14,7 @@ import {
   SyncFullResyncResponseDto,
 } from './dto/sync-changes.dto';
 
+@ApiExtraModels(SyncChangesResponseDto, SyncFullResyncResponseDto)
 @ApiTags('sync')
 @Controller('sync')
 export class SyncController {

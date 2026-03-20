@@ -1,6 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { ChangeLogService, ChangesResult } from '../changelog/changelog.service';
+import { ChangeLogService } from 'src/changelog/changelog.service';
+
+export interface SyncChangesResult {
+  events: { id: number; entity: string; refId: string; action: string; createdAt: Date }[];
+  cursor: number;
+  hasMore: boolean;
+}
 
 @Injectable()
 export class SyncService {
@@ -17,13 +23,19 @@ export class SyncService {
     userId: string,
     afterId: number,
     limit: number,
-  ): Promise<ChangesResult | { fullResync: true }> {
+  ): Promise<SyncChangesResult | { fullResync: true }> {
     const minEventId = await this.changeLogService.getMinEventId();
 
     if (minEventId !== null && afterId !== 0 && afterId < minEventId) {
       return { fullResync: true as const };
     }
 
-    return this.changeLogService.getChanges(userId, afterId, limit);
+    const result = await this.changeLogService.getChanges(userId, afterId, limit);
+    return {
+      ...result,
+      events: result.events.map(({ id, entity, refId, action, createdAt }) => ({
+        id, entity, refId, action, createdAt,
+      })),
+    };
   }
 }
