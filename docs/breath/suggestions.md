@@ -63,13 +63,11 @@
 Используется поле `maxCompletedComplexity` из статистики пользователя (см. [Статистика](../stats/stats.md)):
 
 ```
-complexity ≤ maxCompletedComplexity + SUGGESTIONS_COMPLEXITY_THRESHOLD
+baseline = max(maxCompletedComplexity, SUGGESTIONS_BEGINNER_BASELINE)
+complexity ≤ baseline + SUGGESTIONS_COMPLEXITY_THRESHOLD
 ```
 
-- Если `maxCompletedComplexity = 0` (пользователь ещё не завершал сессий) — фильтр по сложности **не применяется**, возвращаются сессии любой сложности
-- Если `maxCompletedComplexity > 0` — отсекаются сессии, значительно превышающие текущий уровень пользователя
-
-Это предотвращает ситуацию, когда новичок получает рекомендации со сложностью, к которой он не готов.
+Для новичка (`maxCompletedComplexity = 0`) baseline берётся из `SUGGESTIONS_BEGINNER_BASELINE` (по умолчанию 40), что даёт потолок 40 + 50 = 90. По мере роста уровня пользователя `maxCompletedComplexity` вытесняет baseline, и потолок растёт вместе с ним.
 
 ### Случайный порядок
 
@@ -81,4 +79,5 @@ complexity ≤ maxCompletedComplexity + SUGGESTIONS_COMPLEXITY_THRESHOLD
 
 | Переменная | По умолчанию | Описание |
 |------------|-------------|----------|
-| `SUGGESTIONS_COMPLEXITY_THRESHOLD` | `50` | Допустимое превышение сложности над `maxCompletedComplexity`. Чем выше значение, тем более сложные сессии попадают в рекомендации. |
+| `SUGGESTIONS_COMPLEXITY_THRESHOLD` | `50` | Допустимое превышение сложности над baseline. Чем выше значение, тем более сложные сессии попадают в рекомендации. |
+| `SUGGESTIONS_BEGINNER_BASELINE` | `40` | Стартовый уровень для пользователей без истории. Итоговый потолок для новичка: baseline + threshold. |

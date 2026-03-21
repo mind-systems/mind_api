@@ -12,7 +12,7 @@ export const getDatabaseConfig = (
   database: configService.get<string>('POSTGRES_DB', 'auth_db'),
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/src/migrations/*{.ts,.js}'],
-  migrationsRun: true,
+  migrationsRun: process.env.NODE_ENV === 'production',
   synchronize: false,
   logging: ['error', 'warn', 'migration'],
   ssl: false,

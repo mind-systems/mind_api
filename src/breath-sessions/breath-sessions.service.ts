@@ -26,11 +26,13 @@ import {
 import { ChangeAction, ChangeEntity } from 'src/changelog/changelog.enums';
 
 const SUGGESTIONS_COMPLEXITY_THRESHOLD = 'SUGGESTIONS_COMPLEXITY_THRESHOLD';
+const SUGGESTIONS_BEGINNER_BASELINE = 'SUGGESTIONS_BEGINNER_BASELINE';
 
 @Injectable()
 export class BreathSessionsService {
   private readonly logger = new Logger(BreathSessionsService.name);
   private readonly suggestionsComplexityThreshold: number;
+  private readonly suggestionsBeginnerBaseline: number;
 
   constructor(
     @InjectRepository(BreathSession)
@@ -43,6 +45,9 @@ export class BreathSessionsService {
   ) {
     this.suggestionsComplexityThreshold = Number(
       this.configService.get(SUGGESTIONS_COMPLEXITY_THRESHOLD, 50),
+    );
+    this.suggestionsBeginnerBaseline = Number(
+      this.configService.get(SUGGESTIONS_BEGINNER_BASELINE, 40),
     );
   }
 
@@ -273,12 +278,13 @@ export class BreathSessionsService {
       )
       .andWhere('session.timeOfDay = :timeOfDay', { timeOfDay });
 
-    if (stats.maxCompletedComplexity > 0) {
-      qb.andWhere('session.complexity <= :maxComplexity', {
-        maxComplexity:
-          stats.maxCompletedComplexity + this.suggestionsComplexityThreshold,
-      });
-    }
+    const baseline = Math.max(
+      stats.maxCompletedComplexity,
+      this.suggestionsBeginnerBaseline,
+    );
+    qb.andWhere('session.complexity <= :maxComplexity', {
+      maxComplexity: baseline + this.suggestionsComplexityThreshold,
+    });
 
     const results = await qb.orderBy('RANDOM()').limit(4).getMany();
 

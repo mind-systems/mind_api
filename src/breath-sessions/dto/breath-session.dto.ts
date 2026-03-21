@@ -22,7 +22,7 @@ class BreathStepDto {
   @IsEnum(['inhale', 'exhale', 'hold'])
   type: 'inhale' | 'exhale' | 'hold';
 
-  @ApiProperty({ example: 4000, description: 'Duration in milliseconds' })
+  @ApiProperty({ example: 4, description: 'Duration in seconds' })
   @IsNumber()
   @Min(0)
   duration: number;
@@ -35,7 +35,7 @@ class BreathExerciseDto {
   @Type(() => BreathStepDto)
   steps: BreathStepDto[];
 
-  @ApiProperty({ example: 2000 })
+  @ApiProperty({ example: 2, description: 'Rest duration in seconds' })
   @IsNumber()
   @Min(0)
   restDuration: number;

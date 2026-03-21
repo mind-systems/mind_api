@@ -48,8 +48,8 @@ export class BreathSession {
   @ApiProperty({
     example: [
       {
-        steps: [{ type: 'inhale', duration: 4000 }],
-        restDuration: 2000,
+        steps: [{ type: 'inhale', duration: 4 }],
+        restDuration: 2,
         repeatCount: 3,
       },
     ],
