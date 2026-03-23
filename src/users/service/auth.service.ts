@@ -51,12 +51,15 @@ export class AuthService {
   async signInWithGoogle(
     serverAuthCode: string,
     language?: string,
+    redirectUri?: string,
   ): Promise<AuthResponseDto> {
     this.logger.log(
       'signInWithGoogle: exchanging server auth code for Google profile',
     );
-    const profile =
-      await this.googleTokenService.exchangeCodeForProfile(serverAuthCode);
+    const profile = await this.googleTokenService.exchangeCodeForProfile(
+      serverAuthCode,
+      redirectUri,
+    );
     this.logger.log(`signInWithGoogle: looking up or creating user`);
 
     const user = await this.dataSource.transaction(async (manager) => {

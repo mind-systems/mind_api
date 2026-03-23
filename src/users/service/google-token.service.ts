@@ -14,19 +14,38 @@ export class GoogleTokenService {
     const clientSecret = this.configService.getOrThrow<string>(
       'GOOGLE_CLIENT_SECRET',
     );
-
     this.client = new OAuth2Client(this.clientId, clientSecret);
   }
 
-  async exchangeCodeForProfile(serverAuthCode: string): Promise<GoogleProfile> {
+  async exchangeCodeForProfile(
+    serverAuthCode: string,
+    redirectUri?: string,
+  ): Promise<GoogleProfile> {
+    const isBrowserFlow = !!redirectUri;
+
+    if (isBrowserFlow) {
+      this.logger.log(`Google auth: browser flow, redirectUri=${redirectUri}`);
+    }
+
     let idToken: string;
     try {
-      const { tokens } = await this.client.getToken(serverAuthCode);
-      if (!tokens.id_token) {
-        throw new Error('No id_token in Google token response');
+      const response = isBrowserFlow
+        ? await this.client.getToken({
+            code: serverAuthCode,
+            redirect_uri: redirectUri,
+          })
+        : await this.client.getToken(serverAuthCode);
+      if (!response.tokens.id_token) {
+        this.logger.error(
+          'Google token response missing id_token — possible misconfiguration (wrong client type or missing scopes)',
+        );
+        throw new UnauthorizedException(
+          'Invalid or expired Google authorization code',
+        );
       }
-      idToken = tokens.id_token;
+      idToken = response.tokens.id_token;
     } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
       this.logger.warn(`Token exchange failed: ${(error as Error).message}`);
       throw new UnauthorizedException(
         'Invalid or expired Google authorization code',

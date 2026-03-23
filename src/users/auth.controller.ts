@@ -5,8 +5,10 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Post,
+  Query,
   Res,
   UseGuards,
   Request,
@@ -17,6 +19,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './service/auth.service';
 import { AuthCodeService } from './service/auth-code.service';
 import { PersonalAccessTokenService } from './service/personal-access-token.service';
@@ -37,10 +40,13 @@ import type { JwtPayload, RequestWithUser } from './interfaces/auth.interface';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly authCodeService: AuthCodeService,
     private readonly personalAccessTokenService: PersonalAccessTokenService,
+    private readonly configService: ConfigService,
   ) {}
 
   @ApiOperation({ summary: 'Send authentication code to email' })
@@ -91,9 +97,27 @@ export class AuthController {
     const authResponse = await this.authService.signInWithGoogle(
       dto.serverAuthCode,
       dto.language,
+      dto.redirectUri,
     );
     res.setHeader('Authorization', `Bearer ${authResponse.accessToken}`);
     return authResponse.user;
+  }
+
+  @ApiOperation({ summary: 'Google OAuth callback relay — redirects back to the mobile app' })
+  @Get('google/callback')
+  async googleCallback(
+    @Query('code') code: string | undefined,
+    @Query('error') error: string | undefined,
+    @Res() res: Response,
+  ): Promise<void> {
+    const baseUrl = this.configService.getOrThrow<string>('APP_BASE_URL');
+    const callbackPath = '/auth/google/callback';
+    if (error || !code) {
+      this.logger.warn(`Google OAuth callback error: ${error ?? 'missing code'}`);
+      return res.redirect(`${baseUrl}${callbackPath}?googleError=${encodeURIComponent(error ?? 'missing_code')}`);
+    }
+    this.logger.log('Google OAuth callback: relaying code to app');
+    return res.redirect(`${baseUrl}${callbackPath}?googleCode=${encodeURIComponent(code)}`);
   }
 
   @ApiOperation({ summary: 'Logout' })
