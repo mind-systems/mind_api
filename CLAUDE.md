@@ -36,6 +36,14 @@ make health                # curl localhost:3002/health
 make build-prod && make up-prod
 ```
 
+## Proto contract ownership
+
+`mind_api/proto/` is the **single source of truth** for all `.proto` files in the project.
+
+- Only `mind_api` may create or modify `.proto` files.
+- After any proto change, consumers (`mind_mcp`, `mind_mobile`) copy the updated files and regenerate their stubs.
+- Change order: update `proto/` → implement gRPC controller in `mind_api` → notify consumers to copy and regenerate.
+
 ## Architecture
 
 **Pattern:** Modular Monolith. Each domain (auth, breath-sessions, mail) is a self-contained NestJS feature module. Modules communicate only through their exported providers — never by importing internals from another module's files.
