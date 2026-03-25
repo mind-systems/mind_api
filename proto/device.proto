@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package mind;
+
+// ---------------------------------------------------------------------------
+// Per-RPC request / response messages
+// ---------------------------------------------------------------------------
+
+// Ping — maps to DevicePingDto in src/device/dto/device-ping.dto.ts.
+message PingRequest {
+  string installation_id = 1;
+  string platform = 2;
+  string os_version = 3;
+  string locale = 4;
+  string timezone = 5;
+  int32 screen_width = 6;
+  int32 screen_height = 7;
+  string app_version = 8;
+  string build_number = 9;
+  optional string model = 10;
+  optional string manufacturer = 11;
+}
+
+message PingResponse {}
+
+// ---------------------------------------------------------------------------
+// Service definition
+// ---------------------------------------------------------------------------
+
+service DeviceService {
+  rpc Ping(PingRequest) returns (PingResponse);
+}
