@@ -27,7 +27,12 @@ export class PersonalAccessTokenService {
     const tokenHash = this.hash(rawToken);
     const entity = this.patRepo.create({ userId, tokenHash, name });
     const saved = await this.patRepo.save(entity);
-    return { token: rawToken, id: saved.id, name: saved.name, createdAt: saved.createdAt };
+    return {
+      token: rawToken,
+      id: saved.id,
+      name: saved.name,
+      createdAt: saved.createdAt,
+    };
   }
 
   async list(userId: string): Promise<PersonalAccessToken[]> {

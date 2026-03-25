@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -19,7 +24,9 @@ export interface PushResult {
 }
 
 @Injectable()
-export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdown {
+export class StreamEngine
+  implements OnApplicationBootstrap, OnApplicationShutdown
+{
   private readonly logger = new Logger(StreamEngine.name);
   private readonly buffers = new Map<string, SessionBuffer>();
   private readonly maxBufferBytes: number;
@@ -107,7 +114,9 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
   async flush(sessionId: string): Promise<void> {
     const buffer = this.buffers.get(sessionId);
     if (!buffer || buffer.samples.length === 0) {
-      this.logger.debug(`flush: nothing to flush for sessionId=${sessionId} (buffer=${buffer ? 'exists, empty' : 'missing'})`);
+      this.logger.debug(
+        `flush: nothing to flush for sessionId=${sessionId} (buffer=${buffer ? 'exists, empty' : 'missing'})`,
+      );
       return;
     }
 
@@ -126,7 +135,9 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
     buffer.samples = [];
     buffer.byteSize = 0;
 
-    this.logger.log(`Flushed ${samples.length} samples for sessionId=${sessionId}`);
+    this.logger.log(
+      `Flushed ${samples.length} samples for sessionId=${sessionId}`,
+    );
 
     // Fire-and-forget — not awaited; a failure here is non-critical
     this.liveSessionRepo
@@ -152,25 +163,37 @@ export class StreamEngine implements OnApplicationBootstrap, OnApplicationShutdo
 
   @OnEvent(SessionEvents.COMPLETED)
   async onSessionCompleted(payload: { sessionId: string }): Promise<void> {
-    this.logger.log(`onSessionCompleted: flushing sessionId=${payload.sessionId}`);
+    this.logger.log(
+      `onSessionCompleted: flushing sessionId=${payload.sessionId}`,
+    );
     await this.flush(payload.sessionId);
     this.buffers.delete(payload.sessionId);
-    this.logger.log(`onSessionCompleted: buffer cleared for sessionId=${payload.sessionId}`);
+    this.logger.log(
+      `onSessionCompleted: buffer cleared for sessionId=${payload.sessionId}`,
+    );
   }
 
   @OnEvent(SessionEvents.ABANDONED)
   async onSessionAbandoned(payload: { sessionId: string }): Promise<void> {
-    this.logger.log(`onSessionAbandoned: flushing sessionId=${payload.sessionId}`);
+    this.logger.log(
+      `onSessionAbandoned: flushing sessionId=${payload.sessionId}`,
+    );
     await this.flush(payload.sessionId);
     this.buffers.delete(payload.sessionId);
-    this.logger.log(`onSessionAbandoned: buffer cleared for sessionId=${payload.sessionId}`);
+    this.logger.log(
+      `onSessionAbandoned: buffer cleared for sessionId=${payload.sessionId}`,
+    );
   }
 
   @OnEvent(SessionEvents.INTERRUPTED)
   async onSessionInterrupted(payload: { sessionId: string }): Promise<void> {
-    this.logger.log(`onSessionInterrupted: flushing sessionId=${payload.sessionId}`);
+    this.logger.log(
+      `onSessionInterrupted: flushing sessionId=${payload.sessionId}`,
+    );
     await this.flush(payload.sessionId);
     this.buffers.delete(payload.sessionId);
-    this.logger.log(`onSessionInterrupted: buffer cleared for sessionId=${payload.sessionId}`);
+    this.logger.log(
+      `onSessionInterrupted: buffer cleared for sessionId=${payload.sessionId}`,
+    );
   }
 }

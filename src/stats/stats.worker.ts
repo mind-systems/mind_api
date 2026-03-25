@@ -18,7 +18,9 @@ export class StatsWorker {
     );
     try {
       await this.statsService.finalise(event);
-      this.logger.log(`Stats finalised OK: userId=${event.userId} sessionId=${event.sessionId}`);
+      this.logger.log(
+        `Stats finalised OK: userId=${event.userId} sessionId=${event.sessionId}`,
+      );
     } catch (err: unknown) {
       this.logger.error(
         `Stats finalise FAILED: userId=${event.userId} sessionId=${event.sessionId}`,
@@ -35,7 +37,9 @@ export class StatsWorker {
     );
     try {
       await this.statsService.finalise(event);
-      this.logger.log(`Stats finalised OK: userId=${event.userId} sessionId=${event.sessionId}`);
+      this.logger.log(
+        `Stats finalised OK: userId=${event.userId} sessionId=${event.sessionId}`,
+      );
     } catch (err: unknown) {
       this.logger.error(
         `Stats finalise FAILED: userId=${event.userId} sessionId=${event.sessionId}`,
@@ -52,7 +56,9 @@ export class StatsWorker {
     );
     try {
       await this.statsService.finalise(event);
-      this.logger.log(`Stats finalised OK: userId=${event.userId} sessionId=${event.sessionId}`);
+      this.logger.log(
+        `Stats finalised OK: userId=${event.userId} sessionId=${event.sessionId}`,
+      );
     } catch (err: unknown) {
       this.logger.error(
         `Stats finalise FAILED: userId=${event.userId} sessionId=${event.sessionId}`,

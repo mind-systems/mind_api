@@ -14,7 +14,10 @@ import {
   LIVE_SESSION_UNPAUSED,
 } from '../events/live.events';
 import { SessionEvents } from '../events/session.events';
-import { StreamDataType, StreamSessionEvent } from '../constants/stream-data-types';
+import {
+  StreamDataType,
+  StreamSessionEvent,
+} from '../constants/stream-data-types';
 import { WsErrorCode } from '../constants/ws-error-codes';
 
 @Injectable()
@@ -58,7 +61,10 @@ export class ActivityEngine {
 
     this.streamEngine.push(saved.id, {
       timestamp: Date.now(),
-      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.STARTED },
+      data: {
+        dataType: StreamDataType.SESSION_EVENT,
+        event: StreamSessionEvent.STARTED,
+      },
     });
 
     this.logger.log(
@@ -71,21 +77,29 @@ export class ActivityEngine {
   async endActivity(userId: string): Promise<LiveSession | null> {
     const state = this.stateStore.activityMap.get(userId);
     if (!state) {
-      this.logger.warn(`endActivity: no active session in memory for userId=${userId}`);
+      this.logger.warn(
+        `endActivity: no active session in memory for userId=${userId}`,
+      );
       return null;
     }
 
-    this.logger.debug(`endActivity: found state for userId=${userId} sessionId=${state.sessionId}`);
+    this.logger.debug(
+      `endActivity: found state for userId=${userId} sessionId=${state.sessionId}`,
+    );
 
     const now = new Date();
     const session = await this.repo.findOne({ where: { id: state.sessionId } });
     if (!session) {
-      this.logger.warn(`endActivity: sessionId=${state.sessionId} not found in DB — clearing state`);
+      this.logger.warn(
+        `endActivity: sessionId=${state.sessionId} not found in DB — clearing state`,
+      );
       this.stateStore.activityMap.delete(userId);
       return null;
     }
 
-    this.logger.debug(`endActivity: DB session status=${session.status} startedAt=${session.startedAt.toISOString()}`);
+    this.logger.debug(
+      `endActivity: DB session status=${session.status} startedAt=${session.startedAt.toISOString()}`,
+    );
 
     session.status = SessionStatus.COMPLETED;
     session.endedAt = now;
@@ -93,16 +107,23 @@ export class ActivityEngine {
 
     this.streamEngine.push(state.sessionId, {
       timestamp: Date.now(),
-      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.ENDED },
+      data: {
+        dataType: StreamDataType.SESSION_EVENT,
+        event: StreamSessionEvent.ENDED,
+      },
     });
 
     this.stateStore.activityMap.delete(userId);
-    const durationMs = saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0;
+    const durationMs = saved.endedAt
+      ? saved.endedAt.getTime() - saved.startedAt.getTime()
+      : 0;
     this.logger.log(
       `Session ended: userId=${userId} sessionId=${saved.id} durationMs=${durationMs}`,
     );
 
-    this.logger.debug(`Emitting session.completed: userId=${userId} sessionId=${saved.id}`);
+    this.logger.debug(
+      `Emitting session.completed: userId=${userId} sessionId=${saved.id}`,
+    );
     this.eventEmitter.emit(SessionEvents.COMPLETED, {
       sessionId: saved.id,
       userId,
@@ -155,7 +176,10 @@ export class ActivityEngine {
 
     this.streamEngine.push(state.sessionId, {
       timestamp: Date.now(),
-      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.ABANDONED },
+      data: {
+        dataType: StreamDataType.SESSION_EVENT,
+        event: StreamSessionEvent.ABANDONED,
+      },
     });
 
     this.stateStore.activityMap.delete(userId);
@@ -177,14 +201,18 @@ export class ActivityEngine {
   async stopActivity(userId: string): Promise<LiveSession | null> {
     const state = this.stateStore.activityMap.get(userId);
     if (!state) {
-      this.logger.warn(`stopActivity: no active session in memory for userId=${userId}`);
+      this.logger.warn(
+        `stopActivity: no active session in memory for userId=${userId}`,
+      );
       return null;
     }
 
     const now = new Date();
     const session = await this.repo.findOne({ where: { id: state.sessionId } });
     if (!session) {
-      this.logger.warn(`stopActivity: sessionId=${state.sessionId} not found in DB — clearing state`);
+      this.logger.warn(
+        `stopActivity: sessionId=${state.sessionId} not found in DB — clearing state`,
+      );
       this.stateStore.activityMap.delete(userId);
       return null;
     }
@@ -195,11 +223,16 @@ export class ActivityEngine {
 
     this.streamEngine.push(state.sessionId, {
       timestamp: Date.now(),
-      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.INTERRUPTED },
+      data: {
+        dataType: StreamDataType.SESSION_EVENT,
+        event: StreamSessionEvent.INTERRUPTED,
+      },
     });
 
     this.stateStore.activityMap.delete(userId);
-    const durationMs = saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0;
+    const durationMs = saved.endedAt
+      ? saved.endedAt.getTime() - saved.startedAt.getTime()
+      : 0;
     this.logger.log(
       `Session interrupted: userId=${userId} sessionId=${saved.id} durationMs=${durationMs}`,
     );
@@ -231,7 +264,10 @@ export class ActivityEngine {
 
     this.streamEngine.push(state.sessionId, {
       timestamp: Date.now(),
-      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.PAUSED },
+      data: {
+        dataType: StreamDataType.SESSION_EVENT,
+        event: StreamSessionEvent.PAUSED,
+      },
     });
 
     this.eventEmitter.emit(LIVE_SESSION_PAUSED, {
@@ -260,7 +296,10 @@ export class ActivityEngine {
 
     this.streamEngine.push(state.sessionId, {
       timestamp: Date.now(),
-      data: { dataType: StreamDataType.SESSION_EVENT, event: StreamSessionEvent.RESUMED },
+      data: {
+        dataType: StreamDataType.SESSION_EVENT,
+        event: StreamSessionEvent.RESUMED,
+      },
     });
 
     this.eventEmitter.emit(LIVE_SESSION_UNPAUSED, {

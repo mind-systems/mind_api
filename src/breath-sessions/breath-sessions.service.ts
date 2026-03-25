@@ -64,7 +64,12 @@ export class BreathSessionsService {
 
     const saved = await this.breathSessionRepository.save(session);
 
-    const eventId = await this.changeLogService.log(ChangeEntity.BREATH_SESSION, saved.id, ChangeAction.CREATED, userId);
+    const eventId = await this.changeLogService.log(
+      ChangeEntity.BREATH_SESSION,
+      saved.id,
+      ChangeAction.CREATED,
+      userId,
+    );
     const payload: ChangeEventPayload = {
       id: eventId,
       entity: ChangeEntity.BREATH_SESSION,
@@ -207,7 +212,12 @@ export class BreathSessionsService {
     }
     const updated = await this.breathSessionRepository.save(session);
 
-    const eventId = await this.changeLogService.log(ChangeEntity.BREATH_SESSION, updated.id, ChangeAction.UPDATED, userId);
+    const eventId = await this.changeLogService.log(
+      ChangeEntity.BREATH_SESSION,
+      updated.id,
+      ChangeAction.UPDATED,
+      userId,
+    );
     const payload: ChangeEventPayload = {
       id: eventId,
       entity: ChangeEntity.BREATH_SESSION,
@@ -247,7 +257,12 @@ export class BreathSessionsService {
 
     const replaced = await this.breathSessionRepository.save(session);
 
-    const eventId = await this.changeLogService.log(ChangeEntity.BREATH_SESSION, replaced.id, ChangeAction.UPDATED, userId);
+    const eventId = await this.changeLogService.log(
+      ChangeEntity.BREATH_SESSION,
+      replaced.id,
+      ChangeAction.UPDATED,
+      userId,
+    );
     const payload: ChangeEventPayload = {
       id: eventId,
       entity: ChangeEntity.BREATH_SESSION,
@@ -315,7 +330,12 @@ export class BreathSessionsService {
 
     await this.breathSessionRepository.softRemove(session);
 
-    const eventId = await this.changeLogService.log(ChangeEntity.BREATH_SESSION, id, ChangeAction.DELETED, userId);
+    const eventId = await this.changeLogService.log(
+      ChangeEntity.BREATH_SESSION,
+      id,
+      ChangeAction.DELETED,
+      userId,
+    );
     const payload: ChangeEventPayload = {
       id: eventId,
       entity: ChangeEntity.BREATH_SESSION,

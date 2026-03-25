@@ -19,13 +19,18 @@ export class WsExceptionFilter extends BaseWsExceptionFilter {
     let messages: string | string[];
     if (exception instanceof WsException) {
       const error = exception.getError();
-      messages = typeof error === 'string' ? error : (error as { message?: string | string[] }).message ?? String(error);
+      messages =
+        typeof error === 'string'
+          ? error
+          : ((error as { message?: string | string[] }).message ??
+            String(error));
     } else {
       const response = exception.getResponse();
       messages =
         typeof response === 'string'
           ? response
-          : (response as { message?: string | string[] }).message ?? exception.message;
+          : ((response as { message?: string | string[] }).message ??
+            exception.message);
     }
 
     const messageList = Array.isArray(messages) ? messages : [messages];

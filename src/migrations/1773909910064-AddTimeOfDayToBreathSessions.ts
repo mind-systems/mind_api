@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddTimeOfDayToBreathSessions1773909910064
-  implements MigrationInterface
-{
+export class AddTimeOfDayToBreathSessions1773909910064 implements MigrationInterface {
   name = 'AddTimeOfDayToBreathSessions1773909910064';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

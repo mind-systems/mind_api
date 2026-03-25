@@ -31,7 +31,10 @@ export class SyncNotifierService implements OnModuleDestroy {
       existing.events.push({ id, entity, refId, action });
     } else {
       const timer = setTimeout(() => this.flush(userId), 300);
-      this.pending.set(userId, { timer, events: [{ id, entity, refId, action }] });
+      this.pending.set(userId, {
+        timer,
+        events: [{ id, entity, refId, action }],
+      });
     }
   }
 
@@ -45,7 +48,9 @@ export class SyncNotifierService implements OnModuleDestroy {
     if (!socket) return;
 
     (socket as Socket).emit(SYNC_CHANGED, { events: entry.events });
-    this.logger.debug(`sync:changed pushed to userId=${userId} events=${entry.events.length}`);
+    this.logger.debug(
+      `sync:changed pushed to userId=${userId} events=${entry.events.length}`,
+    );
   }
 
   onModuleDestroy(): void {

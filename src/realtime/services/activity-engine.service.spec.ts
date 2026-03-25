@@ -50,7 +50,12 @@ describe('ActivityEngine', () => {
     emitter = makeEmitter();
     streamEngine = makeStreamEngine();
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    engine = new ActivityEngine(repo as any, stateStore, emitter as any, streamEngine as any);
+    engine = new ActivityEngine(
+      repo as any,
+      stateStore,
+      emitter as any,
+      streamEngine as any,
+    );
   });
 
   describe('startActivity', () => {

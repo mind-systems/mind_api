@@ -9,6 +9,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
+import { AuthGrpcController } from './auth.grpc.controller';
 import { AuthService } from './service/auth.service';
 import { SessionService } from './service/session.service';
 import { AuthCodeService } from './service/auth-code.service';
@@ -18,7 +19,12 @@ import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserSession, AuthCode, PersonalAccessToken]),
+    TypeOrmModule.forFeature([
+      User,
+      UserSession,
+      AuthCode,
+      PersonalAccessToken,
+    ]),
     MailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -33,7 +39,7 @@ import { MailModule } from '../mail/mail.module';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, AuthGrpcController],
   providers: [
     AuthService,
     AuthCodeService,

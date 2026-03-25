@@ -1,4 +1,10 @@
-import { Logger, UseFilters, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Logger,
+  UseFilters,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   ConnectedSocket,
@@ -44,7 +50,9 @@ import { RealtimeConfig } from '../constants/realtime-config';
 @UseFilters(WsExceptionFilter)
 @UseGuards(WsAuthGuard, WsPayloadSizeGuard, WsRateLimitGuard)
 @UsePipes(new ValidationPipe({ whitelist: true }))
-export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class LiveGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(LiveGateway.name);
 
   @WebSocketServer()
@@ -85,7 +93,9 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     if (!userId) {
       // Should not happen — WsAuthMiddleware rejects unauthenticated sockets
       // before handleConnection fires. This is a safety net only.
-      this.logger.warn(`[Live] handleConnection: no userId — socketId=${client.id}, disconnecting`);
+      this.logger.warn(
+        `[Live] handleConnection: no userId — socketId=${client.id}, disconnecting`,
+      );
       client.disconnect(true);
       return;
     }
@@ -139,7 +149,9 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
           // Start grace timer only if the session is still in activityMap
           if (this.stateStore.activityMap.has(userId)) {
             this.graceTimerManager.startTimer(userId, () => {
-              this.logger.log(`Grace expired: userId=${userId} — abandoning session`);
+              this.logger.log(
+                `Grace expired: userId=${userId} — abandoning session`,
+              );
               this.activityEngine
                 .abandonActivity(userId)
                 .catch((err: unknown) => {
@@ -159,7 +171,8 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         });
     }
 
-    const connectedDurationMs = Date.now() - (this.connectedAt.get(client.id) ?? Date.now());
+    const connectedDurationMs =
+      Date.now() - (this.connectedAt.get(client.id) ?? Date.now());
     this.connectedAt.delete(client.id);
     this.rateLimiterService.evict(client.id);
     this.logger.log(
@@ -199,7 +212,10 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
 
     const session = await this.activityEngine.startActivity(userId, dto);
-    client.emit(SESSION_STATE, { liveSessionId: session.id, status: SessionStatus.ACTIVE });
+    client.emit(SESSION_STATE, {
+      liveSessionId: session.id,
+      status: SessionStatus.ACTIVE,
+    });
     this.logger.log(
       `Activity started: userId=${userId} sessionId=${session.id}`,
     );
@@ -213,7 +229,10 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     const session = await this.activityEngine.endActivity(userId);
     if (!session) return;
 
-    client.emit(SESSION_STATE, { liveSessionId: session.id, status: SessionStatus.COMPLETED });
+    client.emit(SESSION_STATE, {
+      liveSessionId: session.id,
+      status: SessionStatus.COMPLETED,
+    });
     this.logger.log(`Activity ended: userId=${userId} sessionId=${session.id}`);
   }
 
@@ -225,8 +244,13 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     const session = await this.activityEngine.stopActivity(userId);
     if (!session) return;
 
-    client.emit(SESSION_STATE, { liveSessionId: session.id, status: SessionStatus.INTERRUPTED });
-    this.logger.log(`Activity stopped: userId=${userId} sessionId=${session.id}`);
+    client.emit(SESSION_STATE, {
+      liveSessionId: session.id,
+      status: SessionStatus.INTERRUPTED,
+    });
+    this.logger.log(
+      `Activity stopped: userId=${userId} sessionId=${session.id}`,
+    );
   }
 
   @SubscribeMessage(ACTIVITY_PAUSE)

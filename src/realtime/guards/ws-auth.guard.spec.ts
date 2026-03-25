@@ -24,8 +24,8 @@ describe('WsAuthGuard', () => {
 
   it('throws WsException when userId is missing', () => {
     const ctx = createContext(undefined);
-    expect(() =>
-      guard.canActivate(ctx as unknown as ExecutionContext),
-    ).toThrow(WsException);
+    expect(() => guard.canActivate(ctx as unknown as ExecutionContext)).toThrow(
+      WsException,
+    );
   });
 });

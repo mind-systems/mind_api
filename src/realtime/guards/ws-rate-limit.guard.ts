@@ -15,8 +15,14 @@ export class WsRateLimitGuard implements CanActivate {
     private readonly rateLimiterService: RateLimiterService,
     configService: ConfigService,
   ) {
-    this.limit = configService.get<number>(RealtimeConfig.RATE_LIMIT_MAX_EVENTS, 200);
-    this.windowMs = configService.get<number>(RealtimeConfig.RATE_LIMIT_WINDOW_MS, 1000);
+    this.limit = configService.get<number>(
+      RealtimeConfig.RATE_LIMIT_MAX_EVENTS,
+      200,
+    );
+    this.windowMs = configService.get<number>(
+      RealtimeConfig.RATE_LIMIT_WINDOW_MS,
+      1000,
+    );
   }
 
   canActivate(context: ExecutionContext): boolean {

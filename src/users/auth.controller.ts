@@ -103,7 +103,9 @@ export class AuthController {
     return authResponse.user;
   }
 
-  @ApiOperation({ summary: 'Google OAuth callback relay — redirects back to the mobile app' })
+  @ApiOperation({
+    summary: 'Google OAuth callback relay — redirects back to the mobile app',
+  })
   @Get('google/callback')
   async googleCallback(
     @Query('code') code: string | undefined,
@@ -113,11 +115,17 @@ export class AuthController {
     const baseUrl = this.configService.getOrThrow<string>('APP_BASE_URL');
     const callbackPath = '/auth/google/callback';
     if (error || !code) {
-      this.logger.warn(`Google OAuth callback error: ${error ?? 'missing code'}`);
-      return res.redirect(`${baseUrl}${callbackPath}?googleError=${encodeURIComponent(error ?? 'missing_code')}`);
+      this.logger.warn(
+        `Google OAuth callback error: ${error ?? 'missing code'}`,
+      );
+      return res.redirect(
+        `${baseUrl}${callbackPath}?googleError=${encodeURIComponent(error ?? 'missing_code')}`,
+      );
     }
     this.logger.log('Google OAuth callback: relaying code to app');
-    return res.redirect(`${baseUrl}${callbackPath}?googleCode=${encodeURIComponent(code)}`);
+    return res.redirect(
+      `${baseUrl}${callbackPath}?googleCode=${encodeURIComponent(code)}`,
+    );
   }
 
   @ApiOperation({ summary: 'Logout' })

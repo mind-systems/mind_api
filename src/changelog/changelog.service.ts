@@ -25,7 +25,12 @@ export class ChangeLogService {
     action: ChangeAction,
     userId: string,
   ): Promise<number> {
-    const result = await this.changeEventRepo.insert({ entity, refId, action, userId });
+    const result = await this.changeEventRepo.insert({
+      entity,
+      refId,
+      action,
+      userId,
+    });
     return result.identifiers[0].id as number;
   }
 
@@ -38,7 +43,10 @@ export class ChangeLogService {
     if (userIds.length === 0) return;
 
     const values = userIds
-      .map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`)
+      .map(
+        (_, i) =>
+          `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`,
+      )
       .join(', ');
 
     const params: string[] = [];
@@ -85,9 +93,13 @@ export class ChangeLogService {
     const result = await this.changeEventRepo
       .createQueryBuilder()
       .delete()
-      .where('"createdAt" < now() - make_interval(days => :days)', { days: olderThanDays })
+      .where('"createdAt" < now() - make_interval(days => :days)', {
+        days: olderThanDays,
+      })
       .execute();
 
-    this.logger.log(`purge: removed ${result.affected ?? 0} change events older than ${olderThanDays} days`);
+    this.logger.log(
+      `purge: removed ${result.affected ?? 0} change events older than ${olderThanDays} days`,
+    );
   }
 }

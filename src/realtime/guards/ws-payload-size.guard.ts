@@ -7,7 +7,10 @@ export class WsPayloadSizeGuard implements CanActivate {
   private readonly maxPayloadBytes: number;
 
   constructor(configService: ConfigService) {
-    this.maxPayloadBytes = configService.get<number>('WS_MAX_PAYLOAD_BYTES', 65536);
+    this.maxPayloadBytes = configService.get<number>(
+      'WS_MAX_PAYLOAD_BYTES',
+      65536,
+    );
   }
 
   canActivate(context: ExecutionContext): boolean {

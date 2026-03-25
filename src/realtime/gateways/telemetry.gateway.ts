@@ -1,4 +1,10 @@
-import { Logger, UseFilters, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Logger,
+  UseFilters,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -58,7 +64,9 @@ export class TelemetryGateway
       client.disconnect(true);
       return;
     }
-    this.logger.log(`[Telemetry] Connected — userId=${userId} socketId=${client.id}`);
+    this.logger.log(
+      `[Telemetry] Connected — userId=${userId} socketId=${client.id}`,
+    );
   }
 
   handleDisconnect(client: Socket): void {
@@ -76,7 +84,9 @@ export class TelemetryGateway
     const session = this.activityEngine.getActiveSession(userId);
 
     if (!session) {
-      this.logger.warn(`data:stream rejected — NO_SESSION for userId=${userId} dtoSessionId=${dto.sessionId}`);
+      this.logger.warn(
+        `data:stream rejected — NO_SESSION for userId=${userId} dtoSessionId=${dto.sessionId}`,
+      );
       client.emit(SESSION_ERROR, {
         code: WsErrorCode.NO_SESSION,
         message: 'No active session found',
@@ -86,7 +96,9 @@ export class TelemetryGateway
     }
 
     if (session.sessionId !== dto.sessionId) {
-      this.logger.warn(`data:stream rejected — SESSION_MISMATCH userId=${userId} activeSessionId=${session.sessionId} dtoSessionId=${dto.sessionId}`);
+      this.logger.warn(
+        `data:stream rejected — SESSION_MISMATCH userId=${userId} activeSessionId=${session.sessionId} dtoSessionId=${dto.sessionId}`,
+      );
       client.emit(SESSION_ERROR, {
         code: WsErrorCode.SESSION_MISMATCH,
         message: 'Session ID does not match active session',
@@ -95,7 +107,10 @@ export class TelemetryGateway
       return;
     }
 
-    if (session.isPaused && dto.data?.dataType === StreamDataType.BREATH_PHASE) {
+    if (
+      session.isPaused &&
+      dto.data?.dataType === StreamDataType.BREATH_PHASE
+    ) {
       client.emit(DATA_ACK, { error: WsErrorCode.SESSION_PAUSED });
       return;
     }

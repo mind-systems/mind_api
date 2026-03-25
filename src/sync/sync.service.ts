@@ -3,7 +3,13 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { ChangeLogService } from 'src/changelog/changelog.service';
 
 export interface SyncChangesResult {
-  events: { id: number; entity: string; refId: string; action: string; createdAt: Date }[];
+  events: {
+    id: number;
+    entity: string;
+    refId: string;
+    action: string;
+    createdAt: Date;
+  }[];
   cursor: number;
   hasMore: boolean;
 }
@@ -30,11 +36,19 @@ export class SyncService {
       return { fullResync: true as const };
     }
 
-    const result = await this.changeLogService.getChanges(userId, afterId, limit);
+    const result = await this.changeLogService.getChanges(
+      userId,
+      afterId,
+      limit,
+    );
     return {
       ...result,
       events: result.events.map(({ id, entity, refId, action, createdAt }) => ({
-        id, entity, refId, action, createdAt,
+        id,
+        entity,
+        refId,
+        action,
+        createdAt,
       })),
     };
   }
