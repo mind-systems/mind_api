@@ -28,7 +28,7 @@ function makeSession(overrides: Partial<LiveSession> = {}): LiveSession {
   return {
     id: 'session-1',
     userId: 'user-1',
-    activityType: ActivityType.BREATH_SESSION,
+    activityType: ActivityType.BREATH,
     status: SessionStatus.ACTIVE,
     startedAt: now,
     lastActivityAt: now,
@@ -56,7 +56,7 @@ describe('ActivityEngine', () => {
   describe('startActivity', () => {
     it('creates LiveSession row, writes ActivityState to activityMap, returns session', async () => {
       const dto: ActivityStartDto = {
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
       };
       const session = makeSession();
       repo.create.mockReturnValue(session);
@@ -70,7 +70,7 @@ describe('ActivityEngine', () => {
       const state = stateStore.activityMap.get('user-1');
       expect(state).toBeDefined();
       expect(state!.sessionId).toBe('session-1');
-      expect(state!.activityType).toBe(ActivityType.BREATH_SESSION);
+      expect(state!.activityType).toBe(ActivityType.BREATH);
     });
   });
 
@@ -79,7 +79,7 @@ describe('ActivityEngine', () => {
       const session = makeSession();
       stateStore.activityMap.set('user-1', {
         sessionId: 'session-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: session.startedAt,
         lastActivityAt: session.lastActivityAt,
         isPaused: false,
@@ -119,7 +119,7 @@ describe('ActivityEngine', () => {
     it('status=disconnected, disconnectedAt set via repo.update, kept in activityMap, no emit', async () => {
       stateStore.activityMap.set('user-1', {
         sessionId: 'session-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: new Date(),
         lastActivityAt: new Date(),
         isPaused: false,
@@ -151,7 +151,7 @@ describe('ActivityEngine', () => {
       const session = makeSession({ status: SessionStatus.DISCONNECTED });
       stateStore.activityMap.set('user-1', {
         sessionId: 'session-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: session.startedAt,
         lastActivityAt: session.lastActivityAt,
         isPaused: false,
@@ -182,7 +182,7 @@ describe('ActivityEngine', () => {
       const session = makeSession({ status: SessionStatus.ACTIVE });
       stateStore.activityMap.set('user-1', {
         sessionId: 'session-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: session.startedAt,
         lastActivityAt: session.lastActivityAt,
         isPaused: false,
@@ -201,7 +201,7 @@ describe('ActivityEngine', () => {
     it('returns entry from activityMap', () => {
       const state = {
         sessionId: 'session-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: new Date(),
         lastActivityAt: new Date(),
         isPaused: false,
@@ -221,7 +221,7 @@ describe('ActivityEngine', () => {
       const session = makeSession({ status: SessionStatus.DISCONNECTED });
       stateStore.activityMap.set('user-1', {
         sessionId: 'session-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: session.startedAt,
         lastActivityAt: session.lastActivityAt,
         isPaused: false,
@@ -257,7 +257,7 @@ describe('ActivityEngine', () => {
     it('returns null and cleans activityMap when session not in DB', async () => {
       stateStore.activityMap.set('user-1', {
         sessionId: 'session-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: new Date(),
         lastActivityAt: new Date(),
         isPaused: false,

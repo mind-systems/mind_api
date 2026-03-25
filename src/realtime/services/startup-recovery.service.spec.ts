@@ -8,7 +8,7 @@ function makeSession(status: SessionStatus): LiveSession {
   return {
     id: `session-${Math.random()}`,
     userId: 'user-1',
-    activityType: ActivityType.BREATH_SESSION,
+    activityType: ActivityType.BREATH,
     status,
     startedAt: now,
     lastActivityAt: now,

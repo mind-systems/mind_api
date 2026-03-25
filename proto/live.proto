@@ -12,7 +12,7 @@ package mind;
 // Only one real member for now; the enum is the extension point for future activity types.
 enum ActivityType {
   ACTIVITY_TYPE_UNSPECIFIED = 0;
-  BREATH_SESSION = 1;
+  BREATH = 1;
 }
 
 // Maps to PresenceState interface in src/realtime/interfaces/presence-state.interface.ts.

@@ -191,7 +191,7 @@ describe('LiveGateway — single-connection policy', () => {
       return {
         id,
         userId: 'user-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         status: SessionStatus.ACTIVE,
         startedAt: now,
         lastActivityAt: now,
@@ -203,7 +203,7 @@ describe('LiveGateway — single-connection policy', () => {
       const client = makeSocket('user-1', 'socket-1');
       rateLimiterService.consume.mockReturnValue(false);
       const dto: ActivityStartDto = {
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
       };
 
       await gateway.handleActivityStart(client, dto);
@@ -234,7 +234,7 @@ describe('LiveGateway — single-connection policy', () => {
       activityEngine.getActiveSession.mockReturnValue(undefined);
       activityEngine.startActivity.mockResolvedValue(session);
       const dto: ActivityStartDto = {
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
       };
 
       await gateway.handleActivityStart(client, dto);
@@ -252,13 +252,13 @@ describe('LiveGateway — single-connection policy', () => {
       const client = makeSocket('user-1', 'socket-1');
       activityEngine.getActiveSession.mockReturnValue({
         sessionId: 'existing-session',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: new Date(),
         lastActivityAt: new Date(),
         isPaused: false,
       });
       const dto: ActivityStartDto = {
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
       };
 
       await gateway.handleActivityStart(client, dto);
@@ -308,7 +308,7 @@ describe('LiveGateway — single-connection policy', () => {
       return {
         id,
         userId: 'user-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         status: SessionStatus.ACTIVE,
         startedAt: now,
         lastActivityAt: now,
@@ -321,7 +321,7 @@ describe('LiveGateway — single-connection policy', () => {
       const session = makeSession();
       stateStore.activityMap.set('user-1', {
         sessionId: 'session-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: new Date(),
         lastActivityAt: new Date(),
         isPaused: false,
@@ -362,7 +362,7 @@ describe('LiveGateway — single-connection policy', () => {
       // Seed activityMap so the timer branch is taken
       stateStore.activityMap.set('user-1', {
         sessionId: 'session-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: new Date(),
         lastActivityAt: new Date(),
         isPaused: false,

@@ -96,7 +96,7 @@ describe('TelemetryGateway', () => {
       const client = makeSocket('user-1');
       activityEngine.getActiveSession.mockReturnValue({
         sessionId: 'session-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: new Date(),
         lastActivityAt: new Date(),
         isPaused: false,
@@ -136,7 +136,7 @@ describe('TelemetryGateway', () => {
       const client = makeSocket('user-1');
       activityEngine.getActiveSession.mockReturnValue({
         sessionId: 'session-1',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: new Date(),
         lastActivityAt: new Date(),
         isPaused: false,
@@ -176,7 +176,7 @@ describe('TelemetryGateway', () => {
       const client = makeSocket('user-1');
       activityEngine.getActiveSession.mockReturnValue({
         sessionId: 'different-session',
-        activityType: ActivityType.BREATH_SESSION,
+        activityType: ActivityType.BREATH,
         startedAt: new Date(),
         lastActivityAt: new Date(),
         isPaused: false,
