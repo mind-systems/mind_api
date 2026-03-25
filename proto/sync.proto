@@ -49,15 +49,34 @@ message GetChangesResponse {
   }
 }
 
+// WatchChanges — auth identity comes from metadata/interceptor, not the message
+// (same convention as GetChangesRequest).
+// When after_id is omitted the server streams only new events from the connection
+// moment; when provided the server first sends a catchup batch of all events with
+// id > after_id, then continues streaming new events in realtime.
+message WatchChangesRequest {
+  optional int64 after_id = 1;
+}
+
+// Server-streamed response envelope for WatchChanges.
+// Carries one or more events per message, allowing the server to batch rapid
+// changes (matching the 300 ms coalescing pattern in SyncNotifierService).
+// Reuses the shared SyncEventDto message defined above.
+message ChangeEvent {
+  repeated SyncEventDto events = 1;
+}
+
 // ---------------------------------------------------------------------------
 // Service definition
 //
 // GetChanges — unary RPC returning cursor-paginated sync events or a full_resync
 // flag when the client cursor is too old.
-// WatchChanges — reserved for the future streaming RPC (next roadmap item);
-// will be added to this service definition when implemented.
+// WatchChanges — server-streaming RPC delivering realtime change events; the
+// client sends a single WatchChangesRequest and receives a continuous stream of
+// ChangeEvent batches.
 // ---------------------------------------------------------------------------
 
 service SyncService {
   rpc GetChanges(GetChangesRequest) returns (GetChangesResponse);
+  rpc WatchChanges(WatchChangesRequest) returns (stream ChangeEvent);
 }
