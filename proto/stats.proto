@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package mind;
+
+// ---------------------------------------------------------------------------
+// Per-RPC request / response messages
+// ---------------------------------------------------------------------------
+
+// GetStats — auth identity comes from metadata/interceptor, not the message
+// (same pattern as LogoutRequest in auth.proto).
+message GetStatsRequest {}
+
+// Maps to UserStatsResponseDto in src/stats/dto/user-stats-response.dto.ts.
+// last_session_date is a date string in YYYY-MM-DD format (not ISO-8601 datetime).
+message GetStatsResponse {
+  int32 total_sessions = 1;
+  double total_duration_seconds = 2;
+  int32 current_streak = 3;
+  int32 longest_streak = 4;
+  // Date of the last qualifying session in YYYY-MM-DD format, or absent if none.
+  optional string last_session_date = 5;
+  double max_completed_complexity = 6;
+}
+
+// ---------------------------------------------------------------------------
+// Service definition
+// ---------------------------------------------------------------------------
+
+service StatsService {
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+}
