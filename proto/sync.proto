@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package mind;
+
+// ---------------------------------------------------------------------------
+// Shared types
+// ---------------------------------------------------------------------------
+
+// Maps to SyncEventDto in src/sync/dto/sync-changes.dto.ts.
+// created_at is an ISO-8601 string (same convention as BreathSessionDto timestamps
+// in breath_sessions.proto).
+// id uses int64 to accommodate auto-increment IDs that may exceed int32 range over time.
+message SyncEventDto {
+  int64 id = 1;
+  string entity = 2;
+  string ref_id = 3;
+  string action = 4;
+  string created_at = 5;
+}
+
+// Maps to SyncChangesResponseDto in src/sync/dto/sync-changes.dto.ts.
+// cursor uses int64 to match the id range of SyncEventDto.
+message SyncChangesPayload {
+  repeated SyncEventDto events = 1;
+  int64 cursor = 2;
+  bool has_more = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Per-RPC request / response messages
+// ---------------------------------------------------------------------------
+
+// GetChanges — maps to SyncChangesQueryDto in src/sync/dto/sync-changes.dto.ts.
+// Auth identity comes from metadata/interceptor, not the message.
+// after uses int64 to match the id range of SyncEventDto (roadmap spec: after: int64).
+message GetChangesRequest {
+  int64 after = 1;
+  int32 limit = 2;
+}
+
+// GetChangesResponse uses oneof result to return either cursor-paginated events
+// or a full_resync flag, matching the REST GET /sync/changes behavior.
+// oneof is named "result" to describe the branching nature (not "event" or "command"
+// which are stream-specific conventions in live.proto / telemetry.proto).
+message GetChangesResponse {
+  oneof result {
+    SyncChangesPayload payload = 1;
+    bool full_resync = 2;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Service definition
+//
+// GetChanges — unary RPC returning cursor-paginated sync events or a full_resync
+// flag when the client cursor is too old.
+// WatchChanges — reserved for the future streaming RPC (next roadmap item);
+// will be added to this service definition when implemented.
+// ---------------------------------------------------------------------------
+
+service SyncService {
+  rpc GetChanges(GetChangesRequest) returns (GetChangesResponse);
+}
