@@ -14,7 +14,7 @@ message GetStatsRequest {}
 // last_session_date is a date string in YYYY-MM-DD format (not ISO-8601 datetime).
 message GetStatsResponse {
   int32 total_sessions = 1;
-  double total_duration_seconds = 2;
+  int32 total_duration_seconds = 2;
   int32 current_streak = 3;
   int32 longest_streak = 4;
   // Date of the last qualifying session in YYYY-MM-DD format, or absent if none.
