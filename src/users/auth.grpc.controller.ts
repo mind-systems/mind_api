@@ -23,33 +23,17 @@ import { AuthCodeService } from './service/auth-code.service';
 import { PersonalAccessTokenService } from './service/personal-access-token.service';
 import { SessionService } from './service/session.service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
-import { UserRole } from './interfaces/user-role.enum';
+import { toProtoUserDto } from '../grpc/grpc-mappers';
 import type { AuthResponseDto } from './dto/auth-response.dto';
 import type { JwtPayload } from './interfaces/auth.interface';
 // TODO: uncomment when 1.4 is merged
 // import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 // import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
 
-function toProtoUserRole(role: UserRole): number {
-  switch (role) {
-    case UserRole.ADMIN:
-      return 1;
-    case UserRole.USER:
-    default:
-      return 0;
-  }
-}
-
 function toProtoAuthResponse(dto: AuthResponseDto): AuthResponse {
   return {
     accessToken: dto.accessToken,
-    user: {
-      id: dto.user.id,
-      email: dto.user.email,
-      name: dto.user.name,
-      role: toProtoUserRole(dto.user.role),
-      language: dto.user.language,
-    },
+    user: toProtoUserDto(dto.user),
   };
 }
 
