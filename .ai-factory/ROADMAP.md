@@ -22,7 +22,7 @@
 
 ## Proto Patches
 
-- [ ] **live.proto — remove `ref_type` from ActivityStartCmd** — field was added to mirror `activityRefType` in the DB entity, but that column will be dropped in Phase 4; `activity_type` is sufficient to identify the module `[api]`
+- [x] **live.proto — remove `ref_type` from ActivityStartCmd** — field was added to mirror `activityRefType` in the DB entity, but that column will be dropped in Phase 4; `activity_type` is sufficient to identify the module `[api]`
 - [ ] **live.proto — rename ActivityType.BREATH_SESSION → BREATH** — `BREATH_SESSION` conflicts with the modular architecture decision: the enum value names the module, not the session type; `BREATH` is consistent with how `module_id` is expressed in telemetry (`"breath"`) `[api]`
 - [x] **telemetry.proto — replace `stream TelemetryAck` with `stream TelemetryResponse`** — server must be able to send either an ack or an error on the same stream; wrap in `TelemetryResponse { oneof event { TelemetryAck ack = 1; SessionErrorEvent error = 2; } }` mirroring the `LiveResponse` pattern `[api]`
 

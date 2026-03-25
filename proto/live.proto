@@ -43,14 +43,10 @@ enum SessionStatus {
 
 // Maps to ActivityStartDto in src/realtime/dto/activity-start.dto.ts.
 // ref_id is the optional breath-session ID (activityRefId in the entity).
-// ref_type is the optional activity ref type (activityRefType in the entity and
-// the LiveSession entity) — without it, gRPC-originated sessions would have
-// activityRefType = null in the database while WebSocket-originated sessions
-// may populate it, creating inconsistent data for downstream consumers.
 message ActivityStartCmd {
   ActivityType activity_type = 1;
   optional string ref_id = 2;
-  optional string ref_type = 3;
+  reserved 3;
 }
 
 // Maps to ActivityEndDto in src/realtime/dto/activity-end.dto.ts.
