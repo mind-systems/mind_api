@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package mind;
+
+// ---------------------------------------------------------------------------
+// Shared types
+// ---------------------------------------------------------------------------
+
+// Maps to UserRole enum in src/users/interfaces/user-role.enum.ts
+enum UserRole {
+  USER = 0;
+  ADMIN = 1;
+}
+
+// Maps to UserResponseDto in src/users/dto/auth-response.dto.ts
+message UserDto {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  UserRole role = 4;
+  string language = 5;
+}
+
+// Maps to AuthResponseDto.
+// Note: the REST API returns the token in the Authorization response header;
+// gRPC has no response headers, so the token is carried in the message body.
+message AuthResponse {
+  UserDto user = 1;
+  string access_token = 2;
+}
+
+// Maps to TokenResponseDto in src/users/dto/token-response.dto.ts.
+// Timestamps are ISO-8601 strings for cross-language simplicity.
+message TokenDto {
+  string id = 1;
+  string name = 2;
+  string created_at = 3;
+  optional string last_used_at = 4;
+}
+
+// ---------------------------------------------------------------------------
+// Per-RPC request / response messages
+// ---------------------------------------------------------------------------
+
+// SendCode — maps to SendCodeDto
+message SendCodeRequest {
+  string email = 1;
+  optional string locale = 2;
+}
+
+message SendCodeResponse {
+  string message = 1;
+}
+
+// VerifyCode — maps to VerifyCodeDto
+message VerifyCodeRequest {
+  string email = 1;
+  string code = 2;
+  optional string language = 3;
+}
+
+// GoogleAuth — maps to GoogleAuthDto
+message GoogleAuthRequest {
+  string server_auth_code = 1;
+  optional string language = 2;
+  optional string redirect_uri = 3;
+}
+
+// Logout — auth identity comes from metadata/interceptor, not the message
+message LogoutRequest {}
+
+message LogoutResponse {
+  string message = 1;
+}
+
+// CreateToken — maps to CreateTokenDto / CreateTokenResponseDto
+message CreateTokenRequest {
+  string name = 1;
+}
+
+// The raw token is returned once; maps to CreateTokenResponseDto
+message CreateTokenResponse {
+  string token = 1;
+  string id = 2;
+  string name = 3;
+  string created_at = 4;
+}
+
+// ListTokens
+message ListTokensRequest {}
+
+message ListTokensResponse {
+  repeated TokenDto tokens = 1;
+}
+
+// DeleteToken
+message DeleteTokenRequest {
+  string id = 1;
+}
+
+message DeleteTokenResponse {
+  string message = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Service definition
+//
+// Note: GET /auth/google/callback stays HTTP-only (browser redirect flow)
+// and is not represented here.
+// ---------------------------------------------------------------------------
+
+service AuthService {
+  rpc SendCode(SendCodeRequest) returns (SendCodeResponse);
+  rpc VerifyCode(VerifyCodeRequest) returns (AuthResponse);
+  rpc GoogleAuth(GoogleAuthRequest) returns (AuthResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc CreateToken(CreateTokenRequest) returns (CreateTokenResponse);
+  rpc ListTokens(ListTokensRequest) returns (ListTokensResponse);
+  rpc DeleteToken(DeleteTokenRequest) returns (DeleteTokenResponse);
+}
