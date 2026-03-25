@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BreathSessionsController } from './breath-sessions.controller';
+import { BreathSessionsGrpcController } from './breath-sessions.grpc.controller';
 import { BreathSessionsService } from './breath-sessions.service';
 import { BreathSessionSettingsService } from './breath-session-settings.service';
 import { BreathSession } from './entities/breath-session.entity';
@@ -14,7 +15,7 @@ import { StatsModule } from 'src/stats/stats.module';
     AuthModule,
     StatsModule,
   ],
-  controllers: [BreathSessionsController],
+  controllers: [BreathSessionsController, BreathSessionsGrpcController],
   providers: [BreathSessionsService, BreathSessionSettingsService],
   exports: [BreathSessionsService],
 })
