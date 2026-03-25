@@ -4,7 +4,7 @@
 
 ### 1.1 Install dependencies
 
-- [ ] **Install gRPC packages** — `npm install @nestjs/microservices @grpc/grpc-js @grpc/proto-loader && npm install --save-dev ts-proto`; document the `protoc` version in `mind_api/proto/README.md`
+- [x] **Install gRPC packages** — `npm install @nestjs/microservices @grpc/grpc-js @grpc/proto-loader && npm install --save-dev ts-proto`; document the `protoc` version in `mind_api/proto/README.md`
 
 ### 1.2 Define .proto files
 
