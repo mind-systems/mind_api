@@ -18,7 +18,13 @@
 
 - [ ] **proto/sync.proto** (streaming) — `WatchChanges(after_id?: int64) → stream ChangeEvent(repeated SyncEventDto)` `[api]`
 - [x] **proto/live.proto** — `LiveSession(stream LiveRequest) → stream LiveResponse`; `LiveRequest oneof`: `ActivityStartCmd(activity_type: ActivityType enum BREATH, ref_id?: string)`, `ActivityEndCmd`, `ActivityStopCmd`, `ActivityPauseCmd`, `ActivityResumeCmd`, `PresenceCmd(state: PresenceState enum FOREGROUND/BACKGROUND)`; `LiveResponse oneof`: `SessionStateEvent(live_session_id, status: SessionStatus enum ACTIVE/DISCONNECTED/COMPLETED/ABANDONED/INTERRUPTED/RESUMED, is_paused?: bool)`, `SessionErrorEvent(code, message, timestamp: int64)` `[api]`
-- [x] **proto/telemetry.proto** — `StreamTelemetry(stream TelemetryData) → stream TelemetryAck`; `TelemetryData`: session_id, timestamp: int64, module_id (string, e.g. "breath"), instruction_type (string, module-defined, e.g. "breath_phase"), data: google.protobuf.Struct (intentionally untyped); `TelemetryAck`: session_id, received_count, dropped_count, max_samples_per_second, timestamp; error: reuse SessionErrorEvent from live.proto `[api]`
+- [x] **proto/telemetry.proto** — `StreamTelemetry(stream TelemetryData) → stream TelemetryResponse`; `TelemetryData`: session_id, timestamp: int64, module_id (string, e.g. "breath"), instruction_type (string, module-defined, e.g. "breath_phase"), data: google.protobuf.Struct (intentionally untyped); `TelemetryResponse oneof`: `TelemetryAck(session_id, received_count, dropped_count, max_samples_per_second, timestamp)`, `SessionErrorEvent` (imported from live.proto) `[api]`
+
+## Proto Patches
+
+- [ ] **live.proto — remove `ref_type` from ActivityStartCmd** — field was added to mirror `activityRefType` in the DB entity, but that column will be dropped in Phase 4; `activity_type` is sufficient to identify the module `[api]`
+- [ ] **live.proto — rename ActivityType.BREATH_SESSION → BREATH** — `BREATH_SESSION` conflicts with the modular architecture decision: the enum value names the module, not the session type; `BREATH` is consistent with how `module_id` is expressed in telemetry (`"breath"`) `[api]`
+- [x] **telemetry.proto — replace `stream TelemetryAck` with `stream TelemetryResponse`** — server must be able to send either an ack or an error on the same stream; wrap in `TelemetryResponse { oneof event { TelemetryAck ack = 1; SessionErrorEvent error = 2; } }` mirroring the `LiveResponse` pattern `[api]`
 
 ## Completed
 
