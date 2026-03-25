@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package mind;
+
+// ---------------------------------------------------------------------------
+// Shared types
+// ---------------------------------------------------------------------------
+
+// Maps to BreathStep interface in src/breath-sessions/entities/breath-session.entity.ts
+enum StepType {
+  INHALE = 0;
+  EXHALE = 1;
+  HOLD = 2;
+}
+
+// Maps to TimeOfDay enum in src/breath-sessions/enums/time-of-day.enum.ts
+enum TimeOfDay {
+  MORNING = 0;
+  MIDDAY = 1;
+  EVENING = 2;
+}
+
+// Maps to BreathStep interface in src/breath-sessions/entities/breath-session.entity.ts
+// duration is in seconds.
+message StepDto {
+  StepType type = 1;
+  double duration = 2;
+}
+
+// Maps to BreathExercise interface in src/breath-sessions/entities/breath-session.entity.ts.
+// An exercise with empty steps acts as a rest separator between exercise blocks.
+message ExerciseDto {
+  repeated StepDto steps = 1;
+  double rest_duration = 2;
+  int32 repeat_count = 3;
+}
+
+// Wrapper for repeated ExerciseDto to support PATCH presence tracking in UpdateSessionRequest.
+// proto3 optional cannot be applied to repeated fields; wrapping the list in a message
+// gives presence tracking via has_exercises, so the server can distinguish
+// "field not sent" (don't change) from "sent with empty list" (clear all exercises).
+message ExerciseList {
+  repeated ExerciseDto exercises = 1;
+}
+
+// Maps to BreathSession entity in src/breath-sessions/entities/breath-session.entity.ts.
+// Timestamps are ISO-8601 strings for cross-language simplicity (same convention as TokenDto in auth.proto).
+// complexity is computed server-side and is read-only in responses.
+message BreathSessionDto {
+  string id = 1;
+  string user_id = 2;
+  string description = 3;
+  repeated ExerciseDto exercises = 4;
+  double complexity = 5;
+  bool shared = 6;
+  optional TimeOfDay time_of_day = 7;
+  string created_at = 8;
+  string updated_at = 9;
+  optional string deleted_at = 10;
+}
+
+// Maps to BreathSessionWithStarredDto in src/breath-sessions/dto/breath-session.dto.ts.
+// Uses composition instead of duplicating all fields: any new field added to BreathSessionDto
+// is inherited automatically, avoiding silent contract drift.
+// is_starred is present only when the caller is authenticated.
+message BreathSessionWithStarredDto {
+  BreathSessionDto session = 1;
+  optional bool is_starred = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Per-RPC request / response messages
+// ---------------------------------------------------------------------------
+
+// CreateSession — maps to CreateBreathSessionDto in src/breath-sessions/dto/breath-session.dto.ts.
+// Auth identity comes from metadata/interceptor, not the message.
+message CreateSessionRequest {
+  string description = 1;
+  repeated ExerciseDto exercises = 2;
+  optional bool shared = 3;
+  optional TimeOfDay time_of_day = 4;
+}
+
+// UpdateSession — maps to UpdateBreathSessionDto in src/breath-sessions/dto/breath-session.dto.ts.
+// PATCH semantics: only provided fields are updated.
+// exercises uses the ExerciseList wrapper so proto3 presence tracking can distinguish
+// "not sent" (don't change) from "sent with empty list" (clear all exercises).
+message UpdateSessionRequest {
+  string id = 1;
+  optional string description = 2;
+  optional ExerciseList exercises = 3;
+  optional bool shared = 4;
+  optional TimeOfDay time_of_day = 5;
+}
+
+// ReplaceSession — maps to ReplaceBreathSessionDto in src/breath-sessions/dto/breath-session.dto.ts.
+// PUT semantics: description, exercises, and shared are required; time_of_day is optional
+// and resets to null when absent.
+message ReplaceSessionRequest {
+  string id = 1;
+  string description = 2;
+  repeated ExerciseDto exercises = 3;
+  bool shared = 4;
+  optional TimeOfDay time_of_day = 5;
+}
+
+// UpdateSessionSettings — maps to UpdateBreathSessionSettingsDto in src/breath-sessions/dto/breath-session-settings.dto.ts
+message UpdateSessionSettingsRequest {
+  string id = 1;
+  bool starred = 2;
+}
+
+// Maps to BreathSessionSettingsResponseDto in src/breath-sessions/dto/breath-session-settings.dto.ts
+message UpdateSessionSettingsResponse {
+  bool starred = 1;
+}
+
+// DeleteSession
+message DeleteSessionRequest {
+  string id = 1;
+}
+
+message DeleteSessionResponse {
+  string message = 1;
+}
+
+// ListSessions — maps to ListQueryDto in src/breath-sessions/dto/breath-session.dto.ts.
+// Auth is optional: anonymous users see shared sessions only; authenticated users
+// receive is_starred on each item and the full own/starred/shared grouping.
+message ListSessionsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+// Maps to BreathSessionListResponseDto in src/breath-sessions/dto/breath-session.dto.ts
+message ListSessionsResponse {
+  repeated BreathSessionWithStarredDto data = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// GetSession — auth optional: authenticated users receive is_starred in the response.
+message GetSessionRequest {
+  string id = 1;
+}
+
+// GetSuggestions — maps to SuggestionsQueryDto in src/breath-sessions/dto/breath-session.dto.ts.
+// Requires auth — uses the caller's stats for the complexity baseline.
+message GetSuggestionsRequest {
+  TimeOfDay time_of_day = 1;
+}
+
+// Returns up to 4 sessions. Suggestions endpoint does not attach is_starred —
+// the service returns plain BreathSession[].
+message GetSuggestionsResponse {
+  repeated BreathSessionDto suggestions = 1;
+}
+
+// BatchGetSessions — maps to BatchQueryDto in src/breath-sessions/dto/breath-session.dto.ts.
+// Auth optional; maximum 50 IDs per request.
+message BatchGetSessionsRequest {
+  repeated string ids = 1; // Max 50 IDs per request
+}
+
+// findBatch attaches isStarred when authenticated, matching findOne / findList behaviour.
+message BatchGetSessionsResponse {
+  repeated BreathSessionWithStarredDto sessions = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Service definition
+//
+// Note: ListSessions, GetSession, and BatchGetSessions support optional auth —
+// when auth metadata is present, responses include is_starred and ListSessions
+// returns the full own/starred/shared grouping; without auth, only shared
+// sessions are returned.
+// ---------------------------------------------------------------------------
+
+service BreathSessionService {
+  rpc CreateSession(CreateSessionRequest) returns (BreathSessionDto);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc GetSuggestions(GetSuggestionsRequest) returns (GetSuggestionsResponse);
+  rpc BatchGetSessions(BatchGetSessionsRequest) returns (BatchGetSessionsResponse);
+  rpc GetSession(GetSessionRequest) returns (BreathSessionWithStarredDto);
+  rpc UpdateSession(UpdateSessionRequest) returns (BreathSessionDto);
+  rpc ReplaceSession(ReplaceSessionRequest) returns (BreathSessionDto);
+  rpc UpdateSessionSettings(UpdateSessionSettingsRequest) returns (UpdateSessionSettingsResponse);
+  rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionResponse);
+}
