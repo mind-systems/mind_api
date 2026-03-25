@@ -18,7 +18,7 @@
 
 - [ ] **proto/sync.proto** (streaming) — `WatchChanges(after_id?: int64) → stream ChangeEvent(repeated SyncEventDto)` `[api]`
 - [x] **proto/live.proto** — `LiveSession(stream LiveRequest) → stream LiveResponse`; `LiveRequest oneof`: `ActivityStartCmd(activity_type: ActivityType enum BREATH, ref_id?: string)`, `ActivityEndCmd`, `ActivityStopCmd`, `ActivityPauseCmd`, `ActivityResumeCmd`, `PresenceCmd(state: PresenceState enum FOREGROUND/BACKGROUND)`; `LiveResponse oneof`: `SessionStateEvent(live_session_id, status: SessionStatus enum ACTIVE/DISCONNECTED/COMPLETED/ABANDONED/INTERRUPTED/RESUMED, is_paused?: bool)`, `SessionErrorEvent(code, message, timestamp: int64)` `[api]`
-- [ ] **proto/telemetry.proto** — `StreamTelemetry(stream TelemetryData) → stream TelemetryAck`; `TelemetryData`: session_id, timestamp: int64, module_id (string, e.g. "breath"), instruction_type (string, module-defined, e.g. "breath_phase"), data: google.protobuf.Struct (intentionally untyped); `TelemetryAck`: session_id, received_count, dropped_count, max_samples_per_second, timestamp; error: reuse SessionErrorEvent from live.proto `[api]`
+- [x] **proto/telemetry.proto** — `StreamTelemetry(stream TelemetryData) → stream TelemetryAck`; `TelemetryData`: session_id, timestamp: int64, module_id (string, e.g. "breath"), instruction_type (string, module-defined, e.g. "breath_phase"), data: google.protobuf.Struct (intentionally untyped); `TelemetryAck`: session_id, received_count, dropped_count, max_samples_per_second, timestamp; error: reuse SessionErrorEvent from live.proto `[api]`
 
 ## Completed
 

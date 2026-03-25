@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package mind;
+
+import "google/protobuf/struct.proto";
+import "live.proto";
+
+// ---------------------------------------------------------------------------
+// Client → server samples
+// ---------------------------------------------------------------------------
+
+// TelemetryData is one instrumentation sample sent by the client.
+// session_id ties the sample to an active live session.
+// timestamp is int64 Unix millis — same convention as SessionErrorEvent.timestamp.
+// module_id identifies the producer module (e.g. "breath").
+// instruction_type is module-defined and names the specific measurement
+// (e.g. "breath_phase").
+// data carries the untyped payload so individual modules can evolve their
+// schemas independently without a proto change.
+message TelemetryData {
+  string session_id = 1;
+  int64 timestamp = 2;
+  string module_id = 3;
+  string instruction_type = 4;
+  google.protobuf.Struct data = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Server → client acknowledgements
+// ---------------------------------------------------------------------------
+
+// TelemetryAck is the server acknowledgement for a batch of received samples.
+// received_count is the cumulative number of samples accepted in this stream.
+// dropped_count is the cumulative number of samples discarded (e.g. rate-limited).
+// max_samples_per_second is the server-side rate limit hint the client should
+// respect to avoid further drops.
+// timestamp is int64 Unix millis when the ack was produced.
+message TelemetryAck {
+  string session_id = 1;
+  int64 received_count = 2;
+  int64 dropped_count = 3;
+  int32 max_samples_per_second = 4;
+  int64 timestamp = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Streaming message wrappers
+// ---------------------------------------------------------------------------
+
+// TelemetryResponse is the server-to-client stream envelope.
+// Each message carries exactly one event via the oneof.
+// SessionErrorEvent is imported from live.proto and reused for error reporting.
+message TelemetryResponse {
+  oneof event {
+    TelemetryAck ack = 1;
+    SessionErrorEvent error = 2;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Service definition
+//
+// Bidirectional stream: the client sends a continuous stream of TelemetryData
+// samples and the server responds with TelemetryAck confirmations or
+// SessionErrorEvent errors. Auth identity comes from metadata/interceptor,
+// not the message.
+// ---------------------------------------------------------------------------
+
+service TelemetryService {
+  rpc StreamTelemetry(stream TelemetryData) returns (stream TelemetryResponse);
+}
