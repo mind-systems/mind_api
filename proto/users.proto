@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package mind;
+
+import "auth.proto";
+
+// ---------------------------------------------------------------------------
+// Per-RPC request / response messages
+// ---------------------------------------------------------------------------
+
+// UpdateProfile — maps to UpdateUserDto in src/users/dto/update-user.dto.ts.
+// Auth identity comes from metadata/interceptor, not the message (same pattern
+// as LogoutRequest in auth.proto).
+message UpdateProfileRequest {
+  optional string name = 1;
+  // language must be a supported locale (e.g. "en", "ru") — validated
+  // server-side; proto3 syntax cannot express enum constraints on strings.
+  optional string language = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Service definition
+// ---------------------------------------------------------------------------
+
+service UserService {
+  rpc UpdateProfile(UpdateProfileRequest) returns (UserDto);
+}
