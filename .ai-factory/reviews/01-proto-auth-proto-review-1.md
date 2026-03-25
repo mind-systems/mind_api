@@ -49,9 +49,9 @@ Full coverage. No endpoint missed, no extra RPC added.
 ### Proto syntax verification
 
 - Field numbers: sequential (1-based), no gaps, no collisions across all 15 messages
-- `optional` keyword: correctly applied to nullable/optional fields (locale, language, redirect_uri, last_used_at) — requires protobuf 3.15+, compatible with protoc 34.0
+- `optional` keyword: correctly applied to nullable/optional fields (locale, language, redirect_uri, last_used_at) — requires protobuf 3.15+, compatible with modern protoc
 - Empty request messages (`LogoutRequest`, `ListTokensRequest`): custom messages rather than `google.protobuf.Empty` — correct practice for future extensibility
-- `UserRole` enum without `*_UNSPECIFIED = 0` sentinel: consistent with other non-streaming protos in the package (`breath_sessions.proto` also uses domain values at 0). The enum is only used in server → client response messages, so the proto3 default-value ambiguity is not a practical concern.
+- `UserRole` enum without `*_UNSPECIFIED = 0` sentinel: the enum is only used in server-to-client response messages (`UserDto`), so the proto3 default-value ambiguity (where an unset field reads as `USER`) is not a practical concern
 
 ### Critical Issues
 
@@ -63,9 +63,10 @@ None.
 
 ### Positive Notes
 
-- Clean, well-commented proto with source-file mapping annotations
+- Clean, well-commented proto with source-file mapping annotations on every type
 - AuthResponseDto's header-vs-body token difference is clearly documented
 - Google callback exclusion is explicitly commented in the service block
-- Consistent style with section separators that was adopted by all subsequent proto files
+- Consistent section-separator style that provides good readability
+- Timestamps as ISO-8601 strings is a pragmatic choice that avoids `google.protobuf.Timestamp` import while maintaining cross-language simplicity
 
 REVIEW_PASS
