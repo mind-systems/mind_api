@@ -1,14 +1,9 @@
 import { Controller, UseFilters, UseInterceptors } from '@nestjs/common';
-import { RpcException } from '@nestjs/microservices';
-import { Metadata, status as GrpcStatus } from '@grpc/grpc-js';
-import { Observable, throwError } from 'rxjs';
+import { GrpcMethod, RpcException } from '@nestjs/microservices';
+import { status as GrpcStatus } from '@grpc/grpc-js';
 import {
-  ChangeEvent,
   GetChangesRequest,
   GetChangesResponse,
-  SyncServiceController,
-  SyncServiceControllerMethods,
-  WatchChangesRequest,
 } from '../../proto/generated/sync';
 import { SyncService } from './sync.service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
@@ -17,19 +12,23 @@ import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
 
 @Controller()
-@SyncServiceControllerMethods()
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
-export class SyncGrpcController implements SyncServiceController {
+export class SyncGrpcController {
   constructor(
     private readonly syncService: SyncService,
   ) {}
 
+  @GrpcMethod('SyncService', 'getChanges')
   async getChanges(
     request: GetChangesRequest,
-    @GrpcCurrentUser() user?: JwtPayload,
+    @GrpcCurrentUser() user: JwtPayload | null,
   ): Promise<GetChangesResponse> {
-    const result = await this.syncService.getChanges(user!.sub, request.after, request.limit);
+    if (!user) {
+      throw new RpcException({ code: GrpcStatus.UNAUTHENTICATED, message: 'Missing user context' });
+    }
+
+    const result = await this.syncService.getChanges(user.sub, request.after, request.limit);
 
     if ('fullResync' in result) {
       return { fullResync: true };
@@ -48,15 +47,5 @@ export class SyncGrpcController implements SyncServiceController {
         hasMore: result.hasMore,
       },
     };
-  }
-
-  watchChanges(_request: WatchChangesRequest, _metadata?: Metadata): Observable<ChangeEvent> {
-    return throwError(
-      () =>
-        new RpcException({
-          code: GrpcStatus.UNIMPLEMENTED,
-          message: 'WatchChanges not implemented yet (Phase 3.3)',
-        }),
-    );
   }
 }

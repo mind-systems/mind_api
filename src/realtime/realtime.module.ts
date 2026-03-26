@@ -17,12 +17,14 @@ import { ObservabilityService } from './services/observability.service';
 import { SyncNotifierService } from './services/sync-notifier.service';
 import { LiveSession } from './entities/live-session.entity';
 import { SessionStreamSample } from './entities/session-stream-sample.entity';
+import { SyncStreamGrpcController } from './sync-stream.grpc.controller';
 
 @Module({
   imports: [
     AuthModule,
     TypeOrmModule.forFeature([LiveSession, SessionStreamSample]),
   ],
+  controllers: [SyncStreamGrpcController],
   providers: [
     StateStore,
     WsAuthMiddleware,
