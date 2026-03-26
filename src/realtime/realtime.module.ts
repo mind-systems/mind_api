@@ -14,7 +14,6 @@ import { TelemetryGateway } from './gateways/telemetry.gateway';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { WsRateLimitGuard } from './guards/ws-rate-limit.guard';
 import { ObservabilityService } from './services/observability.service';
-import { SyncNotifierService } from './services/sync-notifier.service';
 import { LiveSession } from './entities/live-session.entity';
 import { SessionStreamSample } from './entities/session-stream-sample.entity';
 import { SyncStreamGrpcController } from './sync-stream.grpc.controller';
@@ -40,7 +39,6 @@ import { SyncStreamService } from './services/sync-stream.service';
     StartupRecoveryService,
     StreamEngine,
     ObservabilityService,
-    SyncNotifierService,
     SyncStreamService,
   ],
   exports: [StateStore, PresenceService],
