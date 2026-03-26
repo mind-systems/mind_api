@@ -24,7 +24,6 @@ import { WsRateLimitGuard } from '../guards/ws-rate-limit.guard';
 import { StateStore } from '../state-store';
 import { PresenceService } from '../services/presence.service';
 import { ActivityEngine } from '../services/activity-engine.service';
-import { GraceTimerManager } from '../services/grace-timer.service';
 import {
   ACTIVITY_END,
   ACTIVITY_PAUSE,
@@ -66,7 +65,6 @@ export class LiveGateway
     private readonly stateStore: StateStore,
     private readonly presenceService: PresenceService,
     private readonly activityEngine: ActivityEngine,
-    private readonly graceTimerManager: GraceTimerManager,
     private readonly rateLimiterService: RateLimiterService,
     private readonly wsAuthMiddleware: WsAuthMiddleware,
     configService: ConfigService,
@@ -111,27 +109,24 @@ export class LiveGateway
     this.presenceService.online(userId, client.id);
     this.logger.log(`Connected: userId=${userId} socketId=${client.id}`);
 
-    // Reconnect: if a disconnected session is pending in activityMap, resume it
-    if (this.stateStore.activityMap.has(userId)) {
-      this.graceTimerManager.cancelTimer(userId);
-      this.activityEngine
-        .resumeActivity(userId)
-        .then((session) => {
-          if (session) {
-            client.emit(SESSION_STATE, {
-              liveSessionId: session.id,
-              status: SessionStatus.RESUMED,
-              isPaused: false,
-            });
-            this.logger.log(
-              `Session resumed: userId=${userId} sessionId=${session.id}`,
-            );
-          }
-        })
-        .catch((err: unknown) => {
-          this.logger.error(`Failed to resume session: userId=${userId}`, err);
-        });
-    }
+    // Reconnect: resume any pending disconnected session
+    this.activityEngine
+      .handleReconnect(userId)
+      .then((session) => {
+        if (session) {
+          client.emit(SESSION_STATE, {
+            liveSessionId: session.id,
+            status: SessionStatus.RESUMED,
+            isPaused: false,
+          });
+          this.logger.log(
+            `Session resumed: userId=${userId} sessionId=${session.id}`,
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        this.logger.error(`Failed to resume session: userId=${userId}`, err);
+      });
   }
 
   handleDisconnect(client: Socket): void {
@@ -144,25 +139,7 @@ export class LiveGateway
       this.stateStore.socketMap.delete(userId);
       this.presenceService.offline(userId);
       this.activityEngine
-        .onDisconnect(userId)
-        .then(() => {
-          // Start grace timer only if the session is still in activityMap
-          if (this.stateStore.activityMap.has(userId)) {
-            this.graceTimerManager.startTimer(userId, () => {
-              this.logger.log(
-                `Grace expired: userId=${userId} — abandoning session`,
-              );
-              this.activityEngine
-                .abandonActivity(userId)
-                .catch((err: unknown) => {
-                  this.logger.error(
-                    `Failed to abandon session after grace: userId=${userId}`,
-                    err,
-                  );
-                });
-            });
-          }
-        })
+        .handleTransportDisconnect(userId)
         .catch((err: unknown) => {
           this.logger.error(
             `Failed to record disconnect: userId=${userId}`,

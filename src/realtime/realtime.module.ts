@@ -7,7 +7,7 @@ import { WsAuthMiddleware } from './middleware/ws-auth.middleware';
 import { LiveGateway } from './gateways/live.gateway';
 import { PresenceService } from './services/presence.service';
 import { ActivityEngine } from './services/activity-engine.service';
-import { GraceTimerManager } from './services/grace-timer.service';
+import { ActivitySessionStore } from './services/activity-session-store.service';
 import { StartupRecoveryService } from './services/startup-recovery.service';
 import { StreamEngine } from './services/stream-engine.service';
 import { TelemetryGateway } from './gateways/telemetry.gateway';
@@ -29,6 +29,7 @@ import { TelemetryStreamGrpcController } from './telemetry-stream.grpc.controlle
   controllers: [SyncStreamGrpcController, LiveStreamGrpcController, TelemetryStreamGrpcController],
   providers: [
     StateStore,
+    ActivitySessionStore,
     WsAuthMiddleware,
     WsAuthGuard,
     WsRateLimitGuard,
@@ -37,12 +38,11 @@ import { TelemetryStreamGrpcController } from './telemetry-stream.grpc.controlle
     TelemetryGateway,
     PresenceService,
     ActivityEngine,
-    GraceTimerManager,
     StartupRecoveryService,
     StreamEngine,
     ObservabilityService,
     SyncStreamService,
   ],
-  exports: [StateStore, PresenceService],
+  exports: [StateStore, PresenceService, ActivitySessionStore],
 })
 export class RealtimeModule {}

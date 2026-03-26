@@ -15,10 +15,8 @@ import {
   SessionStatus,
 } from '../../proto/generated/live';
 import { ActivityType as InternalActivityType } from './enums/activity-type.enum';
-import { StateStore } from './state-store';
 import { ActivityEngine } from './services/activity-engine.service';
 import { PresenceService } from './services/presence.service';
-import { GraceTimerManager } from './services/grace-timer.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
@@ -47,10 +45,8 @@ export class LiveStreamGrpcController implements LiveServiceController {
   private readonly rateLimitWindowMs: number;
 
   constructor(
-    private readonly stateStore: StateStore,
     private readonly activityEngine: ActivityEngine,
     private readonly presenceService: PresenceService,
-    private readonly graceTimerManager: GraceTimerManager,
     private readonly rateLimiterService: RateLimiterService,
     configService: ConfigService,
   ) {
@@ -80,19 +76,16 @@ export class LiveStreamGrpcController implements LiveServiceController {
       const userId = user.sub;
 
       const setup = async (): Promise<void> => {
-        if (this.stateStore.activityMap.has(userId)) {
-          this.graceTimerManager.cancelTimer(userId);
-          const session = await this.activityEngine.resumeActivity(userId);
-          if (session) {
-            subscriber.next({
-              sessionState: {
-                liveSessionId: session.id,
-                status: SessionStatus.RESUMED,
-                isPaused: false,
-              },
-            });
-            this.logger.log(`Session resumed on reconnect: userId=${userId} sessionId=${session.id}`);
-          }
+        const session = await this.activityEngine.handleReconnect(userId);
+        if (session) {
+          subscriber.next({
+            sessionState: {
+              liveSessionId: session.id,
+              status: SessionStatus.RESUMED,
+              isPaused: false,
+            },
+          });
+          this.logger.log(`Session resumed on reconnect: userId=${userId} sessionId=${session.id}`);
         }
 
         this.presenceService.online(userId, userId);
@@ -136,14 +129,7 @@ export class LiveStreamGrpcController implements LiveServiceController {
 
         (async () => {
           this.presenceService.offline(userId);
-          await this.activityEngine.onDisconnect(userId);
-          if (this.stateStore.activityMap.has(userId)) {
-            this.graceTimerManager.startTimer(userId, () => {
-              this.activityEngine.abandonActivity(userId).catch((err: unknown) => {
-                this.logger.error(`Failed to abandon session after grace: userId=${userId}`, err);
-              });
-            });
-          }
+          await this.activityEngine.handleTransportDisconnect(userId);
         })().catch((err: unknown) => {
           this.logger.error(`Failed to record disconnect: userId=${userId}`, err);
         });

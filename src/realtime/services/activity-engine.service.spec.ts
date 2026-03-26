@@ -1,5 +1,5 @@
 import { ActivityEngine } from './activity-engine.service';
-import { StateStore } from '../state-store';
+import { ActivitySessionStore } from './activity-session-store.service';
 import { ActivityType } from '../enums/activity-type.enum';
 import { SessionStatus } from '../enums/session-status.enum';
 import { ActivityStartDto } from '../dto/activity-start.dto';
@@ -23,6 +23,14 @@ function makeStreamEngine() {
   return { push: jest.fn() };
 }
 
+function makeActivitySessionStore(): ActivitySessionStore {
+  const configService = {
+    get: jest.fn().mockReturnValue(undefined),
+  };
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+  return new ActivitySessionStore(configService as any);
+}
+
 function makeSession(overrides: Partial<LiveSession> = {}): LiveSession {
   const now = new Date();
   return {
@@ -39,27 +47,27 @@ function makeSession(overrides: Partial<LiveSession> = {}): LiveSession {
 
 describe('ActivityEngine', () => {
   let engine: ActivityEngine;
-  let stateStore: StateStore;
+  let activitySessionStore: ActivitySessionStore;
   let repo: ReturnType<typeof makeRepo>;
   let emitter: ReturnType<typeof makeEmitter>;
   let streamEngine: ReturnType<typeof makeStreamEngine>;
 
   beforeEach(() => {
-    stateStore = new StateStore();
+    activitySessionStore = makeActivitySessionStore();
     repo = makeRepo();
     emitter = makeEmitter();
     streamEngine = makeStreamEngine();
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     engine = new ActivityEngine(
       repo as any,
-      stateStore,
+      activitySessionStore,
       emitter as any,
       streamEngine as any,
     );
   });
 
   describe('startActivity', () => {
-    it('creates LiveSession row, writes ActivityState to activityMap, returns session', async () => {
+    it('creates LiveSession row, writes ActivityState to store, returns session', async () => {
       const dto: ActivityStartDto = {
         activityType: ActivityType.BREATH,
       };
@@ -72,7 +80,7 @@ describe('ActivityEngine', () => {
       expect(repo.create).toHaveBeenCalled();
       expect(repo.save).toHaveBeenCalledWith(session);
       expect(result).toBe(session);
-      const state = stateStore.activityMap.get('user-1');
+      const state = activitySessionStore.get('user-1');
       expect(state).toBeDefined();
       expect(state!.sessionId).toBe('session-1');
       expect(state!.activityType).toBe(ActivityType.BREATH);
@@ -80,9 +88,9 @@ describe('ActivityEngine', () => {
   });
 
   describe('endActivity', () => {
-    it('status=completed, endedAt set, removed from activityMap, session.completed emitted', async () => {
+    it('status=completed, endedAt set, removed from store, session.completed emitted', async () => {
       const session = makeSession();
-      stateStore.activityMap.set('user-1', {
+      activitySessionStore.set('user-1', {
         sessionId: 'session-1',
         activityType: ActivityType.BREATH,
         startedAt: session.startedAt,
@@ -102,7 +110,7 @@ describe('ActivityEngine', () => {
       expect(result).toBe(savedSession);
       expect(session.status).toBe(SessionStatus.COMPLETED);
       expect(session.endedAt).toBeDefined();
-      expect(stateStore.activityMap.has('user-1')).toBe(false);
+      expect(activitySessionStore.has('user-1')).toBe(false);
       expect(emitter.emit).toHaveBeenCalledWith(
         SessionEvents.COMPLETED,
         expect.objectContaining({
@@ -121,8 +129,8 @@ describe('ActivityEngine', () => {
   });
 
   describe('onDisconnect', () => {
-    it('status=disconnected, disconnectedAt set via repo.update, kept in activityMap, no emit', async () => {
-      stateStore.activityMap.set('user-1', {
+    it('status=disconnected, disconnectedAt set via repo.update, kept in store, no emit', async () => {
+      activitySessionStore.set('user-1', {
         sessionId: 'session-1',
         activityType: ActivityType.BREATH,
         startedAt: new Date(),
@@ -140,7 +148,7 @@ describe('ActivityEngine', () => {
           disconnectedAt: expect.any(Date),
         }),
       );
-      expect(stateStore.activityMap.has('user-1')).toBe(true);
+      expect(activitySessionStore.has('user-1')).toBe(true);
       expect(emitter.emit).not.toHaveBeenCalled();
     });
 
@@ -152,9 +160,9 @@ describe('ActivityEngine', () => {
   });
 
   describe('abandonActivity', () => {
-    it('status=abandoned, endedAt set, removed from activityMap, session.abandoned emitted', async () => {
+    it('status=abandoned, endedAt set, removed from store, session.abandoned emitted', async () => {
       const session = makeSession({ status: SessionStatus.DISCONNECTED });
-      stateStore.activityMap.set('user-1', {
+      activitySessionStore.set('user-1', {
         sessionId: 'session-1',
         activityType: ActivityType.BREATH,
         startedAt: session.startedAt,
@@ -173,7 +181,7 @@ describe('ActivityEngine', () => {
 
       expect(session.status).toBe(SessionStatus.ABANDONED);
       expect(session.endedAt).toBeDefined();
-      expect(stateStore.activityMap.has('user-1')).toBe(false);
+      expect(activitySessionStore.has('user-1')).toBe(false);
       expect(emitter.emit).toHaveBeenCalledWith(
         SessionEvents.ABANDONED,
         expect.objectContaining({
@@ -185,7 +193,7 @@ describe('ActivityEngine', () => {
 
     it('no-ops when session status=ACTIVE (reconnect beat the grace timer)', async () => {
       const session = makeSession({ status: SessionStatus.ACTIVE });
-      stateStore.activityMap.set('user-1', {
+      activitySessionStore.set('user-1', {
         sessionId: 'session-1',
         activityType: ActivityType.BREATH,
         startedAt: session.startedAt,
@@ -198,12 +206,12 @@ describe('ActivityEngine', () => {
 
       expect(repo.save).not.toHaveBeenCalled();
       expect(emitter.emit).not.toHaveBeenCalled();
-      expect(stateStore.activityMap.has('user-1')).toBe(false);
+      expect(activitySessionStore.has('user-1')).toBe(false);
     });
   });
 
   describe('getActiveSession', () => {
-    it('returns entry from activityMap', () => {
+    it('returns entry from store', () => {
       const state = {
         sessionId: 'session-1',
         activityType: ActivityType.BREATH,
@@ -211,7 +219,7 @@ describe('ActivityEngine', () => {
         lastActivityAt: new Date(),
         isPaused: false,
       };
-      stateStore.activityMap.set('user-1', state);
+      activitySessionStore.set('user-1', state);
 
       expect(engine.getActiveSession('user-1')).toBe(state);
     });
@@ -224,7 +232,7 @@ describe('ActivityEngine', () => {
   describe('resumeActivity', () => {
     it('happy path: sets status=ACTIVE, clears disconnectedAt, updates lastActivityAt, returns session', async () => {
       const session = makeSession({ status: SessionStatus.DISCONNECTED });
-      stateStore.activityMap.set('user-1', {
+      activitySessionStore.set('user-1', {
         sessionId: 'session-1',
         activityType: ActivityType.BREATH,
         startedAt: session.startedAt,
@@ -246,21 +254,21 @@ describe('ActivityEngine', () => {
       expect(session.disconnectedAt).toBeNull();
       expect(session.lastActivityAt).toEqual(expect.any(Date));
       expect(repo.save).toHaveBeenCalledWith(session);
-      // activityMap entry should have lastActivityAt synced
-      expect(stateStore.activityMap.get('user-1')?.lastActivityAt).toEqual(
+      // store entry should have lastActivityAt synced
+      expect(activitySessionStore.get('user-1')?.lastActivityAt).toEqual(
         session.lastActivityAt,
       );
     });
 
-    it('returns null when no activityMap entry', async () => {
+    it('returns null when no store entry', async () => {
       const result = await engine.resumeActivity('user-1');
 
       expect(result).toBeNull();
       expect(repo.findOne).not.toHaveBeenCalled();
     });
 
-    it('returns null and cleans activityMap when session not in DB', async () => {
-      stateStore.activityMap.set('user-1', {
+    it('returns null and cleans store when session not in DB', async () => {
+      activitySessionStore.set('user-1', {
         sessionId: 'session-1',
         activityType: ActivityType.BREATH,
         startedAt: new Date(),
@@ -272,7 +280,7 @@ describe('ActivityEngine', () => {
       const result = await engine.resumeActivity('user-1');
 
       expect(result).toBeNull();
-      expect(stateStore.activityMap.has('user-1')).toBe(false);
+      expect(activitySessionStore.has('user-1')).toBe(false);
     });
   });
 });

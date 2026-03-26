@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { LiveSession } from '../entities/live-session.entity';
-import { StateStore } from '../state-store';
+import { ActivitySessionStore } from './activity-session-store.service';
 import { ActivityState } from '../interfaces/activity-state.interface';
 import { ActivityStartDto } from '../dto/activity-start.dto';
 import { SessionStatus } from '../enums/session-status.enum';
@@ -27,7 +27,7 @@ export class ActivityEngine {
   constructor(
     @InjectRepository(LiveSession)
     private readonly repo: Repository<LiveSession>,
-    private readonly stateStore: StateStore,
+    private readonly activitySessionStore: ActivitySessionStore,
     private readonly eventEmitter: EventEmitter2,
     private readonly streamEngine: StreamEngine,
   ) {}
@@ -57,7 +57,7 @@ export class ActivityEngine {
       lastActivityAt: saved.lastActivityAt,
       isPaused: false,
     };
-    this.stateStore.activityMap.set(userId, state);
+    this.activitySessionStore.set(userId, state);
 
     this.streamEngine.push(saved.id, {
       timestamp: Date.now(),
@@ -75,7 +75,7 @@ export class ActivityEngine {
   }
 
   async endActivity(userId: string): Promise<LiveSession | null> {
-    const state = this.stateStore.activityMap.get(userId);
+    const state = this.activitySessionStore.get(userId);
     if (!state) {
       this.logger.warn(
         `endActivity: no active session in memory for userId=${userId}`,
@@ -93,7 +93,7 @@ export class ActivityEngine {
       this.logger.warn(
         `endActivity: sessionId=${state.sessionId} not found in DB — clearing state`,
       );
-      this.stateStore.activityMap.delete(userId);
+      this.activitySessionStore.delete(userId);
       return null;
     }
 
@@ -113,7 +113,7 @@ export class ActivityEngine {
       },
     });
 
-    this.stateStore.activityMap.delete(userId);
+    this.activitySessionStore.delete(userId);
     const durationMs = saved.endedAt
       ? saved.endedAt.getTime() - saved.startedAt.getTime()
       : 0;
@@ -138,7 +138,7 @@ export class ActivityEngine {
   }
 
   async onDisconnect(userId: string): Promise<void> {
-    const state = this.stateStore.activityMap.get(userId);
+    const state = this.activitySessionStore.get(userId);
     if (!state) return;
 
     const now = new Date();
@@ -149,24 +149,24 @@ export class ActivityEngine {
     this.logger.log(
       `Session disconnected: userId=${userId} sessionId=${state.sessionId}`,
     );
-    // Entry stays in activityMap — Phase D handles grace timer + abandon
+    // Entry stays in activitySessionStore — grace timer + abandon handled by handleTransportDisconnect
   }
 
   async abandonActivity(userId: string): Promise<void> {
-    const state = this.stateStore.activityMap.get(userId);
+    const state = this.activitySessionStore.get(userId);
     if (!state) return;
 
     const now = new Date();
     const session = await this.repo.findOne({ where: { id: state.sessionId } });
     if (!session) {
-      this.stateStore.activityMap.delete(userId);
+      this.activitySessionStore.delete(userId);
       return;
     }
 
     // Guard: if the session was already resumed (ACTIVE) before the grace timer
     // fired, do not overwrite it — the user reconnected in time.
     if (session.status !== SessionStatus.DISCONNECTED) {
-      this.stateStore.activityMap.delete(userId);
+      this.activitySessionStore.delete(userId);
       return;
     }
 
@@ -182,7 +182,7 @@ export class ActivityEngine {
       },
     });
 
-    this.stateStore.activityMap.delete(userId);
+    this.activitySessionStore.delete(userId);
     this.logger.log(
       `Session abandoned: userId=${userId} sessionId=${saved.id} durationMs=${saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0}`,
     );
@@ -199,7 +199,7 @@ export class ActivityEngine {
   }
 
   async stopActivity(userId: string): Promise<LiveSession | null> {
-    const state = this.stateStore.activityMap.get(userId);
+    const state = this.activitySessionStore.get(userId);
     if (!state) {
       this.logger.warn(
         `stopActivity: no active session in memory for userId=${userId}`,
@@ -213,7 +213,7 @@ export class ActivityEngine {
       this.logger.warn(
         `stopActivity: sessionId=${state.sessionId} not found in DB — clearing state`,
       );
-      this.stateStore.activityMap.delete(userId);
+      this.activitySessionStore.delete(userId);
       return null;
     }
 
@@ -229,7 +229,7 @@ export class ActivityEngine {
       },
     });
 
-    this.stateStore.activityMap.delete(userId);
+    this.activitySessionStore.delete(userId);
     const durationMs = saved.endedAt
       ? saved.endedAt.getTime() - saved.startedAt.getTime()
       : 0;
@@ -251,7 +251,7 @@ export class ActivityEngine {
   }
 
   pauseActivity(userId: string): ActivityState {
-    const state = this.stateStore.activityMap.get(userId);
+    const state = this.activitySessionStore.get(userId);
     if (!state) {
       throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
     }
@@ -283,7 +283,7 @@ export class ActivityEngine {
   }
 
   unpauseActivity(userId: string): ActivityState {
-    const state = this.stateStore.activityMap.get(userId);
+    const state = this.activitySessionStore.get(userId);
     if (!state) {
       throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
     }
@@ -315,16 +315,16 @@ export class ActivityEngine {
   }
 
   getActiveSession(userId: string): ActivityState | undefined {
-    return this.stateStore.activityMap.get(userId);
+    return this.activitySessionStore.get(userId);
   }
 
   async resumeActivity(userId: string): Promise<LiveSession | null> {
-    const state = this.stateStore.activityMap.get(userId);
+    const state = this.activitySessionStore.get(userId);
     if (!state) return null;
 
     const session = await this.repo.findOne({ where: { id: state.sessionId } });
     if (!session) {
-      this.stateStore.activityMap.delete(userId);
+      this.activitySessionStore.delete(userId);
       return null;
     }
 
@@ -342,5 +342,25 @@ export class ActivityEngine {
       `Session resumed: userId=${userId} sessionId=${saved.id} downtimeMs=${downtimeMs}`,
     );
     return saved;
+  }
+
+  async handleReconnect(userId: string): Promise<LiveSession | null> {
+    if (!this.activitySessionStore.has(userId)) return null;
+    this.activitySessionStore.cancelGraceTimer(userId);
+    return this.resumeActivity(userId);
+  }
+
+  async handleTransportDisconnect(userId: string): Promise<void> {
+    await this.onDisconnect(userId);
+    if (this.activitySessionStore.has(userId)) {
+      this.activitySessionStore.startGraceTimer(userId, () => {
+        this.abandonActivity(userId).catch((err: unknown) => {
+          this.logger.error(
+            `Failed to abandon session after grace: userId=${userId}`,
+            err,
+          );
+        });
+      });
+    }
   }
 }

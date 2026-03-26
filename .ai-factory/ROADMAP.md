@@ -68,7 +68,7 @@
 
 ### 3.6 Remove Socket.io infrastructure
 
-- [ ] **Migrate `activityMap` out of `LiveGateway`** — move `activityMap` (and any grace timer logic) to a standalone `ActivitySessionStore` service before deleting `live.gateway.ts`; `live-stream.grpc.controller.ts` (3.3) depends on this store
+- [x] **Migrate `activityMap` out of `LiveGateway`** — move `activityMap` (and any grace timer logic) to a standalone `ActivitySessionStore` service before deleting `live.gateway.ts`; `live-stream.grpc.controller.ts` (3.3) depends on this store
 - [ ] **Delete Socket.io server files and remove dependency** — delete `src/realtime/gateways/live.gateway.ts`, `telemetry.gateway.ts`, `ws-auth.middleware.ts`, `ws-auth.guard.ts`, `ws-payload-size.guard.ts`, `ws-rate-limit.guard.ts`, `ws-exception.filter.ts`, `authenticated-socket.interface.ts`; run `npm uninstall socket.io`
 
 ---
