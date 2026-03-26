@@ -4,13 +4,12 @@ import { AuthModule } from '../users/auth.module';
 import { UserStats } from './entities/user-stats.entity';
 import { StatsService } from './stats.service';
 import { StatsWorker } from './stats.worker';
-import { StatsController } from './stats.controller';
 import { StatsGrpcController } from './stats.grpc.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([UserStats]), AuthModule],
   providers: [StatsService, StatsWorker],
-  controllers: [StatsController, StatsGrpcController],
+  controllers: [StatsGrpcController],
   exports: [StatsService],
 })
 export class StatsModule {}

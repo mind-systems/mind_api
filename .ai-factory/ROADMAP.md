@@ -77,7 +77,7 @@
 
 ### 4.1 Remove HTTP controllers and Swagger
 
-- [ ] **Delete all HTTP controllers** — delete `auth.controller.ts`, `user.controller.ts`, `breath-sessions.controller.ts`, `stats.controller.ts`, `device.controller.ts`, `sync.controller.ts`; remove each from its module's `providers`; keep `health.controller.ts`
+- [x] **Delete all HTTP controllers** — delete `auth.controller.ts`, `user.controller.ts`, `breath-sessions.controller.ts`, `stats.controller.ts`, `device.controller.ts`, `sync.controller.ts`; remove each from its module's `providers`; keep `health.controller.ts`
 - [ ] **Remove Swagger** — `npm uninstall @nestjs/swagger`; remove `SwaggerModule.setup()` from `main.ts`; remove `@ApiProperty`, `@ApiOperation`, `@ApiTags` decorators from all DTOs and remaining files
 
 ### 4.2 Drop `activity_ref_type` column from `live_sessions`
