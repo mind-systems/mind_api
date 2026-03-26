@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { join } from 'path';
 import * as winston from 'winston';
 import {
   WinstonModule,
@@ -53,6 +55,25 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new IoAdapter(app));
 
+  const grpcUrl = process.env.GRPC_URL ?? '0.0.0.0:50051';
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.GRPC,
+    options: {
+      url: grpcUrl,
+      package: 'mind',
+      protoPath: [
+        join(process.cwd(), 'proto', 'auth.proto'),
+        join(process.cwd(), 'proto', 'breath_sessions.proto'),
+        join(process.cwd(), 'proto', 'device.proto'),
+        join(process.cwd(), 'proto', 'live.proto'),
+        join(process.cwd(), 'proto', 'stats.proto'),
+        join(process.cwd(), 'proto', 'sync.proto'),
+        join(process.cwd(), 'proto', 'telemetry.proto'),
+        join(process.cwd(), 'proto', 'users.proto'),
+      ],
+    },
+  });
+
   // Security
   app.use(helmet());
 
@@ -82,6 +103,8 @@ async function bootstrap() {
   });
 
   const port = process.env.CONTAINER_API_PORT || 3000;
+  await app.startAllMicroservices();
+  Logger.log(`gRPC server running on: ${grpcUrl}`);
   await app.listen(port);
   Logger.log(`🚀 Application is running on: http://localhost:${port}`);
   if (!isProd) {

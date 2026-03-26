@@ -43,7 +43,7 @@
 
 ### 1.5 Bootstrap gRPC server in AppModule
 
-- [ ] **Wire gRPC transport in `main.ts`** — add `app.connectMicroservice({ transport: Transport.GRPC, options: { url: '0.0.0.0:50051', package: 'mind', protoPath: [...all proto files], loader: { keepCase: true } } })`; call `app.startAllMicroservices()` before `app.listen(3002)` — both transports run simultaneously during transition
+- [x] **Wire gRPC transport in `main.ts`** — add `app.connectMicroservice({ transport: Transport.GRPC, options: { url: '0.0.0.0:50051', package: 'mind', protoPath: [...all proto files], loader: { keepCase: true } } })`; call `app.startAllMicroservices()` before `app.listen(3002)` — both transports run simultaneously during transition
 
 ### 1.6 Expose gRPC port in Docker
 
