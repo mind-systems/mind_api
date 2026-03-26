@@ -1,7 +1,6 @@
-import { Controller, UseFilters } from '@nestjs/common';
+import { Controller, UseFilters, UseInterceptors } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
-import { Metadata, status as GrpcStatus } from '@grpc/grpc-js';
-import { JwtService } from '@nestjs/jwt';
+import { status as GrpcStatus } from '@grpc/grpc-js';
 import {
   BatchGetSessionsRequest,
   BatchGetSessionsResponse,
@@ -24,7 +23,6 @@ import {
 } from '../../proto/generated/breath_sessions';
 import { BreathSessionsService } from './breath-sessions.service';
 import { BreathSessionSettingsService } from './breath-session-settings.service';
-import { SessionService } from '../users/service/session.service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import {
   fromProtoExercises,
@@ -33,85 +31,29 @@ import {
   toProtoBreathSessionWithStarredDto,
 } from '../grpc/grpc-mappers';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
-// TODO: uncomment when 1.4 is merged
-// import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
-// import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
+import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
+import {
+  GrpcCurrentUser,
+  GrpcOptionalAuth,
+} from '../grpc/decorators';
 
 @Controller()
 @BreathSessionServiceControllerMethods()
 @UseFilters(GrpcExceptionFilter)
+@UseInterceptors(GrpcAuthInterceptor)
 export class BreathSessionsGrpcController
   implements BreathSessionServiceController
 {
   constructor(
     private readonly breathSessionsService: BreathSessionsService,
     private readonly breathSessionSettingsService: BreathSessionSettingsService,
-    private readonly jwtService: JwtService,
-    private readonly sessionService: SessionService,
   ) {}
 
-  private async extractUser(metadata?: Metadata): Promise<JwtPayload> {
-    const raw = metadata?.get('authorization')[0]?.toString();
-    const token = raw?.startsWith('Bearer ') ? raw.slice(7) : raw;
-    if (!token) {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Missing authorization metadata',
-      });
-    }
-    let payload: JwtPayload;
-    try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-    } catch {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Invalid authorization token',
-      });
-    }
-    const isValid = await this.sessionService.isValid(token);
-    if (!isValid) {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Session not found or revoked',
-      });
-    }
-    return payload;
-  }
-
-  private async extractOptionalUser(
-    metadata?: Metadata,
-  ): Promise<JwtPayload | null> {
-    const raw = metadata?.get('authorization')[0]?.toString();
-    const token = raw?.startsWith('Bearer ') ? raw.slice(7) : raw;
-    if (!token) {
-      return null;
-    }
-    let payload: JwtPayload;
-    try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-    } catch {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Invalid authorization token',
-      });
-    }
-    const isValid = await this.sessionService.isValid(token);
-    if (!isValid) {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Session not found or revoked',
-      });
-    }
-    return payload;
-  }
-
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
   async createSession(
     request: CreateSessionRequest,
-    metadata?: Metadata,
+    @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<BreathSessionDto> {
-    const user = await this.extractUser(metadata);
-    const session = await this.breathSessionsService.create(user.sub, {
+    const session = await this.breathSessionsService.create(user!.sub, {
       description: request.description,
       exercises: fromProtoExercises(request.exercises),
       shared: request.shared,
@@ -123,12 +65,11 @@ export class BreathSessionsGrpcController
     return toProtoBreathSessionDto(session);
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
+  @GrpcOptionalAuth()
   async listSessions(
     request: ListSessionsRequest,
-    metadata?: Metadata,
+    @GrpcCurrentUser() user?: JwtPayload | null,
   ): Promise<ListSessionsResponse> {
-    const user = await this.extractOptionalUser(metadata);
     const result = await this.breathSessionsService.findList(
       user?.sub ?? null,
       request.page,
@@ -142,24 +83,22 @@ export class BreathSessionsGrpcController
     };
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
   async getSuggestions(
     request: GetSuggestionsRequest,
-    metadata?: Metadata,
+    @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<GetSuggestionsResponse> {
-    const user = await this.extractUser(metadata);
     const timeOfDay = fromProtoTimeOfDay(request.timeOfDay);
     const sessions = await this.breathSessionsService.findSuggestions(
-      user.sub,
+      user!.sub,
       timeOfDay,
     );
     return { suggestions: sessions.map(toProtoBreathSessionDto) };
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
+  @GrpcOptionalAuth()
   async batchGetSessions(
     request: BatchGetSessionsRequest,
-    metadata?: Metadata,
+    @GrpcCurrentUser() user?: JwtPayload | null,
   ): Promise<BatchGetSessionsResponse> {
     if (request.ids.length < 1 || request.ids.length > 50) {
       throw new RpcException({
@@ -167,7 +106,6 @@ export class BreathSessionsGrpcController
         message: 'ids must contain between 1 and 50 items',
       });
     }
-    const user = await this.extractOptionalUser(metadata);
     const sessions = await this.breathSessionsService.findBatch(
       request.ids,
       user?.sub ?? null,
@@ -175,12 +113,11 @@ export class BreathSessionsGrpcController
     return { sessions: sessions.map(toProtoBreathSessionWithStarredDto) };
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
+  @GrpcOptionalAuth()
   async getSession(
     request: GetSessionRequest,
-    metadata?: Metadata,
+    @GrpcCurrentUser() user?: JwtPayload | null,
   ): Promise<BreathSessionWithStarredDto> {
-    const user = await this.extractOptionalUser(metadata);
     const session = await this.breathSessionsService.findOne(
       request.id,
       user?.sub ?? null,
@@ -188,12 +125,10 @@ export class BreathSessionsGrpcController
     return toProtoBreathSessionWithStarredDto(session);
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
   async updateSession(
     request: UpdateSessionRequest,
-    metadata?: Metadata,
+    @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<BreathSessionDto> {
-    const user = await this.extractUser(metadata);
     const dto: {
       description?: string;
       exercises?: ReturnType<typeof fromProtoExercises>;
@@ -214,21 +149,19 @@ export class BreathSessionsGrpcController
     }
     const session = await this.breathSessionsService.update(
       request.id,
-      user.sub,
+      user!.sub,
       dto,
     );
     return toProtoBreathSessionDto(session);
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
   async replaceSession(
     request: ReplaceSessionRequest,
-    metadata?: Metadata,
+    @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<BreathSessionDto> {
-    const user = await this.extractUser(metadata);
     const session = await this.breathSessionsService.replace(
       request.id,
-      user.sub,
+      user!.sub,
       {
         description: request.description,
         exercises: fromProtoExercises(request.exercises),
@@ -242,28 +175,24 @@ export class BreathSessionsGrpcController
     return toProtoBreathSessionDto(session);
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
   async updateSessionSettings(
     request: UpdateSessionSettingsRequest,
-    metadata?: Metadata,
+    @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<UpdateSessionSettingsResponse> {
-    const user = await this.extractUser(metadata);
     await this.breathSessionsService.findOne(request.id);
     const result = await this.breathSessionSettingsService.upsert(
-      user.sub,
+      user!.sub,
       request.id,
       { starred: request.starred },
     );
     return { starred: result.starred };
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
   async deleteSession(
     request: DeleteSessionRequest,
-    metadata?: Metadata,
+    @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<DeleteSessionResponse> {
-    const user = await this.extractUser(metadata);
-    await this.breathSessionsService.remove(request.id, user.sub);
+    await this.breathSessionsService.remove(request.id, user!.sub);
     return { message: 'Breath session deleted successfully' };
   }
 }

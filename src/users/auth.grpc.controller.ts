@@ -1,6 +1,4 @@
-import { Controller, UseFilters } from '@nestjs/common';
-import { RpcException } from '@nestjs/microservices';
-import { Metadata, status as GrpcStatus } from '@grpc/grpc-js';
+import { Controller, UseFilters, UseInterceptors } from '@nestjs/common';
 import {
   AuthResponse,
   AuthServiceController,
@@ -26,9 +24,9 @@ import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { toProtoUserDto } from '../grpc/grpc-mappers';
 import type { AuthResponseDto } from './dto/auth-response.dto';
 import type { JwtPayload } from './interfaces/auth.interface';
-// TODO: uncomment when 1.4 is merged
-// import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
-// import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
+import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
+import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
+import { GrpcToken } from '../grpc/decorators/grpc-token.decorator';
 
 function toProtoAuthResponse(dto: AuthResponseDto): AuthResponse {
   return {
@@ -71,38 +69,22 @@ export class AuthGrpcController implements AuthServiceController {
     return toProtoAuthResponse(dto);
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
+  @UseInterceptors(GrpcAuthInterceptor)
   async logout(
     _request: LogoutRequest,
-    metadata?: Metadata,
-    // @GrpcCurrentUser() _user?: JwtPayload, // TODO: uncomment when 1.4 is merged
+    @GrpcToken() token?: string,
   ): Promise<LogoutResponse> {
-    const raw = metadata?.get('authorization')[0]?.toString();
-    const token = raw?.startsWith('Bearer ') ? raw.slice(7) : raw;
-    if (!token) {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Missing authorization metadata',
-      });
-    }
-    await this.sessionService.revoke(token);
+    await this.sessionService.revoke(token!);
     return { message: 'Logout successful.' };
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
+  @UseInterceptors(GrpcAuthInterceptor)
   async createToken(
     request: CreateTokenRequest,
-    // @GrpcCurrentUser() // TODO: uncomment when 1.4 is merged
-    user?: JwtPayload,
+    @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<CreateTokenResponse> {
-    if (!user) {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Authentication required',
-      });
-    }
     const result = await this.personalAccessTokenService.create(
-      user.sub,
+      user!.sub,
       request.name,
     );
     return {
@@ -113,19 +95,12 @@ export class AuthGrpcController implements AuthServiceController {
     };
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
+  @UseInterceptors(GrpcAuthInterceptor)
   async listTokens(
     _request: ListTokensRequest,
-    // @GrpcCurrentUser() // TODO: uncomment when 1.4 is merged
-    user?: JwtPayload,
+    @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<ListTokensResponse> {
-    if (!user) {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Authentication required',
-      });
-    }
-    const tokens = await this.personalAccessTokenService.list(user.sub);
+    const tokens = await this.personalAccessTokenService.list(user!.sub);
     return {
       tokens: tokens.map((t) => ({
         id: t.id,
@@ -136,19 +111,12 @@ export class AuthGrpcController implements AuthServiceController {
     };
   }
 
-  // @UseInterceptors(GrpcAuthInterceptor) // TODO: uncomment when 1.4 is merged
+  @UseInterceptors(GrpcAuthInterceptor)
   async deleteToken(
     request: DeleteTokenRequest,
-    // @GrpcCurrentUser() // TODO: uncomment when 1.4 is merged
-    user?: JwtPayload,
+    @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<DeleteTokenResponse> {
-    if (!user) {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Authentication required',
-      });
-    }
-    await this.personalAccessTokenService.revoke(request.id, user.sub);
+    await this.personalAccessTokenService.revoke(request.id, user!.sub);
     return { message: 'Token revoked.' };
   }
 }
