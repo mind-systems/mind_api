@@ -31,7 +31,6 @@ Mind Awake API — это бэкенд на базе NestJS для прилож�
 - **Localization:** Транзакционные письма на языке пользователя; предпочтительная локаль хранится в профиле.
 - **Security:** JWT с управлением сессиями (allow-list, SHA-256 хеш), строгие Guard'ы (Bearer), нормализация данных.
 - **Breath Sessions:** CRUD для сессий дыхания с поддержкой публичного доступа (shared).
-- **Docs:** OpenAPI (Swagger) документация доступна по адресу `/api/docs`.
 - **Logging:** Winston с ротацией логов (daily rotate) в папку `logs/`.
 - **Infrastructure:** Полная поддержка Docker (multi-stage) и управление через Makefile.
 - **Testing:** Покрытие ключевой бизнес-логики unit-тестами.
@@ -94,8 +93,6 @@ userId=<uuid-пользователя> envFile=.env.seed.dev npx ts-node --proje
 ```
 > Seed загружает breath sessions из `src/scripts/breath-sessions.json`. Пользователь должен уже существовать в БД — сначала выполни вход через API.
 
-**Swagger UI:** [http://localhost:3002/api/docs](http://localhost:3002/api/docs) (в Docker) или [http://localhost:3000/api/docs](http://localhost:3000/api/docs) (локально).
-
 ## Тестирование
 
 ```bash
@@ -108,8 +105,7 @@ npm test src/users/service/auth.service.spec.ts
 
 ## Документация и логи
 
-- **Swagger:** Все DTO и контроллеры задокументированы. Поддерживается авторизация через `Authorize` (Bearer token).
-- **Логи:** 
+- **Логи:**
   - `logs/combined-YYYY-MM-DD.log` — все системные события.
   - `logs/error-YYYY-MM-DD.log` — только ошибки.
 

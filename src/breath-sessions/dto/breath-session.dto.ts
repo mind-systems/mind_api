@@ -13,118 +13,98 @@ import {
   IsUUID,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BreathSession } from '../entities/breath-session.entity';
 import { TimeOfDay } from '../enums/time-of-day.enum';
 
 class BreathStepDto {
-  @ApiProperty({ enum: ['inhale', 'exhale', 'hold'] })
   @IsEnum(['inhale', 'exhale', 'hold'])
   type: 'inhale' | 'exhale' | 'hold';
 
-  @ApiProperty({ example: 4, description: 'Duration in seconds' })
   @IsNumber()
   @Min(0)
   duration: number;
 }
 
 class BreathExerciseDto {
-  @ApiProperty({ type: [BreathStepDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BreathStepDto)
   steps: BreathStepDto[];
 
-  @ApiProperty({ example: 2, description: 'Rest duration in seconds' })
   @IsNumber()
   @Min(0)
   restDuration: number;
 
-  @ApiProperty({ example: 3 })
   @IsNumber()
   @Min(1)
   repeatCount: number;
 }
 
 export class CreateBreathSessionDto {
-  @ApiProperty({ example: 'Morning relaxation' })
   @IsString()
   @IsNotEmpty()
   description: string;
 
-  @ApiProperty({ type: [BreathExerciseDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BreathExerciseDto)
   exercises: BreathExerciseDto[];
 
-  @ApiPropertyOptional({ example: false })
   @IsBoolean()
   @IsOptional()
   shared?: boolean;
 
-  @ApiPropertyOptional({ enum: TimeOfDay })
   @IsEnum(TimeOfDay)
   @IsOptional()
   timeOfDay?: TimeOfDay;
 }
 
 export class UpdateBreathSessionDto {
-  @ApiPropertyOptional({ example: 'Updated relaxation' })
   @IsString()
   @IsNotEmpty()
   @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ type: [BreathExerciseDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BreathExerciseDto)
   @IsOptional()
   exercises?: BreathExerciseDto[];
 
-  @ApiPropertyOptional({ example: true })
   @IsBoolean()
   @IsOptional()
   shared?: boolean;
 
-  @ApiPropertyOptional({ enum: TimeOfDay })
   @IsEnum(TimeOfDay)
   @IsOptional()
   timeOfDay?: TimeOfDay;
 }
 
 export class ReplaceBreathSessionDto {
-  @ApiProperty({ example: 'Morning relaxation' })
   @IsString()
   @IsNotEmpty()
   description: string;
 
-  @ApiProperty({ type: [BreathExerciseDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BreathExerciseDto)
   exercises: BreathExerciseDto[];
 
-  @ApiProperty({ example: false })
   @IsBoolean()
   shared: boolean;
 
-  @ApiPropertyOptional({ enum: TimeOfDay, nullable: true })
   @IsEnum(TimeOfDay)
   @IsOptional()
   timeOfDay?: TimeOfDay | null;
 }
 
 export class ListQueryDto {
-  @ApiPropertyOptional({ example: 1, default: 1 })
   @IsNumber()
   @Min(1)
   @Type(() => Number)
   @IsOptional()
   page?: number = 1;
 
-  @ApiPropertyOptional({ example: 20, default: 20 })
   @IsNumber()
   @Min(1)
   @Type(() => Number)
@@ -133,41 +113,26 @@ export class ListQueryDto {
 }
 
 export class BreathSessionWithStarredDto extends BreathSession {
-  @ApiPropertyOptional({
-    example: false,
-    description:
-      'Whether the current user has starred this session (present only when authenticated)',
-  })
   isStarred?: boolean;
 }
 
 export class BreathSessionListResponseDto {
-  @ApiProperty({ type: [BreathSessionWithStarredDto] })
   data: BreathSessionWithStarredDto[];
 
-  @ApiProperty({ example: 100 })
   total: number;
 
-  @ApiProperty({ example: 1 })
   page: number;
 
-  @ApiProperty({ example: 20 })
   pageSize: number;
 }
 
 export class SuggestionsQueryDto {
-  @ApiProperty({ enum: TimeOfDay })
   @IsEnum(TimeOfDay)
   @IsNotEmpty()
   timeOfDay: TimeOfDay;
 }
 
 export class BatchQueryDto {
-  @ApiProperty({
-    description: 'Comma-separated session UUIDs (max 50)',
-    example:
-      '550e8400-e29b-41d4-a716-446655440000,6ba7b810-9dad-11d1-80b4-00c04fd430c8',
-  })
   @Transform(({ value }) =>
     String(value)
       .split(',')

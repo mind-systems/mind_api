@@ -1,6 +1,5 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { join } from 'path';
 import * as winston from 'winston';
@@ -74,17 +73,6 @@ async function bootstrap() {
   // Security
   app.use(helmet());
 
-  if (!isProd) {
-    const config = new DocumentBuilder()
-      .setTitle('Mind Awake API')
-      .setDescription('The Mind Awake API documentation')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build();
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/docs', app, document);
-  }
-
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -104,9 +92,6 @@ async function bootstrap() {
   Logger.log(`gRPC server running on: ${grpcUrl}`);
   await app.listen(port);
   Logger.log(`🚀 Application is running on: http://localhost:${port}`);
-  if (!isProd) {
-    Logger.log(`Swagger documentation: http://localhost:${port}/api/docs`);
-  }
 }
 
 void bootstrap();

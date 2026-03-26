@@ -16,7 +16,7 @@ Mind Awake API is a NestJS 11 REST backend for a mindfulness breathing app. It h
 ## Key Entry Points
 | File | Purpose |
 |------|---------|
-| [src/main.ts](src/main.ts) | App bootstrap — Helmet, Swagger, Winston, port binding |
+| [src/main.ts](src/main.ts) | App bootstrap — Helmet, Winston, port binding |
 | [src/app.module.ts](src/app.module.ts) | Root module — imports all feature modules |
 | [database.config.ts](database.config.ts) | TypeORM factory config used by AppModule |
 | [src/config/typeorm.config.ts](src/config/typeorm.config.ts) | DataSource for TypeORM CLI (migrations) |
@@ -53,4 +53,3 @@ Mind Awake API is a NestJS 11 REST backend for a mindfulness breathing app. It h
 - **Env vars:** Dev uses `.env.dev`, prod uses `.env.prod`; base `.env` for local development
 - **Ports:** Dev Docker API=3002, DB=5432; local API=3000
 - **Tests:** `src/**/*.spec.ts` pattern; run with `npm test`
-- **Swagger:** Available at `/api/docs` (disabled in production)

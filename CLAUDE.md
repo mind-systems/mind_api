@@ -87,7 +87,7 @@ There are two TypeORM config files:
 
 ### Controllers are thin
 
-Controllers handle HTTP concerns only (status codes, response shape, Swagger decorators) and extract `req.user.sub` for the user ID. All logic lives in services.
+gRPC controllers handle request/response mapping and delegate all business logic to services.
 
 ### Environment
 
@@ -96,8 +96,6 @@ Controllers handle HTTP concerns only (status codes, response shape, Swagger dec
 | `.env` | Local development (base) |
 | `.env.dev` | Docker dev (`make up`) |
 | `.env.prod` | Docker prod (`make up-prod`) |
-
-Swagger UI is available at `/api/docs` and is disabled in production (`NODE_ENV === 'production'`).
 
 ### Documentation
 

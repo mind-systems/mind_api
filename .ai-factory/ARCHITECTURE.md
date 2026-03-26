@@ -89,7 +89,7 @@ export class BreathSessionsModule {}
 
 1. **Module = domain boundary.** One module per feature domain. The module file is the single source of truth for what a module exposes vs. keeps internal.
 
-2. **Services own business logic.** Controllers are thin — they handle HTTP concerns (status codes, response shape, Swagger decorators) and delegate everything else to services.
+2. **Services own business logic.** Controllers are thin — gRPC controllers handle request/response mapping and delegate all business logic to services.
 
 3. **Entities stay in their module.** Each entity belongs to the module that owns it. Other modules access that data through the owning module's service, not directly via `@InjectRepository`.
 
@@ -97,7 +97,7 @@ export class BreathSessionsModule {}
 
 5. **Guards are the access control boundary.** `JwtAuthGuard` protects all authenticated routes. Auth endpoints (`send-code`, `verify-code`) are public — no guard. Apply guards at the controller or route level — never inside services.
 
-6. **DTOs are the API contract.** Every controller method accepts a typed DTO. Use `class-validator` decorators on all DTOs. Use `@ApiProperty` on all DTO fields for Swagger completeness.
+6. **DTOs are the API contract.** Every controller method accepts a typed DTO. Use `class-validator` decorators on all DTOs.
 
 ## Code Examples
 
