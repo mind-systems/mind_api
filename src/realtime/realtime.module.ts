@@ -19,13 +19,14 @@ import { SessionStreamSample } from './entities/session-stream-sample.entity';
 import { SyncStreamGrpcController } from './sync-stream.grpc.controller';
 import { SyncStreamService } from './services/sync-stream.service';
 import { LiveStreamGrpcController } from './live-stream.grpc.controller';
+import { TelemetryStreamGrpcController } from './telemetry-stream.grpc.controller';
 
 @Module({
   imports: [
     AuthModule,
     TypeOrmModule.forFeature([LiveSession, SessionStreamSample]),
   ],
-  controllers: [SyncStreamGrpcController, LiveStreamGrpcController],
+  controllers: [SyncStreamGrpcController, LiveStreamGrpcController, TelemetryStreamGrpcController],
   providers: [
     StateStore,
     WsAuthMiddleware,
