@@ -94,7 +94,7 @@
 
 ### 6.2 Rename streaming namespaces
 
-- [ ] **Rename `/live` → `module_session`, `/telemetry` → `module_stream`** — current names are generic and don't communicate the modular architecture; `module_session` = session lifecycle control, `module_stream` = instruction log
+- [x] **Rename `/live` → `module_session`, `/telemetry` → `module_stream`** — current names are generic and don't communicate the modular architecture; `module_session` = session lifecycle control, `module_stream` = instruction log
 
 ---
 

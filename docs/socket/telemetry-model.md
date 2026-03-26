@@ -84,7 +84,7 @@ TelemetrySample
 
 ## Логика шлюза при паузе
 
-Когда сессия поставлена на паузу, `TelemetryGateway` блокирует только события `breath_phase` — lifecycle-события должны проходить всегда:
+Когда сессия поставлена на паузу, `ModuleStreamGrpcController` блокирует только события `breath_phase` — lifecycle-события должны проходить всегда:
 
 ```
 if (session.isPaused && sample.dataType === 'breath_phase') → drop, return data:ack { error: 'session_paused' }
@@ -106,7 +106,7 @@ T+6000ms–T+12000ms: биосигнал дыхания → соответств
 
 Это позволит давать пользователю объективный фидбэк: "во время фазы выдоха твоё дыхание совпадало с инструкцией на X%".
 
-Биометрические потоки будут идти через отдельный namespace `/biometric` и отдельную таблицу, но привязываться к той же `LiveSession` по `sessionId`. Подробнее — в `BIOMETRIC_PLATFORM_VISION.md`.
+Биометрические потоки будут идти через отдельный gRPC-сервис и отдельную таблицу, но привязываться к той же `LiveSession` по `sessionId`. Подробнее — в `BIOMETRIC_PLATFORM_VISION.md`.
 
 ## Backpressure и потери
 

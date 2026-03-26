@@ -14,15 +14,15 @@ import { SessionStreamSample } from './entities/session-stream-sample.entity';
 import { SyncStreamGrpcController } from './sync-stream.grpc.controller';
 import { SyncStreamService } from './services/sync-stream.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
-import { LiveStreamGrpcController } from './live-stream.grpc.controller';
-import { TelemetryStreamGrpcController } from './telemetry-stream.grpc.controller';
+import { ModuleSessionGrpcController } from './module-session.grpc.controller';
+import { ModuleStreamGrpcController } from './module-stream.grpc.controller';
 
 @Module({
   imports: [
     AuthModule,
     TypeOrmModule.forFeature([LiveSession, SessionStreamSample]),
   ],
-  controllers: [SyncStreamGrpcController, LiveStreamGrpcController, TelemetryStreamGrpcController],
+  controllers: [SyncStreamGrpcController, ModuleSessionGrpcController, ModuleStreamGrpcController],
   providers: [
     StateStore,
     ActivitySessionStore,

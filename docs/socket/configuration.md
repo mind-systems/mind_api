@@ -12,6 +12,6 @@
 | `WS_BACKPRESSURE_SAMPLES_PER_SEC` | `50` | Подсказка обратного давления, которая возвращается клиенту в поле `maxSamplesPerSecond` ответа `data:ack`. Клиент должен самостоятельно снижать частоту отправки до этого значения. |
 | `WS_RATE_LIMIT_MAX_EVENTS` | `200` | Максимальное количество событий от одного сокета в окне `WS_RATE_LIMIT_WINDOW_MS`. Скользящее окно; при превышении — `WsException` с кодом `RATE_LIMIT_EXCEEDED`. |
 | `WS_RATE_LIMIT_WINDOW_MS` | `1000` | Длина окна rate limiting в миллисекундах. Применяется ко всем событиям сокета через `WsRateLimitGuard`. |
-| `WS_RATE_LIMIT_ACTIVITY_START_PER_MIN` | `10` | Максимальное количество `activity:start` от одного пользователя в минуту. Отдельный лимит на уровне `LiveGateway`, защищающий от спама запусков сессий. |
+| `WS_RATE_LIMIT_ACTIVITY_START_PER_MIN` | `10` | Максимальное количество `activity:start` от одного пользователя в минуту. Отдельный лимит на уровне `ModuleSessionGrpcController`, защищающий от спама запусков сессий. |
 | `SUGGESTIONS_COMPLEXITY_THRESHOLD` | `50` | Допустимое превышение сложности сессий над `maxCompletedComplexity` пользователя при формировании рекомендаций (см. [Рекомендации](../breath/suggestions.md)). |
 | `LOG_LEVEL` | `info` | Минимальный уровень логирования Winston Console transport. Допустимые значения: `error`, `warn`, `info`, `verbose`, `debug`, `silly`. Управляет детализацией вывода без пересборки образа. |

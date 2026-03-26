@@ -78,7 +78,7 @@ message SessionStateEvent {
 // Maps to SessionErrorDto in src/realtime/dto/session-error.dto.ts.
 // timestamp is int64 Unix millis — not ISO-8601 — because error events are
 // high-frequency and don't need human-readable timestamps.
-// This message is top-level so telemetry.proto can import it later.
+// This message is top-level so module_stream.proto can import it later.
 message SessionErrorEvent {
   string code = 1;
   string message = 2;
@@ -89,9 +89,9 @@ message SessionErrorEvent {
 // Streaming message wrappers
 // ---------------------------------------------------------------------------
 
-// LiveRequest is the client-to-server stream envelope.
+// SessionRequest is the client-to-server stream envelope.
 // Each message carries exactly one command via the oneof.
-message LiveRequest {
+message SessionRequest {
   oneof command {
     ActivityStartCmd activity_start = 1;
     ActivityEndCmd activity_end = 2;
@@ -102,9 +102,9 @@ message LiveRequest {
   }
 }
 
-// LiveResponse is the server-to-client stream envelope.
+// SessionResponse is the server-to-client stream envelope.
 // Each message carries exactly one event via the oneof.
-message LiveResponse {
+message SessionResponse {
   oneof event {
     SessionStateEvent session_state = 1;
     SessionErrorEvent session_error = 2;
@@ -114,11 +114,11 @@ message LiveResponse {
 // ---------------------------------------------------------------------------
 // Service definition
 //
-// Bidirectional stream: the client sends commands (LiveRequest) and receives
-// state/error events (LiveResponse). Auth identity comes from metadata/interceptor,
+// Bidirectional stream: the client sends commands (SessionRequest) and receives
+// state/error events (SessionResponse). Auth identity comes from metadata/interceptor,
 // not the message.
 // ---------------------------------------------------------------------------
 
-service LiveService {
-  rpc LiveSession(stream LiveRequest) returns (stream LiveResponse);
+service ModuleSessionService {
+  rpc SessionStream(stream SessionRequest) returns (stream SessionResponse);
 }

@@ -3,11 +3,11 @@ import { RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus, Metadata } from '@grpc/grpc-js';
 import { Observable } from 'rxjs';
 import {
-  TelemetryData,
-  TelemetryResponse,
-  TelemetryServiceController,
-  TelemetryServiceControllerMethods,
-} from '../../proto/generated/telemetry';
+  StreamSample,
+  StreamResponse,
+  ModuleStreamServiceController,
+  ModuleStreamServiceControllerMethods,
+} from '../../proto/generated/module_stream';
 import { StreamEngine } from './services/stream-engine.service';
 import { ActivityEngine } from './services/activity-engine.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
@@ -20,9 +20,9 @@ import type { JwtPayload } from '../users/interfaces/auth.interface';
 @Controller()
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
-@TelemetryServiceControllerMethods()
-export class TelemetryStreamGrpcController implements TelemetryServiceController {
-  private readonly logger = new Logger(TelemetryStreamGrpcController.name);
+@ModuleStreamServiceControllerMethods()
+export class ModuleStreamGrpcController implements ModuleStreamServiceController {
+  private readonly logger = new Logger(ModuleStreamGrpcController.name);
 
   constructor(
     private readonly streamEngine: StreamEngine,
@@ -30,11 +30,11 @@ export class TelemetryStreamGrpcController implements TelemetryServiceController
     private readonly activeStreamRegistry: ActiveStreamRegistry,
   ) {}
 
-  streamTelemetry(
-    request: Observable<TelemetryData>,
+  streamData(
+    request: Observable<StreamSample>,
     metadata?: Metadata,
-  ): Observable<TelemetryResponse> {
-    return new Observable<TelemetryResponse>((subscriber) => {
+  ): Observable<StreamResponse> {
+    return new Observable<StreamResponse>((subscriber) => {
       const user = metadata
         ? ((metadata as any)[GRPC_USER_KEY] as JwtPayload | null)
         : null;
@@ -51,7 +51,7 @@ export class TelemetryStreamGrpcController implements TelemetryServiceController
       this.activeStreamRegistry.register(userId, subscriber);
 
       const sub = request.subscribe({
-        next: (msg: TelemetryData) => {
+        next: (msg: StreamSample) => {
           try {
             if (!msg.sessionId) {
               subscriber.next({
@@ -123,7 +123,7 @@ export class TelemetryStreamGrpcController implements TelemetryServiceController
             }
           } catch (err: unknown) {
             this.logger.error(
-              `Unexpected error handling telemetry sample: userId=${userId}`,
+              `Unexpected error handling stream sample: userId=${userId}`,
               err,
             );
             subscriber.next({

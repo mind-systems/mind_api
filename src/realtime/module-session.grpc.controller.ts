@@ -7,14 +7,14 @@ import { Observable, Subscriber } from 'rxjs';
 import {
   ActivityStartCmd,
   ActivityType as ProtoActivityType,
-  LiveRequest,
-  LiveResponse,
-  LiveServiceController,
-  LiveServiceControllerMethods,
+  SessionRequest,
+  SessionResponse,
+  ModuleSessionServiceController,
+  ModuleSessionServiceControllerMethods,
   PresenceCmd,
   PresenceState,
   SessionStatus,
-} from '../../proto/generated/live';
+} from '../../proto/generated/module_session';
 import { ActivityType as InternalActivityType } from './enums/activity-type.enum';
 import { ActivityEngine } from './services/activity-engine.service';
 import { PresenceService } from './services/presence.service';
@@ -40,9 +40,9 @@ function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
 @Controller()
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
-@LiveServiceControllerMethods()
-export class LiveStreamGrpcController implements LiveServiceController {
-  private readonly logger = new Logger(LiveStreamGrpcController.name);
+@ModuleSessionServiceControllerMethods()
+export class ModuleSessionGrpcController implements ModuleSessionServiceController {
+  private readonly logger = new Logger(ModuleSessionGrpcController.name);
 
   private readonly activityStartLimit: number;
   private readonly rateLimitWindowMs: number;
@@ -64,8 +64,8 @@ export class LiveStreamGrpcController implements LiveServiceController {
     );
   }
 
-  liveSession(request: Observable<LiveRequest>, metadata?: Metadata): Observable<LiveResponse> {
-    return new Observable<LiveResponse>((subscriber) => {
+  sessionStream(request: Observable<SessionRequest>, metadata?: Metadata): Observable<SessionResponse> {
+    return new Observable<SessionResponse>((subscriber) => {
       const user = metadata
         ? ((metadata as any)[GRPC_USER_KEY] as JwtPayload | null)
         : null;
@@ -97,7 +97,7 @@ export class LiveStreamGrpcController implements LiveServiceController {
         this.presenceService.online(userId, userId);
 
         const cmdSub = request.subscribe({
-          next: (msg: LiveRequest) => {
+          next: (msg: SessionRequest) => {
             this.routeCommand(userId, msg, subscriber).catch((err: unknown) => {
               this.logger.error(`Unhandled error routing command: userId=${userId}`, err);
               subscriber.next({
@@ -154,8 +154,8 @@ export class LiveStreamGrpcController implements LiveServiceController {
 
   private async routeCommand(
     userId: string,
-    msg: LiveRequest,
-    subscriber: Subscriber<LiveResponse>,
+    msg: SessionRequest,
+    subscriber: Subscriber<SessionResponse>,
   ): Promise<void> {
     try {
       if (msg.activityStart !== undefined) {
@@ -174,7 +174,7 @@ export class LiveStreamGrpcController implements LiveServiceController {
         subscriber.next({
           sessionError: {
             code: 'INVALID_COMMAND',
-            message: 'Empty LiveRequest — no command set',
+            message: 'Empty SessionRequest — no command set',
             timestamp: Date.now(),
           },
         });
@@ -194,7 +194,7 @@ export class LiveStreamGrpcController implements LiveServiceController {
   private async handleActivityStart(
     userId: string,
     cmd: ActivityStartCmd,
-    subscriber: Subscriber<LiveResponse>,
+    subscriber: Subscriber<SessionResponse>,
   ): Promise<void> {
     const allowed = this.rateLimiterService.consume(
       `activity-start:${userId}`,
@@ -239,7 +239,7 @@ export class LiveStreamGrpcController implements LiveServiceController {
 
   private async handleActivityEnd(
     userId: string,
-    subscriber: Subscriber<LiveResponse>,
+    subscriber: Subscriber<SessionResponse>,
   ): Promise<void> {
     const session = await this.activityEngine.endActivity(userId);
     if (!session) return;
@@ -254,7 +254,7 @@ export class LiveStreamGrpcController implements LiveServiceController {
 
   private async handleActivityStop(
     userId: string,
-    subscriber: Subscriber<LiveResponse>,
+    subscriber: Subscriber<SessionResponse>,
   ): Promise<void> {
     const session = await this.activityEngine.stopActivity(userId);
     if (!session) return;
@@ -267,7 +267,7 @@ export class LiveStreamGrpcController implements LiveServiceController {
     this.logger.log(`Activity stopped: userId=${userId} sessionId=${session.id}`);
   }
 
-  private handleActivityPause(userId: string, subscriber: Subscriber<LiveResponse>): void {
+  private handleActivityPause(userId: string, subscriber: Subscriber<SessionResponse>): void {
     try {
       const state = this.activityEngine.pauseActivity(userId);
       subscriber.next({
@@ -289,7 +289,7 @@ export class LiveStreamGrpcController implements LiveServiceController {
     }
   }
 
-  private handleActivityResume(userId: string, subscriber: Subscriber<LiveResponse>): void {
+  private handleActivityResume(userId: string, subscriber: Subscriber<SessionResponse>): void {
     try {
       const state = this.activityEngine.unpauseActivity(userId);
       subscriber.next({
@@ -314,7 +314,7 @@ export class LiveStreamGrpcController implements LiveServiceController {
   private handlePresence(
     userId: string,
     cmd: PresenceCmd,
-    subscriber: Subscriber<LiveResponse>,
+    subscriber: Subscriber<SessionResponse>,
   ): void {
     if (cmd.state === PresenceState.FOREGROUND) {
       this.presenceService.foreground(userId);
