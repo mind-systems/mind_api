@@ -31,7 +31,7 @@
 - [x] **breath-sessions.grpc.controller.ts** — implement `BreathSessionsServiceController`; inject `BreathSessionsService`
 - [x] **stats.grpc.controller.ts** — implement `StatsServiceController`; inject `StatsService`
 - [x] **device.grpc.controller.ts** — implement `DeviceServiceController`; inject `DeviceService`
-- [ ] **sync.grpc.controller.ts** — implement `SyncServiceController`; inject `SyncService`
+- [x] **sync.grpc.controller.ts** — implement `SyncServiceController`; inject `SyncService`
 
 ### 1.4 Auth metadata interceptor
 
