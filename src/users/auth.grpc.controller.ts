@@ -1,4 +1,6 @@
 import { Controller, UseFilters, UseInterceptors } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
+import { status as GrpcStatus } from '@grpc/grpc-js';
 import {
   AuthResponse,
   AuthServiceController,
@@ -74,7 +76,13 @@ export class AuthGrpcController implements AuthServiceController {
     _request: LogoutRequest,
     @GrpcToken() token?: string,
   ): Promise<LogoutResponse> {
-    await this.sessionService.revoke(token!);
+    if (!token) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Missing authorization token',
+      });
+    }
+    await this.sessionService.revoke(token);
     return { message: 'Logout successful.' };
   }
 
@@ -83,8 +91,14 @@ export class AuthGrpcController implements AuthServiceController {
     request: CreateTokenRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<CreateTokenResponse> {
+    if (!user) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Authentication required',
+      });
+    }
     const result = await this.personalAccessTokenService.create(
-      user!.sub,
+      user.sub,
       request.name,
     );
     return {
@@ -100,7 +114,13 @@ export class AuthGrpcController implements AuthServiceController {
     _request: ListTokensRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<ListTokensResponse> {
-    const tokens = await this.personalAccessTokenService.list(user!.sub);
+    if (!user) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Authentication required',
+      });
+    }
+    const tokens = await this.personalAccessTokenService.list(user.sub);
     return {
       tokens: tokens.map((t) => ({
         id: t.id,
@@ -116,7 +136,13 @@ export class AuthGrpcController implements AuthServiceController {
     request: DeleteTokenRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<DeleteTokenResponse> {
-    await this.personalAccessTokenService.revoke(request.id, user!.sub);
+    if (!user) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Authentication required',
+      });
+    }
+    await this.personalAccessTokenService.revoke(request.id, user.sub);
     return { message: 'Token revoked.' };
   }
 }

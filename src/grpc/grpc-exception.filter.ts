@@ -34,11 +34,13 @@ export class GrpcExceptionFilter implements ExceptionFilter {
     const httpStatus = exception.getStatus();
     const response = exception.getResponse();
 
-    const message =
+    const raw =
       typeof response === 'string'
         ? response
         : ((response as { message?: string | string[] }).message ??
           exception.message);
+
+    const message = Array.isArray(raw) ? raw.join('; ') : raw;
 
     const code = httpToGrpcStatus(httpStatus);
 
