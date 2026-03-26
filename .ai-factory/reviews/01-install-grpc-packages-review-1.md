@@ -1,76 +1,32 @@
-# Code Review: 01-install-grpc-packages
+## Code Review Summary
 
 **Plan:** `.ai-factory/plans/01-install-grpc-packages.md`
-**Branch:** `grpc`
-**Risk Level:** Low
+**Commit:** `e2f9a09` — Install gRPC packages
+**Files Reviewed:** 4 (package.json, .gitignore, proto/README.md, .ai-factory/DESCRIPTION.md)
+**Risk Level:** :green_circle: Low
 
----
+### Context Gates
 
-## Verification Results
+- **ARCHITECTURE.md** — WARN: no violations. Infrastructure-only change (dependencies + docs), no module boundaries or dependency rules affected.
+- **RULES.md** — WARN: no violations. No application code added — no non-null assertions, no logging, no sensitive data.
+- **ROADMAP.md** — OK. Milestone "Install gRPC packages" correctly checked off in section 1.1.
 
-| Check | Result |
-|-------|--------|
-| `npm ls` (peer deps) | Clean — no warnings |
-| `npm run build` | Passes |
-| `npm test` | 1 failure — **pre-existing** (`auth.service.spec.ts`, not touched by this changeset) |
-| `npm run proto:gen` | **Fails** — see Issue 1 |
+### Critical Issues
 
----
+None.
 
-## Issues
+### Suggestions
 
-### 1. `proto:gen` script is missing `--proto_path` — codegen fails at runtime
+None.
 
-**File:** `package.json:27`
-**Severity:** Bug (script is broken as shipped)
+### Positive Notes
 
-The current script:
-```
-protoc --plugin=protoc-gen-ts_proto=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./proto/generated --ts_proto_opt=nestJs=true,outputServices=grpc-js,esModuleInterop=true ./proto/*.proto
-```
+- **Correct dependency categorization** — `@grpc/grpc-js`, `@grpc/proto-loader`, `@nestjs/microservices` in `dependencies`; `ts-proto` in `devDependencies`. Exactly right.
+- **`proto:gen` script is robust** — includes `mkdir -p proto/generated` for fresh-clone resilience and `-I./proto` for bare import resolution. Both issues were caught in earlier review iterations and properly fixed.
+- **`proto/README.md` is well-written** — English (correct per root CLAUDE.md), accurately documents the `protoc` invocation including `-I./proto`, covers contract ownership and consumer workflow.
+- **`.gitignore` entry** — `/proto/generated` correctly placed under the compiled output section.
+- **`DESCRIPTION.md` update** — gRPC line is accurate, placed in the correct position within the Tech Stack section.
+- **`ts-proto` options** — `nestJs=true,outputServices=grpc-js,esModuleInterop=true` is the correct combination for NestJS + `@grpc/grpc-js`.
+- **No peer dependency issues** — `@nestjs/microservices@11.1.17` peers (`@nestjs/common@^11`, `@nestjs/core@^11`, `rxjs@^7`, `reflect-metadata@^0.1.12 || ^0.2.0`) are all satisfied by existing packages.
 
-Fails with:
-```
-live.proto: File not found.
-proto/telemetry.proto:6:1: Import "live.proto" was not found or had errors.
-```
-
-Several `.proto` files use bare imports (`import "live.proto"` in `telemetry.proto`, `import "auth.proto"` in `users.proto`). Without `-I./proto`, protoc cannot resolve these imports — it looks for `live.proto` relative to the working directory (project root), not relative to `proto/`.
-
-**Fix:** Add `-I./proto` to the command:
-```
-protoc -I./proto --plugin=protoc-gen-ts_proto=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./proto/generated --ts_proto_opt=nestJs=true,outputServices=grpc-js,esModuleInterop=true ./proto/*.proto
-```
-
-Verified: with this flag, codegen succeeds and produces all 8 expected `.ts` files plus the `google/` well-known types directory.
-
-### 2. `proto:gen` does not create the output directory
-
-**File:** `package.json:27`
-**Severity:** Minor (first-run UX)
-
-If `proto/generated/` does not exist (it won't on a fresh clone since it's in `.gitignore`), protoc exits with `./proto/generated/: No such file or directory`. The script should ensure the directory exists before running protoc.
-
-**Fix:** Prepend `mkdir -p proto/generated &&` to the script:
-```
-"proto:gen": "mkdir -p proto/generated && protoc -I./proto --plugin=..."
-```
-
-### 3. `proto/README.md` documents a broken command
-
-**File:** `proto/README.md:27-31`
-**Severity:** Docs (follows from Issue 1)
-
-The README's "under the hood" code block reproduces the same broken invocation without `--proto_path`. Once Issue 1 is fixed in `package.json`, the README should be updated to match — add the `-I./proto` flag to the documented command.
-
----
-
-## Positive Notes
-
-- Package selection is correct — `@grpc/grpc-js`, `@grpc/proto-loader`, `@nestjs/microservices` as runtime deps, `ts-proto` as devDependency.
-- No peer dependency warnings — `@nestjs/microservices@11.1.17` satisfies all peer requirements via existing packages.
-- Build passes cleanly — no TypeScript compilation regressions.
-- `.gitignore` entry for `/proto/generated` is correctly placed and working.
-- `DESCRIPTION.md` update is accurate and placed in the right section.
-- `proto/README.md` is well-structured, written in English (correct per root CLAUDE.md rules), and covers all required sections.
-- `ts-proto` options (`nestJs=true,outputServices=grpc-js,esModuleInterop=true`) are the correct combination for this stack.
+REVIEW_PASS
