@@ -15,10 +15,9 @@ export class ObservabilityService {
   @Interval(60_000)
   logMetrics(): void {
     const activeSessions = this.activitySessionStore.size;
-    const connectedSockets = this.stateStore.socketMap.size;
     const connectedStreams = this.stateStore.streamMap.size;
     this.logger.log(
-      `Realtime metrics: activeSessions=${activeSessions} connectedSockets=${connectedSockets} connectedStreams=${connectedStreams}`,
+      `Realtime metrics: activeSessions=${activeSessions} connectedStreams=${connectedStreams}`,
     );
   }
 }

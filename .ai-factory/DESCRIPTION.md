@@ -22,7 +22,6 @@ Mind Awake API is a NestJS-based REST backend for a mindfulness breathing applic
 - **Mail:** Resend SDK
 - **Validation:** `class-validator` + `class-transformer`
 - **HTTP Security:** Helmet
-- **WebSocket:** `@nestjs/websockets` + `@nestjs/platform-socket.io` + `socket.io` (realtime `/live` namespace)
 - **gRPC:** `@nestjs/microservices` + `@grpc/grpc-js` + `@grpc/proto-loader` (runtime); `ts-proto` (codegen, devDependency)
 - **Events:** `@nestjs/event-emitter` (internal event bus)
 - **Scheduling:** `@nestjs/schedule` (Cron for expired sessions + auth codes cleanup)

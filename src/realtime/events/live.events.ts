@@ -1,12 +1,2 @@
-export const ACTIVITY_START = 'activity:start';
-export const ACTIVITY_END = 'activity:end';
-export const PRESENCE_BACKGROUND = 'presence:background';
-export const PRESENCE_FOREGROUND = 'presence:foreground';
-export const SESSION_STATE = 'session:state';
-export const ACTIVITY_STOP = 'activity:stop';
-export const ACTIVITY_PAUSE = 'activity:pause';
-export const ACTIVITY_RESUME = 'activity:resume';
-export const SESSION_ERROR = 'session:error';
 export const LIVE_SESSION_PAUSED = 'live_session.paused';
 export const LIVE_SESSION_UNPAUSED = 'live_session.unpaused';
-export const WS_EXCEPTION = 'exception';

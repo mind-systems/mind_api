@@ -9,7 +9,6 @@ import {
   utilities as nestWinstonModuleUtilities,
 } from 'nest-winston';
 import DailyRotateFile = require('winston-daily-rotate-file');
-import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 
@@ -52,8 +51,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger,
   });
-
-  app.useWebSocketAdapter(new IoAdapter(app));
 
   const grpcUrl = process.env.GRPC_URL ?? '0.0.0.0:50051';
   app.connectMicroservice<MicroserviceOptions>({
