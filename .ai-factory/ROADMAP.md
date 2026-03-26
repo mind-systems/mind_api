@@ -57,7 +57,7 @@
 
 > State-store change: `StateStore.socketMap` → `streamMap = new Map<string, ServerWritableStream>()`. Auth validated once on stream open; rate limiting keyed by `userId` instead of `client.id`.
 
-- [ ] **Verify `ChangeLogService.getChanges()`** — confirm `getChanges(userId, after_id, limit)` exists and returns `{ events: ChangeRecord[], hasMore: boolean }`; if not, add the method to `src/sync/change-log.service.ts` before proceeding
+- [x] **Verify `ChangeLogService.getChanges()`** — confirm `getChanges(userId, after_id, limit)` exists and returns `{ events: ChangeRecord[], hasMore: boolean }`; if not, add the method to `src/sync/change-log.service.ts` before proceeding
 - [ ] **Migrate `StateStore`** — replace `socketMap: Map<string, AuthenticatedSocket>` with `streamMap: Map<string, ServerWritableStream<any, any>>`; update imports in `SyncNotifierService` and `LiveGateway`
 - [ ] **Create `src/realtime/sync-stream.grpc.controller.ts` (replay phase)** — `WatchChanges` server-streaming RPC: replay via `ChangeLogService.getChanges(userId, after_id, limit)` in a loop until `hasMore = false`, then enter live phase
 - [ ] **Create `src/realtime/sync-stream.grpc.controller.ts` (live push phase)** — register stream handle in `streamMap`; write `ChangeEvent` on `CHANGE_EVENT_LOGGED` event emitted by `SyncNotifierService`; handle `fullResync` response from `SyncService`
