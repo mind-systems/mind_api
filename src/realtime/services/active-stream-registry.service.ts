@@ -5,6 +5,14 @@ import { Subscriber } from 'rxjs';
 export class ActiveStreamRegistry implements OnModuleDestroy {
   private readonly streams = new Map<string, Set<Subscriber<any>>>();
 
+  get size(): number {
+    let count = 0;
+    for (const set of this.streams.values()) {
+      count += set.size;
+    }
+    return count;
+  }
+
   register(userId: string, subscriber: Subscriber<any>): void {
     let set = this.streams.get(userId);
     if (!set) {
