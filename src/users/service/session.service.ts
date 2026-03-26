@@ -2,7 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { createHash } from 'crypto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserSession } from '../entities/user-session.entity';
+import { AuthEvents } from '../events/auth.events';
 
 @Injectable()
 export class SessionService {
@@ -11,6 +13,7 @@ export class SessionService {
   constructor(
     @InjectRepository(UserSession)
     private readonly repo: Repository<UserSession>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private hash(token: string): string {
@@ -35,9 +38,10 @@ export class SessionService {
 
   async revoke(token: string): Promise<void> {
     const tokenHash = this.hash(token);
-    const result = await this.repo.delete({ tokenHash });
-    if (result.affected) {
-      this.logger.log('Session revoked');
-    }
+    const session = await this.repo.findOne({ where: { tokenHash }, select: ['userId'] });
+    if (!session) return;
+    await this.repo.delete({ tokenHash });
+    this.logger.log('Session revoked');
+    this.eventEmitter.emit(AuthEvents.SESSION_REVOKED, { userId: session.userId });
   }
 }

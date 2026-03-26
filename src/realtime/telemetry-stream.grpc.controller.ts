@@ -10,6 +10,7 @@ import {
 } from '../../proto/generated/telemetry';
 import { StreamEngine } from './services/stream-engine.service';
 import { ActivityEngine } from './services/activity-engine.service';
+import { ActiveStreamRegistry } from './services/active-stream-registry.service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GRPC_USER_KEY } from '../grpc/grpc-auth.constants';
@@ -26,6 +27,7 @@ export class TelemetryStreamGrpcController implements TelemetryServiceController
   constructor(
     private readonly streamEngine: StreamEngine,
     private readonly activityEngine: ActivityEngine,
+    private readonly activeStreamRegistry: ActiveStreamRegistry,
   ) {}
 
   streamTelemetry(
@@ -45,6 +47,8 @@ export class TelemetryStreamGrpcController implements TelemetryServiceController
       }
 
       const userId = user.sub;
+
+      this.activeStreamRegistry.register(userId, subscriber);
 
       const sub = request.subscribe({
         next: (msg: TelemetryData) => {
@@ -136,6 +140,7 @@ export class TelemetryStreamGrpcController implements TelemetryServiceController
       });
 
       subscriber.add(() => {
+        this.activeStreamRegistry.deregister(userId, subscriber);
         sub.unsubscribe();
         this.logger.log(`Disconnected: userId=${userId}`);
       });

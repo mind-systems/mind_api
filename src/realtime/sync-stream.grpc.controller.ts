@@ -9,6 +9,7 @@ import {
 } from '../../proto/generated/sync';
 import { ChangeLogService, ChangesResult } from '../changelog/changelog.service';
 import { SyncStreamService } from './services/sync-stream.service';
+import { ActiveStreamRegistry } from './services/active-stream-registry.service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
@@ -21,6 +22,7 @@ export class SyncStreamGrpcController {
   constructor(
     private readonly changeLogService: ChangeLogService,
     private readonly syncStreamService: SyncStreamService,
+    private readonly activeStreamRegistry: ActiveStreamRegistry,
   ) {}
 
   @GrpcMethod('SyncService', 'watchChanges')
@@ -37,6 +39,8 @@ export class SyncStreamGrpcController {
       }
 
       const userId = user.sub;
+
+      this.activeStreamRegistry.register(userId, subscriber);
 
       // liveBuffer holds events that arrive during replay and are flushed once replay ends.
       const liveBuffer: SyncEventDto[] = [];
@@ -125,6 +129,7 @@ export class SyncStreamGrpcController {
 
       // Step D — Teardown: deregister the live listener and any pending debounce timer.
       subscriber.add(() => {
+        this.activeStreamRegistry.deregister(userId, subscriber);
         this.syncStreamService.deregister(userId);
       });
     });

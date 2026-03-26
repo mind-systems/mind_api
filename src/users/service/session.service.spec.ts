@@ -1,4 +1,5 @@
 import { SessionService } from './session.service';
+import { AuthEvents } from '../events/auth.events';
 import { createHash } from 'crypto';
 
 const hash = (token: string) =>
@@ -7,6 +8,7 @@ const hash = (token: string) =>
 describe('SessionService', () => {
   let service: SessionService;
   let repo: jest.Mocked<any>;
+  let emitter: jest.Mocked<any>;
 
   beforeEach(() => {
     repo = {
@@ -14,9 +16,14 @@ describe('SessionService', () => {
       save: jest.fn().mockResolvedValue(undefined),
       update: jest.fn().mockResolvedValue({ affected: 0 }),
       delete: jest.fn().mockResolvedValue({ affected: 0 }),
+      findOne: jest.fn().mockResolvedValue({ userId: 'user-1' }),
     };
 
-    service = new (SessionService as any)(repo);
+    emitter = {
+      emit: jest.fn(),
+    };
+
+    service = new (SessionService as any)(repo, emitter);
   });
 
   describe('create', () => {
@@ -68,7 +75,8 @@ describe('SessionService', () => {
   });
 
   describe('revoke', () => {
-    it('deletes session by token hash', async () => {
+    it('deletes session by token hash and emits SESSION_REVOKED', async () => {
+      repo.findOne.mockResolvedValue({ userId: 'user-1' });
       repo.delete.mockResolvedValue({ affected: 1 });
 
       await service.revoke('some-token');
@@ -76,12 +84,16 @@ describe('SessionService', () => {
       expect(repo.delete).toHaveBeenCalledWith({
         tokenHash: hash('some-token'),
       });
+      expect(emitter.emit).toHaveBeenCalledWith(AuthEvents.SESSION_REVOKED, { userId: 'user-1' });
     });
 
-    it('does not throw when session does not exist', async () => {
-      repo.delete.mockResolvedValue({ affected: 0 });
+    it('does not delete or emit when session does not exist', async () => {
+      repo.findOne.mockResolvedValue(null);
 
       await expect(service.revoke('ghost-token')).resolves.not.toThrow();
+
+      expect(repo.delete).not.toHaveBeenCalled();
+      expect(emitter.emit).not.toHaveBeenCalled();
     });
   });
 });

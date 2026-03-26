@@ -1,6 +1,7 @@
 import { Controller, Logger, UseFilters, UseInterceptors } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
+import { OnEvent } from '@nestjs/event-emitter';
 import { status as GrpcStatus, Metadata } from '@grpc/grpc-js';
 import { Observable, Subscriber } from 'rxjs';
 import {
@@ -18,10 +19,12 @@ import { ActivityType as InternalActivityType } from './enums/activity-type.enum
 import { ActivityEngine } from './services/activity-engine.service';
 import { PresenceService } from './services/presence.service';
 import { RateLimiterService } from './services/rate-limiter.service';
+import { ActiveStreamRegistry } from './services/active-stream-registry.service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GRPC_USER_KEY } from '../grpc/grpc-auth.constants';
 import { RealtimeConfig } from './constants/realtime-config';
+import { AuthEvents } from '../users/events/auth.events';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 
 function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
@@ -48,6 +51,7 @@ export class LiveStreamGrpcController implements LiveServiceController {
     private readonly activityEngine: ActivityEngine,
     private readonly presenceService: PresenceService,
     private readonly rateLimiterService: RateLimiterService,
+    private readonly activeStreamRegistry: ActiveStreamRegistry,
     configService: ConfigService,
   ) {
     this.activityStartLimit = configService.get<number>(
@@ -74,6 +78,8 @@ export class LiveStreamGrpcController implements LiveServiceController {
       }
 
       const userId = user.sub;
+
+      this.activeStreamRegistry.register(userId, subscriber);
 
       const setup = async (): Promise<void> => {
         const session = await this.activityEngine.handleReconnect(userId);
@@ -123,6 +129,7 @@ export class LiveStreamGrpcController implements LiveServiceController {
 
       // Teardown
       subscriber.add(() => {
+        this.activeStreamRegistry.deregister(userId, subscriber);
         const connectedAt = this.presenceService.get(userId)?.connectedAt;
         const connectedDurationMs = connectedAt ? Date.now() - connectedAt.getTime() : 0;
         this.logger.log(`Disconnected: userId=${userId} connectedDurationMs=${connectedDurationMs}`);
@@ -137,6 +144,12 @@ export class LiveStreamGrpcController implements LiveServiceController {
         this.rateLimiterService.evict(`activity-start:${userId}`);
       });
     });
+  }
+
+  @OnEvent(AuthEvents.SESSION_REVOKED)
+  async handleSessionRevoked(payload: { userId: string }): Promise<void> {
+    await this.activityEngine.stopActivity(payload.userId);
+    this.activeStreamRegistry.closeAll(payload.userId);
   }
 
   private async routeCommand(

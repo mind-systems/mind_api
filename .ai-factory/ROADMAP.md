@@ -90,7 +90,7 @@
 
 ### 6.1 Session revocation does not disconnect active streams
 
-- [ ] **Implement active-stream invalidation on logout** — currently, `SessionService.revoke()` deletes the `user_sessions` row but any open gRPC stream on another device continues until the client disconnects; fix requires tracking active streams per `userId` in memory and forcibly closing them when `revoke()` fires
+- [x] **Implement active-stream invalidation on logout** — currently, `SessionService.revoke()` deletes the `user_sessions` row but any open gRPC stream on another device continues until the client disconnects; fix requires tracking active streams per `userId` in memory and forcibly closing them when `revoke()` fires
 
 ### 6.2 Rename streaming namespaces
 

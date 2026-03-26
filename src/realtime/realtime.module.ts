@@ -13,6 +13,7 @@ import { LiveSession } from './entities/live-session.entity';
 import { SessionStreamSample } from './entities/session-stream-sample.entity';
 import { SyncStreamGrpcController } from './sync-stream.grpc.controller';
 import { SyncStreamService } from './services/sync-stream.service';
+import { ActiveStreamRegistry } from './services/active-stream-registry.service';
 import { LiveStreamGrpcController } from './live-stream.grpc.controller';
 import { TelemetryStreamGrpcController } from './telemetry-stream.grpc.controller';
 
@@ -32,6 +33,7 @@ import { TelemetryStreamGrpcController } from './telemetry-stream.grpc.controlle
     StreamEngine,
     ObservabilityService,
     SyncStreamService,
+    ActiveStreamRegistry,
   ],
   exports: [StateStore, PresenceService, ActivitySessionStore],
 })
