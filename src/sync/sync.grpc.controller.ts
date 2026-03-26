@@ -1,6 +1,5 @@
 import { Controller, UseFilters, UseInterceptors } from '@nestjs/common';
-import { GrpcMethod, RpcException } from '@nestjs/microservices';
-import { status as GrpcStatus } from '@grpc/grpc-js';
+import { GrpcMethod } from '@nestjs/microservices';
 import {
   GetChangesRequest,
   GetChangesResponse,
@@ -22,12 +21,8 @@ export class SyncGrpcController {
   @GrpcMethod('SyncService', 'getChanges')
   async getChanges(
     request: GetChangesRequest,
-    @GrpcCurrentUser() user: JwtPayload | null,
+    @GrpcCurrentUser() user: JwtPayload,
   ): Promise<GetChangesResponse> {
-    if (!user) {
-      throw new RpcException({ code: GrpcStatus.UNAUTHENTICATED, message: 'Missing user context' });
-    }
-
     const result = await this.syncService.getChanges(user.sub, request.after, request.limit);
 
     if ('fullResync' in result) {
