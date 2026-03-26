@@ -24,9 +24,6 @@ export class LiveSession {
   activityType: ActivityType;
 
   @Column({ nullable: true })
-  activityRefType?: string;
-
-  @Column({ nullable: true })
   activityRefId?: string;
 
   @Column({ type: 'enum', enum: SessionStatus, default: SessionStatus.ACTIVE })

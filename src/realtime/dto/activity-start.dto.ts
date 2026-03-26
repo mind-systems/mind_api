@@ -7,9 +7,5 @@ export class ActivityStartDto {
 
   @IsString()
   @IsOptional()
-  activityRefType?: string;
-
-  @IsString()
-  @IsOptional()
   activityRefId?: string;
 }

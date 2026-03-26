@@ -4,14 +4,15 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { UserStats } from './entities/user-stats.entity';
 import { UserStatsResponseDto } from './dto/user-stats-response.dto';
+import { ActivityType } from '../realtime/enums/activity-type.enum';
 
 export interface SessionEvent {
   sessionId: string;
   userId: string;
   startedAt: Date;
   endedAt: Date;
+  activityType: ActivityType;
   activityRefId?: string;
-  activityRefType?: string;
 }
 
 @Injectable()
@@ -97,7 +98,7 @@ export class StatsService {
       row.totalDurationSeconds += durationSeconds;
 
       // Complexity tracking: only for completed breath sessions
-      if (event.activityRefType === 'breath_session' && event.activityRefId) {
+      if (event.activityType === ActivityType.BREATH && event.activityRefId) {
         const result: Array<{ complexity: number }> = await manager.query(
           `SELECT complexity FROM breath_sessions WHERE id = $1 AND "deletedAt" IS NULL`,
           [event.activityRefId],

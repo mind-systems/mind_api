@@ -40,7 +40,6 @@ export class ActivityEngine {
     const session = this.repo.create({
       userId,
       activityType: dto.activityType,
-      activityRefType: dto.activityRefType,
       activityRefId: dto.activityRefId,
       status: SessionStatus.ACTIVE,
       startedAt: now,
@@ -51,7 +50,6 @@ export class ActivityEngine {
     const state: ActivityState = {
       sessionId: saved.id,
       activityType: saved.activityType,
-      activityRefType: saved.activityRefType,
       activityRefId: saved.activityRefId,
       startedAt: saved.startedAt,
       lastActivityAt: saved.lastActivityAt,
@@ -131,7 +129,6 @@ export class ActivityEngine {
       endedAt: saved.endedAt,
       activityType: saved.activityType,
       activityRefId: saved.activityRefId,
-      activityRefType: saved.activityRefType,
     });
 
     return saved;
@@ -194,7 +191,6 @@ export class ActivityEngine {
       endedAt: saved.endedAt,
       activityType: saved.activityType as ActivityType,
       activityRefId: saved.activityRefId,
-      activityRefType: saved.activityRefType,
     });
   }
 
@@ -244,7 +240,6 @@ export class ActivityEngine {
       endedAt: saved.endedAt,
       activityType: saved.activityType,
       activityRefId: saved.activityRefId,
-      activityRefType: saved.activityRefType,
     });
 
     return saved;

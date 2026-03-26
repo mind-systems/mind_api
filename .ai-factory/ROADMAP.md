@@ -82,7 +82,7 @@
 
 ### 4.2 Drop `activity_ref_type` column from `live_sessions`
 
-- [ ] **Remove `activityRefType` from `LiveSession` entity and migrate** — `activity_ref_type` is redundant once gRPC is the only transport; module identity is carried by `activity_type`; create a migration to drop the column and remove the field from the entity
+- [x] **Remove `activityRefType` from `LiveSession` entity and migrate** — `activity_ref_type` is redundant once gRPC is the only transport; module identity is carried by `activity_type`; create a migration to drop the column and remove the field from the entity
 
 ---
 

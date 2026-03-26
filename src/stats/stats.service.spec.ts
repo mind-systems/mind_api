@@ -1,4 +1,5 @@
 import { StatsService, SessionEvent } from './stats.service';
+import { ActivityType } from '../realtime/enums/activity-type.enum';
 
 const NOW = new Date('2026-03-14T12:00:00Z');
 const TODAY = '2026-03-14';
@@ -15,6 +16,7 @@ function makeEvent(
     userId: 'user-1',
     startedAt,
     endedAt,
+    activityType: ActivityType.BREATH,
     ...overrides,
   };
 }

@@ -1,5 +1,6 @@
 import { StatsWorker } from './stats.worker';
 import { StatsService, SessionEvent } from './stats.service';
+import { ActivityType } from '../realtime/enums/activity-type.enum';
 
 function makeStatsService() {
   return {
@@ -14,6 +15,7 @@ function makeEvent(): SessionEvent {
     userId: 'user-1',
     startedAt: new Date(now.getTime() - 30_000),
     endedAt: now,
+    activityType: ActivityType.BREATH,
   };
 }
 

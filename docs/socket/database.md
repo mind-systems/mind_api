@@ -11,7 +11,6 @@
 | `id` | uuid PK | |
 | `userId` | uuid FK → users | Проиндексирован. |
 | `activityType` | varchar | Тип активности, например `breathing` или `generic`. |
-| `activityRefType` | varchar nullable | Тип связанной сущности, например `breath_session`. |
 | `activityRefId` | uuid nullable | Идентификатор связанной сущности. FK-ограничение отсутствует намеренно — это позволяет расширять набор типов без миграций. |
 | `status` | enum | `active`, `disconnected`, `completed`, `abandoned`. |
 | `startedAt` | timestamptz | Время начала активности. |
