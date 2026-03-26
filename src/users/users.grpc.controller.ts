@@ -28,6 +28,13 @@ export class UsersGrpcController implements UserServiceController {
     request: UpdateProfileRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<UserDto> {
+    if (!user) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Authentication required',
+      });
+    }
+
     if (request.name !== undefined && request.name.length < 1) {
       throw new RpcException({
         code: GrpcStatus.INVALID_ARGUMENT,
@@ -49,7 +56,7 @@ export class UsersGrpcController implements UserServiceController {
     if (request.name !== undefined) updateDto.name = request.name;
     if (request.language !== undefined) updateDto.language = request.language;
 
-    const result = await this.userService.updateProfile(user!.sub, updateDto);
+    const result = await this.userService.updateProfile(user.sub, updateDto);
     return toProtoUserDto(result);
   }
 }
