@@ -70,7 +70,7 @@ export function fromProtoTimeOfDay(tod: ProtoTimeOfDay): TimeOfDay {
     case ProtoTimeOfDay.EVENING:
       return TimeOfDay.EVENING;
     default:
-      return TimeOfDay.MORNING;
+      throw new Error(`Unknown TimeOfDay value: ${tod}`);
   }
 }
 
@@ -111,13 +111,14 @@ export function toProtoBreathSessionWithStarredDto(
 
 function fromProtoStepType(type: StepType): 'inhale' | 'exhale' | 'hold' {
   switch (type) {
+    case StepType.INHALE:
+      return 'inhale';
     case StepType.EXHALE:
       return 'exhale';
     case StepType.HOLD:
       return 'hold';
-    case StepType.INHALE:
     default:
-      return 'inhale';
+      throw new Error(`Unknown StepType value: ${type}`);
   }
 }
 

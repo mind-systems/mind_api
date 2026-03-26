@@ -53,7 +53,13 @@ export class BreathSessionsGrpcController
     request: CreateSessionRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<BreathSessionDto> {
-    const session = await this.breathSessionsService.create(user!.sub, {
+    if (!user) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Authentication required',
+      });
+    }
+    const session = await this.breathSessionsService.create(user.sub, {
       description: request.description,
       exercises: fromProtoExercises(request.exercises),
       shared: request.shared,
@@ -87,9 +93,15 @@ export class BreathSessionsGrpcController
     request: GetSuggestionsRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<GetSuggestionsResponse> {
+    if (!user) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Authentication required',
+      });
+    }
     const timeOfDay = fromProtoTimeOfDay(request.timeOfDay);
     const sessions = await this.breathSessionsService.findSuggestions(
-      user!.sub,
+      user.sub,
       timeOfDay,
     );
     return { suggestions: sessions.map(toProtoBreathSessionDto) };
@@ -129,6 +141,12 @@ export class BreathSessionsGrpcController
     request: UpdateSessionRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<BreathSessionDto> {
+    if (!user) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Authentication required',
+      });
+    }
     const dto: {
       description?: string;
       exercises?: ReturnType<typeof fromProtoExercises>;
@@ -149,7 +167,7 @@ export class BreathSessionsGrpcController
     }
     const session = await this.breathSessionsService.update(
       request.id,
-      user!.sub,
+      user.sub,
       dto,
     );
     return toProtoBreathSessionDto(session);
@@ -159,9 +177,15 @@ export class BreathSessionsGrpcController
     request: ReplaceSessionRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<BreathSessionDto> {
+    if (!user) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Authentication required',
+      });
+    }
     const session = await this.breathSessionsService.replace(
       request.id,
-      user!.sub,
+      user.sub,
       {
         description: request.description,
         exercises: fromProtoExercises(request.exercises),
@@ -179,9 +203,15 @@ export class BreathSessionsGrpcController
     request: UpdateSessionSettingsRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<UpdateSessionSettingsResponse> {
+    if (!user) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Authentication required',
+      });
+    }
     await this.breathSessionsService.findOne(request.id);
     const result = await this.breathSessionSettingsService.upsert(
-      user!.sub,
+      user.sub,
       request.id,
       { starred: request.starred },
     );
@@ -192,7 +222,13 @@ export class BreathSessionsGrpcController
     request: DeleteSessionRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<DeleteSessionResponse> {
-    await this.breathSessionsService.remove(request.id, user!.sub);
+    if (!user) {
+      throw new RpcException({
+        code: GrpcStatus.UNAUTHENTICATED,
+        message: 'Authentication required',
+      });
+    }
+    await this.breathSessionsService.remove(request.id, user.sub);
     return { message: 'Breath session deleted successfully' };
   }
 }
