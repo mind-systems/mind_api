@@ -38,7 +38,7 @@
 > Note: `JwtAuthGuard` cannot be reused — it calls `context.switchToHttp()` and will crash on a gRPC context. A dedicated interceptor is required. `UnauthorizedException` thrown here maps to gRPC status 16 `UNAUTHENTICATED` via `@nestjs/microservices` built-in `RpcExceptionFilter`.
 
 - [x] **Create `src/grpc/grpc-auth.interceptor.ts`** — NestJS `RpcInterceptor` that reads lowercase `authorization` from gRPC metadata, verifies JWT signature with `JwtService`, validates against `user_sessions` table via `SessionService.isValid()`, and stores the user payload in request context
-- [ ] **Create `@GrpcCurrentUser()` decorator** — reads user payload from gRPC execution context; place in `src/grpc/grpc-current-user.decorator.ts`
+- [x] **Create `@GrpcCurrentUser()` decorator** — reads user payload from gRPC execution context; place in `src/grpc/grpc-current-user.decorator.ts`
 - [ ] **Apply interceptor** — register `GrpcAuthInterceptor` globally in `AppModule` for the gRPC microservice, or per-controller using `@UseInterceptors`
 
 ### 1.5 Bootstrap gRPC server in AppModule
