@@ -18,6 +18,7 @@ import { SyncNotifierService } from './services/sync-notifier.service';
 import { LiveSession } from './entities/live-session.entity';
 import { SessionStreamSample } from './entities/session-stream-sample.entity';
 import { SyncStreamGrpcController } from './sync-stream.grpc.controller';
+import { SyncStreamService } from './services/sync-stream.service';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { SyncStreamGrpcController } from './sync-stream.grpc.controller';
     StreamEngine,
     ObservabilityService,
     SyncNotifierService,
+    SyncStreamService,
   ],
   exports: [StateStore, PresenceService],
 })
