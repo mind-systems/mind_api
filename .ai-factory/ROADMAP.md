@@ -47,7 +47,7 @@
 
 ### 1.6 Expose gRPC port in Docker
 
-- [ ] **Add port 50051** — expose `50051:50051` in the `nestjs` service in both `docker-compose.dev.yml` and `docker-compose.prod.yml`; note in Makefile that `/health` HTTP endpoint remains for Docker health checks
+- [x] **Add port 50051** — expose `50051:50051` in the `nestjs` service in both `docker-compose.dev.yml` and `docker-compose.prod.yml`; note in Makefile that `/health` HTTP endpoint remains for Docker health checks
 
 ---
 

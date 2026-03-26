@@ -35,6 +35,7 @@ services:
       - .env.dev
     ports:
       - "${HOST_API_PORT}:${CONTAINER_API_PORT}"
+      - "${HOST_GRPC_PORT}:${CONTAINER_GRPC_PORT}"
     depends_on:
       mind_database_dev_host:
         condition: service_healthy
