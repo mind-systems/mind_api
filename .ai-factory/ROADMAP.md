@@ -63,7 +63,7 @@
 - [x] **Create `src/realtime/sync-stream.grpc.controller.ts` (live push phase)** — register stream handle in `streamMap`; write `ChangeEvent` on `CHANGE_EVENT_LOGGED` event emitted by `SyncNotifierService`; handle `fullResync` response from `SyncService`
 - [x] **Update `SyncNotifierService`** — replace `socket.emit(SYNC_CHANGED, ...)` with `stream.write(changeEvent)` using `streamMap`; ensure `CHANGE_EVENT_LOGGED` is emitted via `EventEmitter2`; debounce logic unchanged
 - [x] **Create `src/realtime/live-stream.grpc.controller.ts` (session routing)** — `LiveSession` bidi RPC: on first message check `ActivitySessionStore.activityMap` for existing session and cancel grace timer (reconnect path); route each `LiveRequest` `oneof` command to the corresponding `ActivityEngine` / `PresenceService` call; push `SessionStateEvent` / `SessionErrorEvent` down the response stream
-- [ ] **Create `src/realtime/live-stream.grpc.controller.ts` (lifecycle + rate limiting)** — on stream close start grace timer in `ActivitySessionStore`; track `connectedAt` by `userId` for disconnect logging; pass `userId` (not `client.id`) as key to `RateLimiterService.consume()` / `evict()`
+- [x] **Create `src/realtime/live-stream.grpc.controller.ts` (lifecycle + rate limiting)** — on stream close start grace timer in `ActivitySessionStore`; track `connectedAt` by `userId` for disconnect logging; pass `userId` (not `client.id`) as key to `RateLimiterService.consume()` / `evict()`
 - [ ] **Create `src/realtime/telemetry-stream.grpc.controller.ts`** — `StreamTelemetry` bidi RPC: for each incoming `TelemetryData` message call `StreamEngine.push()`; write `TelemetryAck` with `receivedCount`, `droppedCount`, `maxSamplesPerSecond` back to stream
 
 ### 3.6 Remove Socket.io infrastructure

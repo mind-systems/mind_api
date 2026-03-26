@@ -128,9 +128,27 @@ export class LiveStreamGrpcController implements LiveServiceController {
         });
       });
 
-      // Teardown stub
+      // Teardown
       subscriber.add(() => {
-        // TODO: lifecycle plan — onDisconnect, grace timer start, presence.offline, rateLimiter.evict
+        const connectedAt = this.presenceService.get(userId)?.connectedAt;
+        const connectedDurationMs = connectedAt ? Date.now() - connectedAt.getTime() : 0;
+        this.logger.log(`Disconnected: userId=${userId} connectedDurationMs=${connectedDurationMs}`);
+
+        (async () => {
+          this.presenceService.offline(userId);
+          await this.activityEngine.onDisconnect(userId);
+          if (this.stateStore.activityMap.has(userId)) {
+            this.graceTimerManager.startTimer(userId, () => {
+              this.activityEngine.abandonActivity(userId).catch((err: unknown) => {
+                this.logger.error(`Failed to abandon session after grace: userId=${userId}`, err);
+              });
+            });
+          }
+        })().catch((err: unknown) => {
+          this.logger.error(`Failed to record disconnect: userId=${userId}`, err);
+        });
+
+        this.rateLimiterService.evict(`activity-start:${userId}`);
       });
     });
   }
