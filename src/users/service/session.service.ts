@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { createHash } from 'crypto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserSession } from '../entities/user-session.entity';
-import { AuthEvents } from '../events/auth.events';
+import { AuthEvents, SessionRevokedPayload } from '../events/auth.events';
 
 @Injectable()
 export class SessionService {
@@ -42,6 +42,7 @@ export class SessionService {
     if (!session) return;
     await this.repo.delete({ tokenHash });
     this.logger.log('Session revoked');
-    this.eventEmitter.emit(AuthEvents.SESSION_REVOKED, { userId: session.userId });
+    const payload: SessionRevokedPayload = { userId: session.userId };
+    this.eventEmitter.emit(AuthEvents.SESSION_REVOKED, payload);
   }
 }

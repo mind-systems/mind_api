@@ -25,6 +25,7 @@ import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GRPC_USER_KEY } from '../grpc/grpc-auth.constants';
 import { RealtimeConfig } from './constants/realtime-config';
 import { AuthEvents } from '../users/events/auth.events';
+import type { SessionRevokedPayload } from '../users/events/auth.events';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 
 function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
@@ -150,8 +151,12 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
   }
 
   @OnEvent(AuthEvents.SESSION_REVOKED)
-  async handleSessionRevoked(payload: { userId: string }): Promise<void> {
-    await this.activityEngine.stopActivity(payload.userId);
+  async handleSessionRevoked(payload: SessionRevokedPayload): Promise<void> {
+    try {
+      await this.activityEngine.stopActivity(payload.userId);
+    } catch (err: unknown) {
+      this.logger.error(`Failed to stop activity on session revoke: userId=${payload.userId}`, err);
+    }
     this.activeStreamRegistry.closeAll(payload.userId);
   }
 
