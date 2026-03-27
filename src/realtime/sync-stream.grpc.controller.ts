@@ -96,6 +96,7 @@ export class SyncStreamGrpcController {
 
         let hasMore = true;
         while (hasMore) {
+          if (subscriber.closed) return;
           const result: ChangesResult = await this.changeLogService.getChanges(userId, cursor, 100);
           // Skip empty batches to avoid sending no-op messages to the client.
           if (result.events.length > 0) {
