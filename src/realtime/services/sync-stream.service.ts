@@ -3,6 +3,8 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { CHANGE_EVENT_LOGGED } from 'src/changelog';
 import type { ChangeEventPayload } from 'src/changelog';
 
+export type PushCallback = (events: LiveEvent[]) => void;
+
 export interface LiveEvent {
   id: number;
   entity: string;
@@ -15,25 +17,34 @@ interface PendingEntry {
   events: LiveEvent[];
 }
 
-interface StreamEntry {
-  push: (events: LiveEvent[]) => void;
+interface UserEntry {
+  callbacks: Set<PushCallback>;
   pending: PendingEntry | null;
 }
 
 @Injectable()
 export class SyncStreamService implements OnModuleDestroy {
-  private readonly streams = new Map<string, StreamEntry>();
+  private readonly streams = new Map<string, UserEntry>();
 
-  register(userId: string, push: (events: LiveEvent[]) => void): void {
-    this.streams.set(userId, { push, pending: null });
+  register(userId: string, push: PushCallback): void {
+    let entry = this.streams.get(userId);
+    if (!entry) {
+      entry = { callbacks: new Set(), pending: null };
+      this.streams.set(userId, entry);
+    }
+    entry.callbacks.add(push);
   }
 
-  deregister(userId: string): void {
+  deregister(userId: string, push: PushCallback): void {
     const entry = this.streams.get(userId);
-    if (entry?.pending) {
-      clearTimeout(entry.pending.timer);
+    if (!entry) return;
+    entry.callbacks.delete(push);
+    if (entry.callbacks.size === 0) {
+      if (entry.pending) {
+        clearTimeout(entry.pending.timer);
+      }
+      this.streams.delete(userId);
     }
-    this.streams.delete(userId);
   }
 
   @OnEvent(CHANGE_EVENT_LOGGED)
@@ -56,7 +67,9 @@ export class SyncStreamService implements OnModuleDestroy {
 
     const { events } = entry.pending;
     entry.pending = null;
-    entry.push(events);
+    for (const push of entry.callbacks) {
+      push(events);
+    }
   }
 
   onModuleDestroy(): void {

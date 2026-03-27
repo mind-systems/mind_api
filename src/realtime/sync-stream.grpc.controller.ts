@@ -84,7 +84,7 @@ export class SyncStreamGrpcController {
         if (minEventId !== null && cursor !== 0 && cursor < minEventId) {
           // Cursor is older than the oldest retained event — client must full-resync.
           // Explicit deregister before error — teardown will call deregister again (idempotent).
-          this.syncStreamService.deregister(userId);
+          this.syncStreamService.deregister(userId, pushFn);
           subscriber.error(
             new RpcException({
               code: GrpcStatus.FAILED_PRECONDITION,
@@ -131,7 +131,7 @@ export class SyncStreamGrpcController {
       // Step D — Teardown: deregister the live listener and any pending debounce timer.
       subscriber.add(() => {
         this.activeStreamRegistry.deregister(userId, subscriber);
-        this.syncStreamService.deregister(userId);
+        this.syncStreamService.deregister(userId, pushFn);
       });
     });
   }
