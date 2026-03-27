@@ -1,7 +1,7 @@
 # Project: Mind Awake API
 
 ## Overview
-Mind Awake API is a NestJS-based REST backend for a mindfulness breathing application. It provides passwordless email-code authentication, JWT session management, CRUD operations for breath sessions (with shared/public access), structured logging, and full OpenAPI documentation.
+Mind Awake API is a NestJS-based REST backend for a mindfulness breathing application. It provides passwordless email-code authentication, JWT session management, CRUD operations for breath sessions (with shared/public access), and structured logging.
 
 ## Core Features
 - **Authentication:** Passwordless OTP via email — `POST /auth/send-code` + `POST /auth/verify-code` → JWT (auto-creates account on first login)
