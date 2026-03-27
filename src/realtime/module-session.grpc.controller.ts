@@ -83,6 +83,8 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
 
       const setup = async (): Promise<void> => {
         const session = await this.activityEngine.handleReconnect(userId);
+        if (subscriber.closed) return;
+
         if (session) {
           subscriber.next({
             sessionState: {
@@ -125,6 +127,7 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
             timestamp: Date.now(),
           },
         });
+        subscriber.complete();
       });
 
       // Teardown
@@ -223,7 +226,20 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
       return;
     }
 
-    const activityType = mapProtoActivityType(cmd.activityType);
+    let activityType: InternalActivityType;
+    try {
+      activityType = mapProtoActivityType(cmd.activityType);
+    } catch {
+      subscriber.next({
+        sessionError: {
+          code: 'INVALID_ACTIVITY_TYPE',
+          message: `Unsupported activity type: ${cmd.activityType}`,
+          timestamp: Date.now(),
+        },
+      });
+      return;
+    }
+
     const session = await this.activityEngine.startActivity(userId, {
       activityType,
       activityRefId: cmd.refId,
