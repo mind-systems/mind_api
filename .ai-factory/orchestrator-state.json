@@ -1,14 +1,1 @@
-{
-  "implement_reviews": [
-    "30-rename-entity-file-and-class-review-1.md",
-    "31-rename-livesessionid-in-sessionstreamsample-review-1.md",
-    "32-rename-events-file-and-constants-review-1.md",
-    "33-rename-file-and-class-review-1.md",
-    "34-update-module-registration-review-1.md",
-    "35-rename-file-and-class-review-1.md",
-    "36-update-module-registration-review-1.md",
-    "37-generate-migration-file-review-1.md",
-    "38-implement-up-migration-review-1.md",
-    "39-implement-down-migration-review-1.md"
-  ]
-}
+{}
