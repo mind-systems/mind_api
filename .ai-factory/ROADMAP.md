@@ -159,7 +159,7 @@
 
 ### 8.2 Remove NestJS implementation _(parallel with 8.3, requires 8.1)_
 
-- [ ] **Regenerate NestJS stubs** — re-run proto codegen; verify `proto/generated/module_state.ts` no longer contains `PresenceCmd`, `PresenceState`, or `presence` field in `SessionRequest`
+- [x] **Regenerate NestJS stubs** — re-run proto codegen; verify `proto/generated/module_state.ts` no longer contains `PresenceCmd`, `PresenceState`, or `presence` field in `SessionRequest`
 - [ ] **Delete `src/realtime/services/presence.service.ts`** — remove file
 - [ ] **Delete `src/realtime/services/presence.service.spec.ts`** — remove file
 - [ ] **Delete `src/realtime/interfaces/presence-state.interface.ts`** — remove file
