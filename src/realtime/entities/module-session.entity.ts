@@ -8,7 +8,7 @@ import {
 import { ActivityType } from '../enums/activity-type.enum';
 import { SessionStatus } from '../enums/session-status.enum';
 
-@Entity('live_sessions')
+@Entity('module_sessions')
 @Index(['userId'])
 @Index(['status'])
 export class ModuleSession {
