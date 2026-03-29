@@ -162,7 +162,7 @@
 - [x] **Regenerate NestJS stubs** — re-run proto codegen; verify `proto/generated/module_state.ts` no longer contains `PresenceCmd`, `PresenceState`, or `presence` field in `SessionRequest`
 - [x] **Delete `src/realtime/services/presence.service.ts`** — remove file
 - [x] **Delete `src/realtime/services/presence.service.spec.ts`** — remove file
-- [ ] **Delete `src/realtime/interfaces/presence-state.interface.ts`** — remove file
+- [x] **Delete `src/realtime/interfaces/presence-state.interface.ts`** — remove file
 - [ ] **Remove `presenceMap` from `src/realtime/state-store.ts`** — delete import of `PresenceState` and the `readonly presenceMap` field
 - [ ] **Remove `PresenceService` from `src/realtime/realtime.module.ts`** — delete import, remove from `providers` array and `exports` array
 - [ ] **Remove presence handling from `src/realtime/module-state.grpc.controller.ts`** — delete: import of `PresenceCmd` and `PresenceState` from generated proto; import of `PresenceService`; `presenceService` constructor parameter; `presenceService.online()` call on stream open (line 100); `presenceService.get()` and `presenceService.offline()` calls on stream close (lines 137–142); the `else if (msg.presence !== undefined)` routing branch (lines 179–180); the entire `handlePresence()` private method (lines 335–353)
