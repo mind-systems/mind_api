@@ -1,9 +1,1 @@
-{
-  "implement_reviews": [
-    "40-remove-presence-from-proto-module-state-proto-review-1.md",
-    "41-regenerate-nestjs-stubs-review-1.md",
-    "42-delete-src-realtime-services-presence-service-ts-review-1.md",
-    "43-delete-src-realtime-services-presence-service-spec-ts-review-1.md",
-    "44-delete-src-realtime-interfaces-presence-state-interface-ts-review-1.md"
-  ]
-}
+{}
