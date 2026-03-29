@@ -121,7 +121,7 @@
 
 ### 7.3 Rename events
 
-- [ ] **Rename events file and constants** — rename `src/realtime/events/live.events.ts` → `module-session.events.ts`; rename `LIVE_SESSION_PAUSED` → `MODULE_SESSION_PAUSED` and `LIVE_SESSION_UNPAUSED` → `MODULE_SESSION_UNPAUSED`; update the single import site in `src/realtime/services/activity-engine.service.ts` (import path and both named imports) and both `eventEmitter.emit()` call sites in that file (lines 268 and 300)
+- [x] **Rename events file and constants** — rename `src/realtime/events/live.events.ts` → `module-session.events.ts`; rename `LIVE_SESSION_PAUSED` → `MODULE_SESSION_PAUSED` and `LIVE_SESSION_UNPAUSED` → `MODULE_SESSION_UNPAUSED`; update the single import site in `src/realtime/services/activity-engine.service.ts` (import path and both named imports) and both `eventEmitter.emit()` call sites in that file (lines 268 and 300)
 
 ---
 

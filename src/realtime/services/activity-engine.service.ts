@@ -10,9 +10,9 @@ import { SessionStatus } from '../enums/session-status.enum';
 import { ActivityType } from '../enums/activity-type.enum';
 import { StreamEngine } from './stream-engine.service';
 import {
-  LIVE_SESSION_PAUSED,
-  LIVE_SESSION_UNPAUSED,
-} from '../events/live.events';
+  MODULE_SESSION_PAUSED,
+  MODULE_SESSION_UNPAUSED,
+} from '../events/module-session.events';
 import { SessionEvents } from '../events/session.events';
 import {
   StreamDataType,
@@ -265,7 +265,7 @@ export class ActivityEngine {
       },
     });
 
-    this.eventEmitter.emit(LIVE_SESSION_PAUSED, {
+    this.eventEmitter.emit(MODULE_SESSION_PAUSED, {
       sessionId: state.sessionId,
       userId,
     });
@@ -297,7 +297,7 @@ export class ActivityEngine {
       },
     });
 
-    this.eventEmitter.emit(LIVE_SESSION_UNPAUSED, {
+    this.eventEmitter.emit(MODULE_SESSION_UNPAUSED, {
       sessionId: state.sessionId,
       userId,
     });
