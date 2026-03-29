@@ -124,7 +124,7 @@ describe('StreamEngine', () => {
 
       expect(repo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          liveSessionId: 's1',
+          moduleSessionId: 's1',
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           samples: expect.arrayContaining([expect.any(Object)]),
         }),

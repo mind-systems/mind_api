@@ -125,7 +125,7 @@ export class StreamEngine
 
     await this.sampleRepo.save(
       this.sampleRepo.create({
-        liveSessionId: sessionId,
+        moduleSessionId: sessionId,
         samples,
         flushedAt: now,
       }),

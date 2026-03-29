@@ -1,5 +1,6 @@
 {
   "implement_reviews": [
-    "30-rename-entity-file-and-class-review-1.md"
+    "30-rename-entity-file-and-class-review-1.md",
+    "31-rename-livesessionid-in-sessionstreamsample-review-1.md"
   ]
 }

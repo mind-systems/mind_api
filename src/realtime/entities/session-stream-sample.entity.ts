@@ -7,13 +7,13 @@ import {
 } from 'typeorm';
 
 @Entity('session_stream_samples')
-@Index(['liveSessionId'])
+@Index(['moduleSessionId'])
 export class SessionStreamSample {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
-  liveSessionId: string;
+  moduleSessionId: string;
 
   @Column({ type: 'jsonb' })
   samples: Record<string, unknown>[];
