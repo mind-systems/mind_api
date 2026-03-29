@@ -147,3 +147,54 @@
 - [x] **Implement `up()` migration** — using raw SQL via `queryRunner.query()`: rename table `live_sessions` → `module_sessions`; rename the PostgreSQL enum `live_sessions_status_enum` → `module_sessions_status_enum`; drop indices `IDX_live_sessions_userId` and `IDX_live_sessions_status`, then recreate them as `IDX_module_sessions_userId` and `IDX_module_sessions_status`; rename the primary key constraint `PK_live_sessions_id` → `PK_module_sessions_id`
 - [x] **Implement `down()` migration** — reverse all renames: table `module_sessions` → `live_sessions`; enum `module_sessions_status_enum` → `live_sessions_status_enum`; drop and recreate the two indices with their original names; rename the primary key constraint back to `PK_live_sessions_id`
 
+---
+
+## Phase 8 — Remove Presence Feature
+
+### 8.1 Update proto contract `[proto]`
+
+> Gate: 8.2 and 8.3 can only start after this section is committed.
+
+- [ ] **Remove presence from `proto/module_state.proto`** — delete `enum PresenceState { PRESENCE_STATE_UNSPECIFIED = 0; FOREGROUND = 1; BACKGROUND = 2; }` block (lines 18–25); delete `message PresenceCmd { PresenceState state = 1; }` block (lines 62–65); delete `PresenceCmd presence = 6` field from `SessionRequest` oneof (line 101)
+
+### 8.2 Remove NestJS implementation _(parallel with 8.3, requires 8.1)_
+
+- [ ] **Regenerate NestJS stubs** — re-run proto codegen; verify `proto/generated/module_state.ts` no longer contains `PresenceCmd`, `PresenceState`, or `presence` field in `SessionRequest`
+- [ ] **Delete `src/realtime/services/presence.service.ts`** — remove file
+- [ ] **Delete `src/realtime/services/presence.service.spec.ts`** — remove file
+- [ ] **Delete `src/realtime/interfaces/presence-state.interface.ts`** — remove file
+- [ ] **Remove `presenceMap` from `src/realtime/state-store.ts`** — delete import of `PresenceState` and the `readonly presenceMap` field
+- [ ] **Remove `PresenceService` from `src/realtime/realtime.module.ts`** — delete import, remove from `providers` array and `exports` array
+- [ ] **Remove presence handling from `src/realtime/module-state.grpc.controller.ts`** — delete: import of `PresenceCmd` and `PresenceState` from generated proto; import of `PresenceService`; `presenceService` constructor parameter; `presenceService.online()` call on stream open (line 100); `presenceService.get()` and `presenceService.offline()` calls on stream close (lines 137–142); the `else if (msg.presence !== undefined)` routing branch (lines 179–180); the entire `handlePresence()` private method (lines 335–353)
+
+---
+
+## Phase 9 — Flatten & Fix Migrations
+
+### 9.1 Flatten migration history
+
+> No production data exists. The migration chain has accumulated historical noise — broken intermediate steps that never fully executed. Replace the entire chain with a single clean initial migration that reflects the current schema.
+
+- [ ] **Generate clean flat migration** — run `npx typeorm migration:create src/migrations/InitialSchema`; implement `up()` as a single idempotent SQL block that creates the final schema: `module_sessions` table with enum `module_sessions_status_enum` containing values `active`, `disconnected`, `completed`, `abandoned`, `interrupted`, `resumed`; indices `IDX_module_sessions_userId` and `IDX_module_sessions_status`; `session_stream_samples` table with `moduleSessionId` column and index `IDX_session_stream_samples_moduleSessionId`; all other tables (`users`, `user_sessions`, `auth_codes`, `breath_sessions`, `breath_session_settings`, `user_stats`, `change_events`, `personal_access_tokens`, `devices`); implement `down()` as full teardown in reverse dependency order
+- [ ] **Delete all 14 existing migration files** — remove every file under `src/migrations/` except the flat migration created above: `1739476800000-InitialSchema.ts`, `1773469567000-AddLiveSession.ts`, `1773473837884-AddSessionStreamSamples.ts`, `1773479812990-AddUserStats.ts`, `1773652922852-AddInterruptedSessionStatus.ts`, `1773909111537-CreatePersonalAccessTokensTable.ts`, `1773909910064-AddTimeOfDayToBreathSessions.ts`, `1773945801918-AddMaxCompletedComplexity.ts`, `1774011442219-AddSoftDeleteToBreathSessions.ts`, `1774011879392-CreateChangeEventsTable.ts`, `1774411084222-RenameActivityTypeBreathSessionToBreath.ts`, `1774552349945-DropActivityRefTypeFromLiveSessions.ts`, `1774778297835-RenameSessionStreamSampleLiveSessionId.ts`, `1774779899323-RenameToModuleSessions.ts`
+
+---
+
+## Phase 10 — Rename: Proto Message Types
+
+> Internal proto message type names (`Session*`) were deferred from Phase 7. Gate: Phase 8 (Remove Presence) must be committed before starting — proto file must be stable.
+
+### 10.1 Update `proto/module_state.proto` `[proto]`
+
+- [ ] **Rename `SessionRequest` → `StateRequest`** — update the `rpc TrackActivity` signature
+- [ ] **Rename `SessionResponse` → `StateResponse`** — update the `rpc TrackActivity` signature
+- [ ] **Rename `SessionStatus` → `ActivityStatus`** — status of a user activity, not a generic "session status"; update usage in `SessionStateEvent` field type
+- [ ] **Rename `SessionStateEvent` → `StateEvent`** — update usage inside `StateResponse` oneof
+- [ ] **Rename `SessionErrorEvent` → `StateErrorEvent`** — update the type reference inside `StreamResponse` in `proto/module_instruction_stream.proto`
+
+### 10.2 Update NestJS implementation _(requires 10.1)_
+
+- [ ] **Regenerate NestJS stubs** — re-run proto codegen; verify `proto/generated/module_state.ts` uses new type names; verify `proto/generated/module_instruction_stream.ts` references `StateErrorEvent`
+- [ ] **Update `src/realtime/module-state.grpc.controller.ts`** — replace all references to old type names with `StateRequest`, `StateResponse`, `ActivityStatus`, `StateEvent`, `StateErrorEvent` from regenerated stubs
+- [ ] **Update `src/realtime/module-instruction-stream.grpc.controller.ts`** — replace `SessionErrorEvent` with `StateErrorEvent` from regenerated stubs
+
