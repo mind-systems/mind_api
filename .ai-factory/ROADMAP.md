@@ -161,7 +161,7 @@
 
 - [x] **Regenerate NestJS stubs** — re-run proto codegen; verify `proto/generated/module_state.ts` no longer contains `PresenceCmd`, `PresenceState`, or `presence` field in `SessionRequest`
 - [x] **Delete `src/realtime/services/presence.service.ts`** — remove file
-- [ ] **Delete `src/realtime/services/presence.service.spec.ts`** — remove file
+- [x] **Delete `src/realtime/services/presence.service.spec.ts`** — remove file
 - [ ] **Delete `src/realtime/interfaces/presence-state.interface.ts`** — remove file
 - [ ] **Remove `presenceMap` from `src/realtime/state-store.ts`** — delete import of `PresenceState` and the `readonly presenceMap` field
 - [ ] **Remove `PresenceService` from `src/realtime/realtime.module.ts`** — delete import, remove from `providers` array and `exports` array
