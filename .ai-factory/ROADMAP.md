@@ -130,7 +130,7 @@
 ### 7.4 Rename ModuleSessionGrpcController → ModuleStateGrpcController
 
 - [x] **Rename file and class** — rename `src/realtime/module-session.grpc.controller.ts` → `src/realtime/module-state.grpc.controller.ts`; rename class `ModuleSessionGrpcController` → `ModuleStateGrpcController`; update `new Logger(ModuleSessionGrpcController.name)` to `new Logger(ModuleStateGrpcController.name)`; update the `implements ModuleSessionServiceController` interface reference and the `@ModuleSessionServiceControllerMethods()` decorator to the new names generated from the renamed proto service (`ModuleStateServiceController` / `@ModuleStateServiceControllerMethods()`); rename `liveSessionId` → `moduleSessionId` in all seven `sessionState` response object literals: reconnect resume (line 92), existing-session early return in `handleActivityStart` (line 227), session started (line 254), `handleActivityEnd` (line 269), `handleActivityStop` (line 284), `handleActivityPause` (line 296), `handleActivityResume` (line 318)
-- [ ] **Update module registration** — in `src/realtime/realtime.module.ts` update the import from `'./module-session.grpc.controller'` to `'./module-state.grpc.controller'`, rename the imported symbol to `ModuleStateGrpcController`, and replace `ModuleSessionGrpcController` with `ModuleStateGrpcController` in the `controllers` array
+- [x] **Update module registration** — in `src/realtime/realtime.module.ts` update the import from `'./module-session.grpc.controller'` to `'./module-state.grpc.controller'`, rename the imported symbol to `ModuleStateGrpcController`, and replace `ModuleSessionGrpcController` with `ModuleStateGrpcController` in the `controllers` array
 
 ### 7.5 Rename ModuleStreamGrpcController → ModuleInstructionStreamGrpcController
 
