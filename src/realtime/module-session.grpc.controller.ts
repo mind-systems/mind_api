@@ -9,12 +9,12 @@ import {
   ActivityType as ProtoActivityType,
   SessionRequest,
   SessionResponse,
-  ModuleSessionServiceController,
-  ModuleSessionServiceControllerMethods,
+  ModuleStateServiceController,
+  ModuleStateServiceControllerMethods,
   PresenceCmd,
   PresenceState,
   SessionStatus,
-} from '../../proto/generated/module_session';
+} from '../../proto/generated/module_state';
 import { ActivityType as InternalActivityType } from './enums/activity-type.enum';
 import { ActivityEngine } from './services/activity-engine.service';
 import { PresenceService } from './services/presence.service';
@@ -41,8 +41,8 @@ function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
 @Controller()
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
-@ModuleSessionServiceControllerMethods()
-export class ModuleSessionGrpcController implements ModuleSessionServiceController {
+@ModuleStateServiceControllerMethods()
+export class ModuleSessionGrpcController implements ModuleStateServiceController {
   private readonly logger = new Logger(ModuleSessionGrpcController.name);
 
   private readonly activityStartLimit: number;
@@ -65,7 +65,7 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
     );
   }
 
-  sessionStream(request: Observable<SessionRequest>, metadata?: Metadata): Observable<SessionResponse> {
+  trackActivity(request: Observable<SessionRequest>, metadata?: Metadata): Observable<SessionResponse> {
     return new Observable<SessionResponse>((subscriber) => {
       const user = metadata
         ? ((metadata as any)[GRPC_USER_KEY] as JwtPayload | null)
@@ -89,7 +89,7 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
         if (session) {
           subscriber.next({
             sessionState: {
-              liveSessionId: session.id,
+              moduleSessionId: session.id,
               status: SessionStatus.RESUMED,
               isPaused: false,
             },
@@ -224,7 +224,7 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
     if (existing) {
       subscriber.next({
         sessionState: {
-          liveSessionId: existing.sessionId,
+          moduleSessionId: existing.sessionId,
           status: SessionStatus.ACTIVE,
         },
       });
@@ -251,7 +251,7 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
     });
     subscriber.next({
       sessionState: {
-        liveSessionId: session.id,
+        moduleSessionId: session.id,
         status: SessionStatus.ACTIVE,
       },
     });
@@ -266,7 +266,7 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
     if (!session) return;
     subscriber.next({
       sessionState: {
-        liveSessionId: session.id,
+        moduleSessionId: session.id,
         status: SessionStatus.COMPLETED,
       },
     });
@@ -281,7 +281,7 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
     if (!session) return;
     subscriber.next({
       sessionState: {
-        liveSessionId: session.id,
+        moduleSessionId: session.id,
         status: SessionStatus.INTERRUPTED,
       },
     });
@@ -293,7 +293,7 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
       const state = this.activityEngine.pauseActivity(userId);
       subscriber.next({
         sessionState: {
-          liveSessionId: state.sessionId,
+          moduleSessionId: state.sessionId,
           status: SessionStatus.ACTIVE,
           isPaused: true,
         },
@@ -315,7 +315,7 @@ export class ModuleSessionGrpcController implements ModuleSessionServiceControll
       const state = this.activityEngine.unpauseActivity(userId);
       subscriber.next({
         sessionState: {
-          liveSessionId: state.sessionId,
+          moduleSessionId: state.sessionId,
           status: SessionStatus.ACTIVE,
           isPaused: false,
         },

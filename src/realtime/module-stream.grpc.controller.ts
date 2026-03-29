@@ -5,9 +5,9 @@ import { Observable } from 'rxjs';
 import {
   StreamSample,
   StreamResponse,
-  ModuleStreamServiceController,
-  ModuleStreamServiceControllerMethods,
-} from '../../proto/generated/module_stream';
+  ModuleInstructionStreamServiceController,
+  ModuleInstructionStreamServiceControllerMethods,
+} from '../../proto/generated/module_instruction_stream';
 import { StreamEngine } from './services/stream-engine.service';
 import { ActivityEngine } from './services/activity-engine.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
@@ -20,8 +20,8 @@ import type { JwtPayload } from '../users/interfaces/auth.interface';
 @Controller()
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
-@ModuleStreamServiceControllerMethods()
-export class ModuleStreamGrpcController implements ModuleStreamServiceController {
+@ModuleInstructionStreamServiceControllerMethods()
+export class ModuleStreamGrpcController implements ModuleInstructionStreamServiceController {
   private readonly logger = new Logger(ModuleStreamGrpcController.name);
 
   constructor(

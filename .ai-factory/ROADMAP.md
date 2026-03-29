@@ -95,3 +95,70 @@
 ### 6.2 Rename streaming namespaces
 
 - [x] **Rename `/live` → `module_session`, `/telemetry` → `module_stream`** — current names are generic and don't communicate the modular architecture; `module_session` = session lifecycle control, `module_stream` = instruction log
+
+---
+
+## Phase 7 — Rename: Proto Contracts
+
+### 7.1 Rename proto files and services
+
+- [x] **Rename `proto/module_session.proto` → `proto/module_state.proto`** — rename file; update `service ModuleSessionService` → `service ModuleStateService`; rename `rpc SessionStream` → `rpc TrackActivity`; rename field `live_session_id` → `module_session_id` inside `SessionStateEvent`
+- [x] **Rename `proto/module_stream.proto` → `proto/module_instruction_stream.proto`** — rename file; update `service ModuleStreamService` → `service ModuleInstructionStreamService`
+- [x] **Fix internal proto imports** — `proto/module_instruction_stream.proto` imports `module_session.proto` (line 6: `import "module_session.proto"`) for `SessionErrorEvent`; update the import path to `module_state.proto`
+- [x] **Update `protoPath` references in `src/main.ts`** — lines 64–65 list `join(process.cwd(), 'proto', 'module_session.proto')` and `join(process.cwd(), 'proto', 'module_stream.proto')`; replace both with `module_state.proto` and `module_instruction_stream.proto`
+- [x] **Update imports in `src/realtime/module-session.grpc.controller.ts`** — the controller imports `ModuleSessionServiceController`, `ModuleSessionServiceControllerMethods` from `'../../proto/generated/module_session'`; update to import the regenerated types from `'../../proto/generated/module_state'` using the new names `ModuleStateServiceController`, `ModuleStateServiceControllerMethods`
+- [x] **Update imports in `src/realtime/module-stream.grpc.controller.ts`** — the controller imports `ModuleStreamServiceController`, `ModuleStreamServiceControllerMethods` from `'../../proto/generated/module_stream'`; update to import from `'../../proto/generated/module_instruction_stream'` using the new names `ModuleInstructionStreamServiceController`, `ModuleInstructionStreamServiceControllerMethods`
+- [x] **Regenerate NestJS stubs** — run proto codegen so `proto/generated/module_session.ts` and `proto/generated/module_stream.ts` are replaced by `proto/generated/module_state.ts` and `proto/generated/module_instruction_stream.ts` reflecting the new file names and service interfaces; verify TypeScript compiles cleanly
+
+---
+
+## Phase 7 — Rename: Entities & Events
+
+### 7.2 Rename LiveSession entity
+
+- [ ] **Rename entity file and class** — rename `src/realtime/entities/live-session.entity.ts` → `module-session.entity.ts`; rename class `LiveSession` → `ModuleSession`; change `@Entity('live_sessions')` → `@Entity('module_sessions')`; update all imports and usages across: `src/realtime/realtime.module.ts` (forFeature registration), `src/realtime/services/activity-engine.service.ts` (injected repository, return types on `startActivity`, `endActivity`, `stopActivity`, `resumeActivity`, `handleReconnect`), `src/realtime/services/activity-engine.service.spec.ts` (import and `makeSession` helper), `src/realtime/services/startup-recovery.service.ts` (injected repository), `src/realtime/services/startup-recovery.service.spec.ts` (import and `makeSession` helper), `src/realtime/services/stream-engine.service.ts` (injected `liveSessionRepo`), `src/realtime/services/stream-engine.service.spec.ts` (`makeLiveSessionRepo` helper and repo variable)
+- [ ] **Rename `liveSessionId` in `SessionStreamSample`** — in `src/realtime/entities/session-stream-sample.entity.ts`, rename the `@Index(['liveSessionId'])` decorator, the `@Column()` field, and the `@Index` name to `moduleSessionId`; update all usages in: `src/realtime/services/stream-engine.service.ts` (object literal `liveSessionId: sessionId`), `src/realtime/services/stream-engine.service.spec.ts` (sample fixture `liveSessionId: 's1'`); note — `src/realtime/module-session.grpc.controller.ts` also writes `liveSessionId` in seven response-mapping sites where the field name is part of the gRPC proto response shape, not the entity — those sites are out of scope here
+
+### 7.3 Rename events
+
+- [ ] **Rename events file and constants** — rename `src/realtime/events/live.events.ts` → `module-session.events.ts`; rename `LIVE_SESSION_PAUSED` → `MODULE_SESSION_PAUSED` and `LIVE_SESSION_UNPAUSED` → `MODULE_SESSION_UNPAUSED`; update the single import site in `src/realtime/services/activity-engine.service.ts` (import path and both named imports) and both `eventEmitter.emit()` call sites in that file (lines 268 and 300)
+
+---
+
+## Phase 7 — Rename: gRPC Controllers
+
+### 7.4 Rename ModuleSessionGrpcController → ModuleStateGrpcController
+
+- [ ] **Rename file and class** — rename `src/realtime/module-session.grpc.controller.ts` → `src/realtime/module-state.grpc.controller.ts`; rename class `ModuleSessionGrpcController` → `ModuleStateGrpcController`; update `new Logger(ModuleSessionGrpcController.name)` to `new Logger(ModuleStateGrpcController.name)`; update the `implements ModuleSessionServiceController` interface reference and the `@ModuleSessionServiceControllerMethods()` decorator to the new names generated from the renamed proto service (`ModuleStateServiceController` / `@ModuleStateServiceControllerMethods()`); rename `liveSessionId` → `moduleSessionId` in all seven `sessionState` response object literals: reconnect resume (line 92), existing-session early return in `handleActivityStart` (line 227), session started (line 254), `handleActivityEnd` (line 269), `handleActivityStop` (line 284), `handleActivityPause` (line 296), `handleActivityResume` (line 318)
+- [ ] **Update module registration** — in `src/realtime/realtime.module.ts` update the import from `'./module-session.grpc.controller'` to `'./module-state.grpc.controller'`, rename the imported symbol to `ModuleStateGrpcController`, and replace `ModuleSessionGrpcController` with `ModuleStateGrpcController` in the `controllers` array
+
+### 7.5 Rename ModuleStreamGrpcController → ModuleInstructionStreamGrpcController
+
+- [ ] **Rename file and class** — rename `src/realtime/module-stream.grpc.controller.ts` → `src/realtime/module-instruction-stream.grpc.controller.ts`; rename class `ModuleStreamGrpcController` → `ModuleInstructionStreamGrpcController`; update `new Logger(ModuleStreamGrpcController.name)` to `new Logger(ModuleInstructionStreamGrpcController.name)`; update the `implements ModuleStreamServiceController` interface reference and the `@ModuleStreamServiceControllerMethods()` decorator to the new names generated from the renamed proto service (`ModuleInstructionStreamServiceController` / `@ModuleInstructionStreamServiceControllerMethods()`)
+- [ ] **Update module registration** — in `src/realtime/realtime.module.ts` update the import from `'./module-stream.grpc.controller'` to `'./module-instruction-stream.grpc.controller'`, rename the imported symbol to `ModuleInstructionStreamGrpcController`, and replace `ModuleStreamGrpcController` with `ModuleInstructionStreamGrpcController` in the `controllers` array
+
+---
+
+## Phase 7 — Rename: Database Migration
+
+### 7.6 Migrate live_sessions → module_sessions
+
+- [ ] **Generate migration file** — run `npx typeorm migration:create src/migrations/RenameToModuleSessions`; do NOT hand-craft the timestamp
+- [ ] **Implement `up()` migration** — using raw SQL via `queryRunner.query()`: rename table `live_sessions` → `module_sessions`; rename the PostgreSQL enum `live_sessions_status_enum` → `module_sessions_status_enum`; rename column `"liveSessionId"` → `"moduleSessionId"` in `session_stream_samples`; drop indices `IDX_live_sessions_userId`, `IDX_live_sessions_status`, and `IDX_session_stream_samples_liveSessionId`, then recreate them as `IDX_module_sessions_userId`, `IDX_module_sessions_status`, and `IDX_session_stream_samples_moduleSessionId`; rename the primary key constraint `PK_live_sessions_id` → `PK_module_sessions_id`
+- [ ] **Implement `down()` migration** — reverse all renames: table `module_sessions` → `live_sessions`; enum `module_sessions_status_enum` → `live_sessions_status_enum`; column `"moduleSessionId"` → `"liveSessionId"` in `session_stream_samples`; drop and recreate the three indices with their original names; rename the primary key constraint back to `PK_live_sessions_id`
+
+---
+
+## Phase 7 — Rename: Consumer Updates (mind_mobile + mind_mcp)
+
+### 7.7 Copy updated proto files and regenerate stubs
+
+- [ ] **Copy proto files to mind_mobile** — copy `mind_api/proto/module_state.proto` to `mind_mobile/proto/` replacing `mind_mobile/proto/live.proto`; copy `mind_api/proto/module_instruction_stream.proto` to `mind_mobile/proto/` replacing `mind_mobile/proto/telemetry.proto`; delete the old `live.proto` and `telemetry.proto` from `mind_mobile/proto/`
+- [ ] **Regenerate Dart stubs in mind_mobile** — run `bash scripts/gen_proto.sh` from the `mind_mobile/` root; verify that `lib/Core/Grpc/generated/` contains new `module_state.pb.dart`, `module_state.pbgrpc.dart`, `module_instruction_stream.pb.dart`, `module_instruction_stream.pbgrpc.dart` and that the old `live.pb.dart`, `live.pbgrpc.dart`, `telemetry.pb.dart`, `telemetry.pbgrpc.dart` are gone (the script wipes and recreates the output directory)
+### 7.8 Update Dart code in mind_mobile
+
+- [ ] **Update `lib/Core/Grpc/ModuleStateChannel.dart`** — replace `import 'package:mind/Core/Grpc/generated/live.pbgrpc.dart' as proto` with the import for the new `module_state.pbgrpc.dart`; replace `proto.LiveServiceClient` with `proto.ModuleStateServiceClient`; replace the `liveSession` RPC call with the renamed RPC on the new client; replace all references to `proto.LiveRequest`, `proto.LiveResponse`, `proto.LiveResponse_Event` with the equivalents from the new generated file; replace `event.liveSessionId` with `event.moduleSessionId` (field renamed in `SessionStateEvent`)
+- [ ] **Update `lib/Core/Grpc/ModuleState.dart`** — rename field `liveSessionId` → `moduleSessionId` in the `ModuleState` class definition, constructor parameter, `ModuleState.initial()` factory, and the `_state.add(ModuleState(liveSessionId: ...))` call sites in `ModuleStateChannel`
+- [ ] **Update `lib/Core/Grpc/ModuleStateEvent.dart`** — rename field `liveSessionId` → `moduleSessionId` in `ModuleSessionStarted` and its constructor parameter
+- [ ] **Update `lib/Core/Grpc/ModuleInstructionStream.dart`** — replace `import 'package:mind/Core/Grpc/generated/telemetry.pbgrpc.dart'` with the import for `module_instruction_stream.pbgrpc.dart`; replace `TelemetryServiceClient` with `ModuleInstructionStreamServiceClient`; replace `TelemetryData`, `TelemetryResponse`, `TelemetryResponse_Event`, `TelemetryAck` with the equivalents from the new generated file
+- [ ] **Update `lib/BreathModule/Core/BreathModuleStateChannel.dart`** — rename private field `_liveSessionId` → `_moduleSessionId` and its getter `liveSessionId` → `moduleSessionId`; update the `_channelSub` listener that reads `moduleState.liveSessionId` → `moduleState.moduleSessionId`; update the `_flushPending` and `_handleTelemetry` call sites that pass `liveId` (derived from `_liveSessionId`)

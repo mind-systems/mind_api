@@ -70,7 +70,7 @@ message PresenceCmd {
 
 // Maps to SessionStateDto in src/realtime/dto/session-state.dto.ts.
 message SessionStateEvent {
-  string live_session_id = 1;
+  string module_session_id = 1;
   SessionStatus status = 2;
   optional bool is_paused = 3;
 }
@@ -78,7 +78,7 @@ message SessionStateEvent {
 // Maps to SessionErrorDto in src/realtime/dto/session-error.dto.ts.
 // timestamp is int64 Unix millis — not ISO-8601 — because error events are
 // high-frequency and don't need human-readable timestamps.
-// This message is top-level so module_stream.proto can import it later.
+// This message is top-level so module_instruction_stream.proto can import it later.
 message SessionErrorEvent {
   string code = 1;
   string message = 2;
@@ -119,6 +119,6 @@ message SessionResponse {
 // not the message.
 // ---------------------------------------------------------------------------
 
-service ModuleSessionService {
-  rpc SessionStream(stream SessionRequest) returns (stream SessionResponse);
+service ModuleStateService {
+  rpc TrackActivity(stream SessionRequest) returns (stream SessionResponse);
 }
