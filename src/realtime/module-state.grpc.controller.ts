@@ -42,8 +42,8 @@ function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
 @ModuleStateServiceControllerMethods()
-export class ModuleSessionGrpcController implements ModuleStateServiceController {
-  private readonly logger = new Logger(ModuleSessionGrpcController.name);
+export class ModuleStateGrpcController implements ModuleStateServiceController {
+  private readonly logger = new Logger(ModuleStateGrpcController.name);
 
   private readonly activityStartLimit: number;
   private readonly rateLimitWindowMs: number;

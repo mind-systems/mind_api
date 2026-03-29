@@ -14,7 +14,7 @@ import { SessionStreamSample } from './entities/session-stream-sample.entity';
 import { SyncStreamGrpcController } from './sync-stream.grpc.controller';
 import { SyncStreamService } from './services/sync-stream.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
-import { ModuleSessionGrpcController } from './module-session.grpc.controller';
+import { ModuleStateGrpcController } from './module-state.grpc.controller';
 import { ModuleStreamGrpcController } from './module-stream.grpc.controller';
 
 @Module({
@@ -22,7 +22,7 @@ import { ModuleStreamGrpcController } from './module-stream.grpc.controller';
     AuthModule,
     TypeOrmModule.forFeature([ModuleSession, SessionStreamSample]),
   ],
-  controllers: [SyncStreamGrpcController, ModuleSessionGrpcController, ModuleStreamGrpcController],
+  controllers: [SyncStreamGrpcController, ModuleStateGrpcController, ModuleStreamGrpcController],
   providers: [
     StateStore,
     ActivitySessionStore,
