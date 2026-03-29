@@ -18,7 +18,7 @@ export class RenameToModuleSessions1774779899323 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX "IDX_module_sessions_userId"`);
         await queryRunner.query(`CREATE INDEX "IDX_live_sessions_status" ON "module_sessions" ("status")`);
         await queryRunner.query(`CREATE INDEX "IDX_live_sessions_userId" ON "module_sessions" ("userId")`);
-        await queryRunner.query(`ALTER TYPE "module_sessions_status_enum" RENAME TO "session_status_enum"`);
+        await queryRunner.query(`ALTER TYPE "module_sessions_status_enum" RENAME TO "live_sessions_status_enum"`);
         await queryRunner.query(`ALTER TABLE "module_sessions" RENAME TO "live_sessions"`);
     }
 

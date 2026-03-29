@@ -145,5 +145,5 @@
 
 - [x] **Generate migration file** — run `npx typeorm migration:create src/migrations/RenameToModuleSessions`; do NOT hand-craft the timestamp
 - [x] **Implement `up()` migration** — using raw SQL via `queryRunner.query()`: rename table `live_sessions` → `module_sessions`; rename the PostgreSQL enum `live_sessions_status_enum` → `module_sessions_status_enum`; drop indices `IDX_live_sessions_userId` and `IDX_live_sessions_status`, then recreate them as `IDX_module_sessions_userId` and `IDX_module_sessions_status`; rename the primary key constraint `PK_live_sessions_id` → `PK_module_sessions_id`
-- [ ] **Implement `down()` migration** — reverse all renames: table `module_sessions` → `live_sessions`; enum `module_sessions_status_enum` → `live_sessions_status_enum`; drop and recreate the two indices with their original names; rename the primary key constraint back to `PK_live_sessions_id`
+- [x] **Implement `down()` migration** — reverse all renames: table `module_sessions` → `live_sessions`; enum `module_sessions_status_enum` → `live_sessions_status_enum`; drop and recreate the two indices with their original names; rename the primary key constraint back to `PK_live_sessions_id`
 
