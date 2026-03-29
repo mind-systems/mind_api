@@ -9,7 +9,7 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { SessionStreamSample } from '../entities/session-stream-sample.entity';
-import { LiveSession } from '../entities/live-session.entity';
+import { ModuleSession } from '../entities/module-session.entity';
 import {
   SessionBuffer,
   TelemetrySample,
@@ -38,8 +38,8 @@ export class StreamEngine
   constructor(
     @InjectRepository(SessionStreamSample)
     private readonly sampleRepo: Repository<SessionStreamSample>,
-    @InjectRepository(LiveSession)
-    private readonly liveSessionRepo: Repository<LiveSession>,
+    @InjectRepository(ModuleSession)
+    private readonly moduleSessionRepo: Repository<ModuleSession>,
     private readonly configService: ConfigService,
   ) {
     this.maxBufferBytes = this.configService.get<number>(
@@ -140,7 +140,7 @@ export class StreamEngine
     );
 
     // Fire-and-forget — not awaited; a failure here is non-critical
-    this.liveSessionRepo
+    this.moduleSessionRepo
       .update({ id: sessionId }, { lastActivityAt: now })
       .catch((err: unknown) => {
         this.logger.error(

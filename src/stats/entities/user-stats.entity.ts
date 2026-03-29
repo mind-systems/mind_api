@@ -11,7 +11,7 @@ export class UserStats {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // No FK to users — intentional loose coupling, same pattern as LiveSession
+  // No FK to users — intentional loose coupling, same pattern as ModuleSession
   @Index({ unique: true })
   @Column()
   userId: string;

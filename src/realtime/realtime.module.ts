@@ -9,7 +9,7 @@ import { StartupRecoveryService } from './services/startup-recovery.service';
 import { StreamEngine } from './services/stream-engine.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { ObservabilityService } from './services/observability.service';
-import { LiveSession } from './entities/live-session.entity';
+import { ModuleSession } from './entities/module-session.entity';
 import { SessionStreamSample } from './entities/session-stream-sample.entity';
 import { SyncStreamGrpcController } from './sync-stream.grpc.controller';
 import { SyncStreamService } from './services/sync-stream.service';
@@ -20,7 +20,7 @@ import { ModuleStreamGrpcController } from './module-stream.grpc.controller';
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([LiveSession, SessionStreamSample]),
+    TypeOrmModule.forFeature([ModuleSession, SessionStreamSample]),
   ],
   controllers: [SyncStreamGrpcController, ModuleSessionGrpcController, ModuleStreamGrpcController],
   providers: [

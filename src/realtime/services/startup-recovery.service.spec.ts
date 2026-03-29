@@ -1,9 +1,9 @@
 import { StartupRecoveryService } from './startup-recovery.service';
 import { SessionStatus } from '../enums/session-status.enum';
 import { ActivityType } from '../enums/activity-type.enum';
-import { LiveSession } from '../entities/live-session.entity';
+import { ModuleSession } from '../entities/module-session.entity';
 
-function makeSession(status: SessionStatus): LiveSession {
+function makeSession(status: SessionStatus): ModuleSession {
   const now = new Date();
   return {
     id: `session-${Math.random()}`,
@@ -13,7 +13,7 @@ function makeSession(status: SessionStatus): LiveSession {
     startedAt: now,
     lastActivityAt: now,
     createdAt: now,
-  } as LiveSession;
+  } as ModuleSession;
 }
 
 describe('StartupRecoveryService', () => {

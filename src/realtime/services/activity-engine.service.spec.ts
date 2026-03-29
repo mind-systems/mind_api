@@ -3,7 +3,7 @@ import { ActivitySessionStore } from './activity-session-store.service';
 import { ActivityType } from '../enums/activity-type.enum';
 import { SessionStatus } from '../enums/session-status.enum';
 import { ActivityStartDto } from '../dto/activity-start.dto';
-import { LiveSession } from '../entities/live-session.entity';
+import { ModuleSession } from '../entities/module-session.entity';
 import { SessionEvents } from '../events/session.events';
 
 function makeRepo() {
@@ -31,7 +31,7 @@ function makeActivitySessionStore(): ActivitySessionStore {
   return new ActivitySessionStore(configService as any);
 }
 
-function makeSession(overrides: Partial<LiveSession> = {}): LiveSession {
+function makeSession(overrides: Partial<ModuleSession> = {}): ModuleSession {
   const now = new Date();
   return {
     id: 'session-1',
@@ -42,7 +42,7 @@ function makeSession(overrides: Partial<LiveSession> = {}): LiveSession {
     lastActivityAt: now,
     createdAt: now,
     ...overrides,
-  } as LiveSession;
+  } as ModuleSession;
 }
 
 describe('ActivityEngine', () => {
@@ -67,7 +67,7 @@ describe('ActivityEngine', () => {
   });
 
   describe('startActivity', () => {
-    it('creates LiveSession row, writes ActivityState to store, returns session', async () => {
+    it('creates ModuleSession row, writes ActivityState to store, returns session', async () => {
       const dto: ActivityStartDto = {
         activityType: ActivityType.BREATH,
       };

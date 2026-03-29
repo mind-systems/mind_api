@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { LiveSession } from '../entities/live-session.entity';
+import { ModuleSession } from '../entities/module-session.entity';
 import { SessionStatus } from '../enums/session-status.enum';
 
 @Injectable()
@@ -9,8 +9,8 @@ export class StartupRecoveryService implements OnApplicationBootstrap {
   private readonly logger = new Logger(StartupRecoveryService.name);
 
   constructor(
-    @InjectRepository(LiveSession)
-    private readonly repo: Repository<LiveSession>,
+    @InjectRepository(ModuleSession)
+    private readonly repo: Repository<ModuleSession>,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {

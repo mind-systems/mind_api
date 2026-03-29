@@ -11,7 +11,7 @@ import { SessionStatus } from '../enums/session-status.enum';
 @Entity('live_sessions')
 @Index(['userId'])
 @Index(['status'])
-export class LiveSession {
+export class ModuleSession {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

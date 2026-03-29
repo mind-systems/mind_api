@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { LiveSession } from '../entities/live-session.entity';
+import { ModuleSession } from '../entities/module-session.entity';
 import { ActivitySessionStore } from './activity-session-store.service';
 import { ActivityState } from '../interfaces/activity-state.interface';
 import { ActivityStartDto } from '../dto/activity-start.dto';
@@ -25,8 +25,8 @@ export class ActivityEngine {
   private readonly logger = new Logger(ActivityEngine.name);
 
   constructor(
-    @InjectRepository(LiveSession)
-    private readonly repo: Repository<LiveSession>,
+    @InjectRepository(ModuleSession)
+    private readonly repo: Repository<ModuleSession>,
     private readonly activitySessionStore: ActivitySessionStore,
     private readonly eventEmitter: EventEmitter2,
     private readonly streamEngine: StreamEngine,
@@ -35,7 +35,7 @@ export class ActivityEngine {
   async startActivity(
     userId: string,
     dto: ActivityStartDto,
-  ): Promise<LiveSession> {
+  ): Promise<ModuleSession> {
     const now = new Date();
     const session = this.repo.create({
       userId,
@@ -72,7 +72,7 @@ export class ActivityEngine {
     return saved;
   }
 
-  async endActivity(userId: string): Promise<LiveSession | null> {
+  async endActivity(userId: string): Promise<ModuleSession | null> {
     const state = this.activitySessionStore.get(userId);
     if (!state) {
       this.logger.warn(
@@ -194,7 +194,7 @@ export class ActivityEngine {
     });
   }
 
-  async stopActivity(userId: string): Promise<LiveSession | null> {
+  async stopActivity(userId: string): Promise<ModuleSession | null> {
     const state = this.activitySessionStore.get(userId);
     if (!state) {
       this.logger.warn(
@@ -313,7 +313,7 @@ export class ActivityEngine {
     return this.activitySessionStore.get(userId);
   }
 
-  async resumeActivity(userId: string): Promise<LiveSession | null> {
+  async resumeActivity(userId: string): Promise<ModuleSession | null> {
     const state = this.activitySessionStore.get(userId);
     if (!state) return null;
 
@@ -339,7 +339,7 @@ export class ActivityEngine {
     return saved;
   }
 
-  async handleReconnect(userId: string): Promise<LiveSession | null> {
+  async handleReconnect(userId: string): Promise<ModuleSession | null> {
     if (!this.activitySessionStore.has(userId)) return null;
     this.activitySessionStore.cancelGraceTimer(userId);
     return this.resumeActivity(userId);

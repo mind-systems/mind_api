@@ -10,7 +10,7 @@ function makeRepo() {
   };
 }
 
-function makeLiveSessionRepo() {
+function makeModuleSessionRepo() {
   return {
     update: jest.fn().mockResolvedValue(undefined),
   };
@@ -37,19 +37,19 @@ function makeSample(data = 'x', timestamp = 1000): TelemetrySample {
 describe('StreamEngine', () => {
   let engine: StreamEngine;
   let repo: ReturnType<typeof makeRepo>;
-  let liveSessionRepo: ReturnType<typeof makeLiveSessionRepo>;
+  let moduleSessionRepo: ReturnType<typeof makeModuleSessionRepo>;
   let config: ReturnType<typeof makeConfig>;
 
   beforeEach(() => {
     jest.useFakeTimers();
     repo = makeRepo();
-    liveSessionRepo = makeLiveSessionRepo();
+    moduleSessionRepo = makeModuleSessionRepo();
     config = makeConfig();
     engine = new StreamEngine(
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       repo as any,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      liveSessionRepo as any,
+      moduleSessionRepo as any,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       config as any,
     );
@@ -163,7 +163,7 @@ describe('StreamEngine', () => {
       // Drain microtask queue so the fire-and-forget .catch chain resolves
       await Promise.resolve();
 
-      expect(liveSessionRepo.update).toHaveBeenCalledWith(
+      expect(moduleSessionRepo.update).toHaveBeenCalledWith(
         { id: 's1' },
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         { lastActivityAt: expect.any(Date) },
