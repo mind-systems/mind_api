@@ -15,15 +15,6 @@ enum ActivityType {
   BREATH = 1;
 }
 
-// Maps to PresenceState interface in src/realtime/interfaces/presence-state.interface.ts.
-// The existing code uses 'online' | 'background' strings; proto uses the canonical
-// FOREGROUND/BACKGROUND names from the roadmap.
-enum PresenceState {
-  PRESENCE_STATE_UNSPECIFIED = 0;
-  FOREGROUND = 1;
-  BACKGROUND = 2;
-}
-
 // Maps to SessionStatus enum in src/realtime/enums/session-status.enum.ts.
 // SESSION_STATUS_UNSPECIFIED = 0 is the sentinel — a silent default ACTIVE
 // could mask bugs where status was never set.
@@ -59,11 +50,6 @@ message ActivityPauseCmd {}
 
 message ActivityResumeCmd {}
 
-// Maps presence state change from the client.
-message PresenceCmd {
-  PresenceState state = 1;
-}
-
 // ---------------------------------------------------------------------------
 // Server → client events
 // ---------------------------------------------------------------------------
@@ -98,7 +84,6 @@ message SessionRequest {
     ActivityStopCmd activity_stop = 3;
     ActivityPauseCmd activity_pause = 4;
     ActivityResumeCmd activity_resume = 5;
-    PresenceCmd presence = 6;
   }
 }
 

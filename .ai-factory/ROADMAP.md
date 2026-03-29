@@ -155,7 +155,7 @@
 
 > Gate: 8.2 and 8.3 can only start after this section is committed.
 
-- [ ] **Remove presence from `proto/module_state.proto`** — delete `enum PresenceState { PRESENCE_STATE_UNSPECIFIED = 0; FOREGROUND = 1; BACKGROUND = 2; }` block (lines 18–25); delete `message PresenceCmd { PresenceState state = 1; }` block (lines 62–65); delete `PresenceCmd presence = 6` field from `SessionRequest` oneof (line 101)
+- [x] **Remove presence from `proto/module_state.proto`** — delete `enum PresenceState { PRESENCE_STATE_UNSPECIFIED = 0; FOREGROUND = 1; BACKGROUND = 2; }` block (lines 18–25); delete `message PresenceCmd { PresenceState state = 1; }` block (lines 62–65); delete `PresenceCmd presence = 6` field from `SessionRequest` oneof (line 101)
 
 ### 8.2 Remove NestJS implementation _(parallel with 8.3, requires 8.1)_
 

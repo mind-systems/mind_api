@@ -11,13 +11,10 @@ import {
   SessionResponse,
   ModuleStateServiceController,
   ModuleStateServiceControllerMethods,
-  PresenceCmd,
-  PresenceState,
   SessionStatus,
 } from '../../proto/generated/module_state';
 import { ActivityType as InternalActivityType } from './enums/activity-type.enum';
 import { ActivityEngine } from './services/activity-engine.service';
-import { PresenceService } from './services/presence.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
@@ -50,7 +47,6 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
 
   constructor(
     private readonly activityEngine: ActivityEngine,
-    private readonly presenceService: PresenceService,
     private readonly rateLimiterService: RateLimiterService,
     private readonly activeStreamRegistry: ActiveStreamRegistry,
     configService: ConfigService,
@@ -82,6 +78,8 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
 
       this.activeStreamRegistry.register(userId, subscriber);
 
+      let connectedAt = 0;
+
       const setup = async (): Promise<void> => {
         const session = await this.activityEngine.handleReconnect(userId);
         if (subscriber.closed) return;
@@ -97,7 +95,7 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
           this.logger.log(`Session resumed on reconnect: userId=${userId} sessionId=${session.id}`);
         }
 
-        this.presenceService.online(userId, userId);
+        connectedAt = Date.now();
 
         const cmdSub = request.subscribe({
           next: (msg: SessionRequest) => {
@@ -134,12 +132,10 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
       // Teardown
       subscriber.add(() => {
         this.activeStreamRegistry.deregister(userId, subscriber);
-        const connectedAt = this.presenceService.get(userId)?.connectedAt;
-        const connectedDurationMs = connectedAt ? Date.now() - connectedAt.getTime() : 0;
+        const connectedDurationMs = connectedAt ? Date.now() - connectedAt : 0;
         this.logger.log(`Disconnected: userId=${userId} connectedDurationMs=${connectedDurationMs}`);
 
         (async () => {
-          this.presenceService.offline(userId);
           await this.activityEngine.handleTransportDisconnect(userId);
         })().catch((err: unknown) => {
           this.logger.error(`Failed to record disconnect: userId=${userId}`, err);
@@ -176,8 +172,6 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
         this.handleActivityPause(userId, subscriber);
       } else if (msg.activityResume !== undefined) {
         this.handleActivityResume(userId, subscriber);
-      } else if (msg.presence !== undefined) {
-        this.handlePresence(userId, msg.presence, subscriber);
       } else {
         subscriber.next({
           sessionError: {
@@ -332,23 +326,4 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
     }
   }
 
-  private handlePresence(
-    userId: string,
-    cmd: PresenceCmd,
-    subscriber: Subscriber<SessionResponse>,
-  ): void {
-    if (cmd.state === PresenceState.FOREGROUND) {
-      this.presenceService.foreground(userId);
-    } else if (cmd.state === PresenceState.BACKGROUND) {
-      this.presenceService.background(userId);
-    } else {
-      subscriber.next({
-        sessionError: {
-          code: 'INVALID_PRESENCE_STATE',
-          message: 'PresenceState must be FOREGROUND or BACKGROUND',
-          timestamp: Date.now(),
-        },
-      });
-    }
-  }
 }

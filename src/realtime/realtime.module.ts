@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../users/auth.module';
 import { StateStore } from './state-store';
-import { PresenceService } from './services/presence.service';
 import { ActivityEngine } from './services/activity-engine.service';
 import { ActivitySessionStore } from './services/activity-session-store.service';
 import { StartupRecoveryService } from './services/startup-recovery.service';
@@ -27,7 +26,6 @@ import { ModuleInstructionStreamGrpcController } from './module-instruction-stre
     StateStore,
     ActivitySessionStore,
     RateLimiterService,
-    PresenceService,
     ActivityEngine,
     StartupRecoveryService,
     StreamEngine,
@@ -35,6 +33,6 @@ import { ModuleInstructionStreamGrpcController } from './module-instruction-stre
     SyncStreamService,
     ActiveStreamRegistry,
   ],
-  exports: [StateStore, PresenceService, ActivitySessionStore],
+  exports: [StateStore, ActivitySessionStore],
 })
 export class RealtimeModule {}
