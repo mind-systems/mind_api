@@ -134,7 +134,7 @@
 
 ### 7.5 Rename ModuleStreamGrpcController → ModuleInstructionStreamGrpcController
 
-- [ ] **Rename file and class** — rename `src/realtime/module-stream.grpc.controller.ts` → `src/realtime/module-instruction-stream.grpc.controller.ts`; rename class `ModuleStreamGrpcController` → `ModuleInstructionStreamGrpcController`; update `new Logger(ModuleStreamGrpcController.name)` to `new Logger(ModuleInstructionStreamGrpcController.name)`; update the `implements ModuleStreamServiceController` interface reference and the `@ModuleStreamServiceControllerMethods()` decorator to the new names generated from the renamed proto service (`ModuleInstructionStreamServiceController` / `@ModuleInstructionStreamServiceControllerMethods()`)
+- [x] **Rename file and class** — rename `src/realtime/module-stream.grpc.controller.ts` → `src/realtime/module-instruction-stream.grpc.controller.ts`; rename class `ModuleStreamGrpcController` → `ModuleInstructionStreamGrpcController`; update `new Logger(ModuleStreamGrpcController.name)` to `new Logger(ModuleInstructionStreamGrpcController.name)`; update the `implements ModuleStreamServiceController` interface reference and the `@ModuleStreamServiceControllerMethods()` decorator to the new names generated from the renamed proto service (`ModuleInstructionStreamServiceController` / `@ModuleInstructionStreamServiceControllerMethods()`)
 - [ ] **Update module registration** — in `src/realtime/realtime.module.ts` update the import from `'./module-stream.grpc.controller'` to `'./module-instruction-stream.grpc.controller'`, rename the imported symbol to `ModuleInstructionStreamGrpcController`, and replace `ModuleStreamGrpcController` with `ModuleInstructionStreamGrpcController` in the `controllers` array
 
 ---

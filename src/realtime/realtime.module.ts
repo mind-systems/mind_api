@@ -15,14 +15,14 @@ import { SyncStreamGrpcController } from './sync-stream.grpc.controller';
 import { SyncStreamService } from './services/sync-stream.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
 import { ModuleStateGrpcController } from './module-state.grpc.controller';
-import { ModuleStreamGrpcController } from './module-stream.grpc.controller';
+import { ModuleInstructionStreamGrpcController } from './module-instruction-stream.grpc.controller';
 
 @Module({
   imports: [
     AuthModule,
     TypeOrmModule.forFeature([ModuleSession, SessionStreamSample]),
   ],
-  controllers: [SyncStreamGrpcController, ModuleStateGrpcController, ModuleStreamGrpcController],
+  controllers: [SyncStreamGrpcController, ModuleStateGrpcController, ModuleInstructionStreamGrpcController],
   providers: [
     StateStore,
     ActivitySessionStore,

@@ -21,8 +21,8 @@ import type { JwtPayload } from '../users/interfaces/auth.interface';
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
 @ModuleInstructionStreamServiceControllerMethods()
-export class ModuleStreamGrpcController implements ModuleInstructionStreamServiceController {
-  private readonly logger = new Logger(ModuleStreamGrpcController.name);
+export class ModuleInstructionStreamGrpcController implements ModuleInstructionStreamServiceController {
+  private readonly logger = new Logger(ModuleInstructionStreamGrpcController.name);
 
   constructor(
     private readonly streamEngine: StreamEngine,
