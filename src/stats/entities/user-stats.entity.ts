@@ -11,9 +11,10 @@ export class UserStats {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // No FK to users — intentional loose coupling, same pattern as ModuleSession
+  // No @ManyToOne — modules stay decoupled at the ORM level.
+  // FK constraint enforced in the InitialSchema migration.
   @Index({ unique: true })
-  @Column()
+  @Column({ type: 'uuid' })
   userId: string;
 
   @Column({ type: 'int', default: 0 })

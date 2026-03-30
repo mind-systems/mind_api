@@ -15,15 +15,15 @@ export class ModuleSession {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // No @ManyToOne FK to User — intentional loose coupling between realtime and users modules.
-  // Integrity is enforced at the service layer (userId comes from validated JWT).
-  @Column()
+  // No @ManyToOne — modules stay decoupled at the ORM level.
+  // FK constraint enforced in the InitialSchema migration.
+  @Column({ type: 'uuid' })
   userId: string;
 
   @Column({ type: 'enum', enum: ActivityType })
   activityType: ActivityType;
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   activityRefId?: string;
 
   @Column({ type: 'enum', enum: SessionStatus, default: SessionStatus.ACTIVE })

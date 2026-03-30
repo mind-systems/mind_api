@@ -198,3 +198,9 @@
 - [x] **Update `src/realtime/module-state.grpc.controller.ts`** — replace all references to old type names with `StateRequest`, `StateResponse`, `ActivityStatus`, `StateEvent`, `StateErrorEvent` from regenerated stubs
 - [x] **Update `src/realtime/module-instruction-stream.grpc.controller.ts`** — replace `SessionErrorEvent` with `StateErrorEvent` from regenerated stubs
 
+---
+
+## Phase 11 — Fix: UUID Types in Migrations & Entities
+
+- [x] **Fix UUID column types and add FK constraints** — four columns across `module_sessions`, `session_stream_samples`, `user_stats` store UUIDs as `character varying` with no FK constraints; fix entity decorators and `InitialSchema` migration together; add cascade FKs so user deletion propagates completely (`users → module_sessions → session_stream_samples`); see [notes/04-phase-11-uuid-fix-details.md](.ai-factory/notes/04-phase-11-uuid-fix-details.md) for full breakdown
+

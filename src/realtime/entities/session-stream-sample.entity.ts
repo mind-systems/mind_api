@@ -12,7 +12,7 @@ export class SessionStreamSample {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'uuid' })
   moduleSessionId: string;
 
   @Column({ type: 'jsonb' })

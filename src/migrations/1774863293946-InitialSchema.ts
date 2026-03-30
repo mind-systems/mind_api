@@ -207,7 +207,7 @@ export class InitialSchema1774863293946 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE "user_stats" (
         "id"                     uuid NOT NULL DEFAULT uuid_generate_v4(),
-        "userId"                 character varying NOT NULL,
+        "userId"                 uuid NOT NULL,
         "totalSessions"          integer NOT NULL DEFAULT 0,
         "totalDurationSeconds"   integer NOT NULL DEFAULT 0,
         "currentStreak"          integer NOT NULL DEFAULT 0,
@@ -216,7 +216,8 @@ export class InitialSchema1774863293946 implements MigrationInterface {
         "lastSessionDate"        date DEFAULT NULL,
         "updatedAt"              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         CONSTRAINT "PK_user_stats_id"     PRIMARY KEY ("id"),
-        CONSTRAINT "UQ_user_stats_userId" UNIQUE ("userId")
+        CONSTRAINT "UQ_user_stats_userId" UNIQUE ("userId"),
+        CONSTRAINT "FK_user_stats_userId" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE
       )
     `);
 
@@ -247,7 +248,8 @@ export class InitialSchema1774863293946 implements MigrationInterface {
         "lastUsedAt" TIMESTAMP DEFAULT NULL,
         "createdAt"  TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "PK_personal_access_tokens_id"       PRIMARY KEY ("id"),
-        CONSTRAINT "UQ_personal_access_tokens_tokenHash" UNIQUE ("tokenHash")
+        CONSTRAINT "UQ_personal_access_tokens_tokenHash" UNIQUE ("tokenHash"),
+        CONSTRAINT "FK_personal_access_tokens_userId" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE
       )
     `);
     await queryRunner.query(
@@ -258,9 +260,9 @@ export class InitialSchema1774863293946 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE "module_sessions" (
         "id"             uuid NOT NULL DEFAULT uuid_generate_v4(),
-        "userId"         character varying NOT NULL,
+        "userId"         uuid NOT NULL,
         "activityType"   "public"."activity_type_enum" NOT NULL,
-        "activityRefId"  character varying DEFAULT NULL,
+        "activityRefId"  uuid DEFAULT NULL,
         "status"         "public"."module_sessions_status_enum" NOT NULL DEFAULT 'active',
         "startedAt"      TIMESTAMP NOT NULL,
         "disconnectedAt" TIMESTAMP WITH TIME ZONE DEFAULT NULL,
@@ -268,7 +270,8 @@ export class InitialSchema1774863293946 implements MigrationInterface {
         "lastActivityAt" TIMESTAMP NOT NULL,
         "metadata"       jsonb DEFAULT NULL,
         "createdAt"      TIMESTAMP NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_module_sessions_id" PRIMARY KEY ("id")
+        CONSTRAINT "PK_module_sessions_id" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_module_sessions_userId" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE
       )
     `);
     await queryRunner.query(
@@ -282,11 +285,12 @@ export class InitialSchema1774863293946 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE "session_stream_samples" (
         "id"              uuid NOT NULL DEFAULT uuid_generate_v4(),
-        "moduleSessionId" character varying NOT NULL,
+        "moduleSessionId" uuid NOT NULL,
         "samples"         jsonb NOT NULL,
         "flushedAt"       TIMESTAMP NOT NULL,
         "createdAt"       TIMESTAMP NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_session_stream_samples_id" PRIMARY KEY ("id")
+        CONSTRAINT "PK_session_stream_samples_id" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_session_stream_samples_moduleSessionId" FOREIGN KEY ("moduleSessionId") REFERENCES "module_sessions"("id") ON DELETE CASCADE
       )
     `);
     await queryRunner.query(
