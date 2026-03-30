@@ -4,9 +4,9 @@
 
 ## Как устроен вход
 
-Клиент отправляет `POST /auth/google` с `serverAuthCode`. Сервер через `google-auth-library` обменивает код на токены Google (`OAuth2Client.getToken`), затем верифицирует `id_token` (подпись, `aud`, `iss`, `exp`) и извлекает профиль: `googleId`, `email`, `name`. Google-токены после этого отбрасываются.
+Клиент делает gRPC-вызов `GoogleAuth` с сообщением `GoogleAuthRequest`, содержащим `server_auth_code`. Сервер через `google-auth-library` обменивает код на токены Google (`OAuth2Client.getToken`), затем верифицирует `id_token` (подпись, `aud`, `iss`, `exp`) и извлекает профиль: `googleId`, `email`, `name`. Google-токены после этого отбрасываются.
 
-Дальше — тот же путь, что при email-входе: поиск пользователя по `email`, автоматическая регистрация если нового нет (имя берётся из Google-профиля), генерация app JWT. Ответ аналогичен email-флоу: токен в заголовке `Authorization: Bearer <token>` и `UserResponseDto` в теле.
+Дальше — тот же путь, что при email-входе: поиск пользователя по `email`, автоматическая регистрация если нового нет (имя берётся из Google-профиля), генерация app JWT. Сервер возвращает `AuthResponse` с полями `user` и `access_token`; для последующих gRPC-вызовов токен передаётся через metadata.
 
 Если пользователь ранее зарегистрировался через email OTP с тем же адресом — он войдёт в тот же аккаунт. Идентификация идёт по `email`, не по `googleId`.
 
@@ -16,7 +16,7 @@
 
 ### Браузерный flow
 
-Браузерный клиент инициирует стандартный OAuth redirect. Google перенаправляет на `GET /auth/google/callback` — сервер принимает `code` из query-параметра и переадресует его обратно в приложение через `APP_BASE_URL`. Клиент затем вызывает `POST /auth/google` с полученным кодом и передаёт `redirectUri` — он нужен Google для верификации при обмене кода на токены.
+Браузерный клиент инициирует стандартный OAuth redirect. Google перенаправляет на `GET /auth/google/callback` — сервер принимает `code` из query-параметра и переадресует его обратно в приложение через `APP_BASE_URL`. Клиент затем делает gRPC-вызов `GoogleAuth`, передавая полученный код в поле `server_auth_code` и `redirect_uri` в `GoogleAuthRequest` — он нужен Google для верификации при обмене кода на токены.
 
 ## Конфигурация
 
@@ -31,16 +31,17 @@
 ## Эндпоинты
 
 ```
-POST /auth/google
-Body: { "serverAuthCode": "...", "redirectUri": "..." }
-  serverAuthCode — обязательно
-  redirectUri    — обязательно только для браузерного flow; должен быть валидным URI
+rpc GoogleAuth(GoogleAuthRequest) returns (AuthResponse)
+  server_auth_code — обязательно
+  language         — опционально
+  redirect_uri     — опционально; передаётся только в браузерном flow —
+                     Google отклоняет невалидные URI при обмене кода на токены
 
-200 OK
-Authorization: Bearer <jwt>
-Body: UserResponseDto
+AuthResponse:
+  user         — UserDto
+  access_token — JWT для последующих gRPC-вызовов (передаётся через metadata)
 
-401 Unauthorized — невалидный или просроченный serverAuthCode
+UNAUTHENTICATED — невалидный или просроченный server_auth_code
 ```
 
 ```
@@ -59,6 +60,7 @@ Relay-эндпоинт для браузерного OAuth flow. Принима�
 |------|------|
 | `src/users/service/google-token.service.ts` | Обмен кода и верификация `id_token`; поддерживает мобильный и браузерный flow |
 | `src/users/interfaces/google-profile.interface.ts` | Тип `{ googleId, email, name }` |
-| `src/users/dto/google-auth.dto.ts` | DTO запроса (`serverAuthCode`, `language`, `redirectUri`) |
+| `proto/auth.proto` → `GoogleAuthRequest` | gRPC-сообщение запроса (`server_auth_code`, `language`, `redirect_uri`) |
 | `src/users/service/auth.service.ts` | Метод `signInWithGoogle` |
-| `src/users/auth.controller.ts` | `POST /auth/google`, `GET /auth/google/callback` |
+| `src/users/auth.grpc.controller.ts` | gRPC-метод `googleAuth` (замена `POST /auth/google`) |
+| `src/users/controller/google-callback.controller.ts` | `GET /auth/google/callback` — HTTP relay для браузерного OAuth flow |
