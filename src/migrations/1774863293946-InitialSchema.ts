@@ -142,9 +142,9 @@ export class InitialSchema1774863293946 implements MigrationInterface {
         "complexity"  double precision NOT NULL DEFAULT 0,
         "shared"      boolean NOT NULL DEFAULT false,
         "timeOfDay"   "public"."breath_sessions_timeOfDay_enum" DEFAULT NULL,
-        "createdAt"   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt"   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "deletedAt"   TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+        "createdAt"   TIMESTAMP NOT NULL DEFAULT now(),
+        "updatedAt"   TIMESTAMP NOT NULL DEFAULT now(),
+        "deletedAt"   TIMESTAMP DEFAULT NULL,
         CONSTRAINT "PK_breath_sessions_id" PRIMARY KEY ("id"),
         CONSTRAINT "FK_breath_sessions_userId"
           FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE

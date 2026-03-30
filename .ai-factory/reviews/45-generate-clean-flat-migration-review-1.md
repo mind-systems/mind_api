@@ -1,64 +1,42 @@
 ## Code Review: Generate clean flat migration
 
-**Plan:** 45-generate-clean-flat-migration.md
-**Files changed:** 19 (1 new migration, 14 deleted migrations, 4 plan/review files)
-**Migration file:** `src/migrations/1774863293946-InitialSchema.ts`
+**Files Reviewed:** 15 (1 new migration, 14 deleted migrations)
+**Risk Level:** 🟡 Medium
 
-### Build
+### Context Gates
 
-TypeScript compiles cleanly (`npx tsc --noEmit` — zero errors).
+- **ARCHITECTURE.md** — WARN: no issues. Migration uses raw SQL via `queryRunner.query()` consistent with documented migration style. `synchronize: false` preserved.
+- **RULES.md** — WARN: no issues. Migration file contains no logging or sensitive data.
+- **ROADMAP.md** — OK: milestone 9.1 "Flatten migration history" is checked off. Commit aligns with roadmap item.
 
 ### Schema Verification
 
-Every table, column, type, default, constraint, index, enum, trigger, and FK in the new migration was cross-checked against the 11 entity files and the 14 old migrations (cumulative final state).
+Cross-checked every column, type, default, constraint, index, enum, FK, and trigger in `src/migrations/1774863293946-InitialSchema.ts` against all 11 entity files and 4 enum files. Build passes (`npx tsc --noEmit` — zero errors).
 
-| Table | Verdict | Notes |
-|-------|---------|-------|
-| `users` | OK | All columns, PK, UQ, index match entity + old migration |
-| `auth_codes` | OK | All columns, PK, 3 indices match |
-| `user_sessions` | OK | All columns, PK, UQ, FK, 2 indices match |
-| `devices` | OK | All columns, PK, UQ, DESC index match |
-| `breath_sessions` | OK | All columns, PK, FK, 5 indices, trigger/function match |
-| `breath_session_settings` | OK | All columns, PK, 2 FKs, composite UQ, index match |
-| `user_stats` | OK | All columns, PK, UQ on userId match |
-| `change_events` | OK | SERIAL PK, FK, composite index match |
-| `personal_access_tokens` | OK | All columns, PK, UQ, index match; no FK — intentional |
-| `module_sessions` | OK | All columns, named PK, 2 indices match; no FK — intentional |
-| `session_stream_samples` | OK | All columns, PK, index match; no FK |
+| Table | Verdict |
+|-------|---------|
+| `users` | OK |
+| `auth_codes` | OK |
+| `user_sessions` | OK |
+| `devices` | OK |
+| `breath_sessions` | **Type mismatch** — see below |
+| `breath_session_settings` | OK |
+| `user_stats` | OK |
+| `change_events` | OK |
+| `personal_access_tokens` | OK |
+| `module_sessions` | OK |
+| `session_stream_samples` | OK |
 
 | Enum | Verdict |
 |------|---------|
 | `users_role_enum` | OK — `user`, `admin` |
-| `module_sessions_status_enum` | OK — all 6 values including `interrupted`, `resumed` |
-| `activity_type_enum` | OK — `breath` (post-rename value) |
+| `module_sessions_status_enum` | OK — all 6 values |
+| `activity_type_enum` | OK — `breath` |
 | `breath_sessions_timeOfDay_enum` | OK — `morning`, `midday`, `evening` |
 
-### Bug fixes included
-
-The flat migration correctly resolves three issues from the old incremental chain:
-
-1. **`interrupted` never applied** — `AddInterruptedSessionStatus` checked for `live_sessions_status_enum` which didn't exist (enum was named `session_status_enum`). The flat migration creates `module_sessions_status_enum` with all 6 values from the start.
-2. **`resumed` never migrated** — existed in the TypeScript enum but no migration added it. Now included in the enum creation.
-3. **`disconnectedAt` type mismatch** — old `AddLiveSession` used `TIMESTAMP`, entity expects `timestamptz`. Flat migration uses `TIMESTAMP WITH TIME ZONE`, matching the entity.
-
-### Dependency Order
-
-**`up()` creation order** — verified correct: `users` → `auth_codes` → `user_sessions` → `devices` → `breath_sessions` → `breath_session_settings` → `user_stats` → `change_events` → `personal_access_tokens` → `module_sessions` → `session_stream_samples`. All FK targets exist before referencing tables.
-
-**`down()` teardown order** — verified correct: reverse of creation order, all FK children dropped before parents.
-
-### Migration Discovery
-
-- Runtime config (`database.config.ts` line 14): `__dirname + '/src/migrations/*{.ts,.js}'` — matches the new file.
-- CLI config (`src/config/typeorm.config.ts` line 14): `'src/migrations/*.ts'` — matches the new file.
-- `migrationsRun: true` in runtime config — migration auto-applies on startup.
-- Only one migration file exists in `src/migrations/`, so TypeORM will register exactly one migration class.
-
-### Idempotency Guards
-
-- Extension: `CREATE EXTENSION IF NOT EXISTS` — correct.
-- Enums: `DO $$ BEGIN CREATE TYPE ... EXCEPTION WHEN duplicate_object THEN null; END $$` — correct PL/pgSQL pattern for idempotent enum creation.
-- Tables: plain `CREATE TABLE` (no `IF NOT EXISTS`) — intentional per plan, requires fresh database.
+**Dependency order** (up: FK targets before referencing tables, down: reverse) — verified correct.
+**Idempotency** — extension uses `IF NOT EXISTS`, enums use PL/pgSQL exception handler — correct.
+**Migration discovery** — both `src/config/typeorm.config.ts` (`'src/migrations/*.ts'`) and `database.config.ts` (`__dirname + '/src/migrations/*{.ts,.js}'`) glob patterns match the single migration file.
 
 ### Critical Issues
 
@@ -66,6 +44,21 @@ None.
 
 ### Suggestions
 
-None. The implementation is a faithful translation of the plan specification and matches all entity definitions.
+**`breath_sessions`: TIMESTAMPTZ vs TIMESTAMP mismatch** (lines 145–147 of migration)
 
-REVIEW_PASS
+The migration creates `createdAt`, `updatedAt`, and `deletedAt` as `TIMESTAMP WITH TIME ZONE`, but the `BreathSession` entity uses bare `@CreateDateColumn()`, `@UpdateDateColumn()`, and `@DeleteDateColumn()` without specifying `type: 'timestamptz'`. TypeORM's default for these decorators on PostgreSQL is `TIMESTAMP WITHOUT TIME ZONE`.
+
+Every other table with untyped `@CreateDateColumn()` in its entity (`users`, `auth_codes`, `user_sessions`, `breath_session_settings`, `change_events`, `personal_access_tokens`, `module_sessions`, `session_stream_samples`) correctly uses `TIMESTAMP` in the migration. Tables that explicitly specify `type: 'timestamptz'` in the entity (`devices.created_at`, `user_stats.updatedAt`, `module_sessions.disconnectedAt`) correctly use `TIMESTAMPTZ` in the migration.
+
+`breath_sessions` is the only table where the migration uses `TIMESTAMPTZ` but the entity doesn't request it.
+
+This won't cause runtime errors with `synchronize: false`, but it's a latent type inconsistency. Fix either side:
+- **Option A** (align migration to entity): change the three columns to `TIMESTAMP NOT NULL DEFAULT now()` / `TIMESTAMP DEFAULT NULL`
+- **Option B** (align entity to migration): add `type: 'timestamptz'` to the three decorators in `breath-session.entity.ts`
+
+### Positive Notes
+
+- Correctly fixes three historical bugs from the old migration chain: missing `interrupted`/`resumed` enum values and `disconnectedAt` type mismatch
+- Clean idempotent enum creation using PL/pgSQL exception handler
+- `down()` teardown is thorough — drops indices, triggers, functions, tables, enums, and extension in correct reverse order
+- Well-structured code with clear section comments
