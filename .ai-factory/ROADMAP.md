@@ -204,3 +204,29 @@
 
 - [x] **Fix UUID column types and add FK constraints** — four columns across `module_sessions`, `session_stream_samples`, `user_stats` store UUIDs as `character varying` with no FK constraints; fix entity decorators and `InitialSchema` migration together; add cascade FKs so user deletion propagates completely (`users → module_sessions → session_stream_samples`); see [notes/04-phase-11-uuid-fix-details.md](.ai-factory/notes/04-phase-11-uuid-fix-details.md) for full breakdown
 
+---
+
+## Phase 12 — Sync Documentation with Code
+
+All docs under `docs/realtime/` and `docs/stats/` were written before Phase 7–11 and contain stale names, wrong schemas, and missing behaviour.
+
+- [x] **Fix `docs/realtime/database.md`** — rename section header and all references `live_sessions` → `module_sessions`; fix broken introductory sentence where table name was dropped (line 3: backtick gap); fix `activityType` column type `varchar` → `enum` (values: `breath`); add missing `resumed` to the status enum list; add missing `metadata` column (`jsonb nullable`); fix indices — doc has composite `(userId, status)` and `(userId, createdAt DESC)` but real indices are single-column `IDX_module_sessions_userId` and `IDX_module_sessions_status`; rewrite `session_stream_samples` section — current doc lists per-sample columns (`moduleId`, `instructionType`, `recordedAt`, `data`) that don't exist, real entity stores a batch: `moduleSessionId` (uuid FK → module_sessions, ON DELETE CASCADE), `samples` (jsonb array), `flushedAt` (timestamp), fix description from "хранит инструкции" to "хранит батчи сэмплов"; rename `ModuleInstructionService` → `ModuleInstructionStreamService` in intro (line 3) and in the `session_stream_samples` section description (line 26); add missing `maxCompletedComplexity` column to `user_stats` table (`float default 0`, between `longestStreak` and `lastSessionDate`)
+
+- [ ] **Fix `docs/realtime/session-lifecycle.md`** — add `resumed` to the states table (six states in code, five in doc); fix stale link in See Also that still references `live_sessions`
+
+- [ ] **Fix `docs/realtime/overview.md`** — rename `ModuleInstructionGrpcController` → `ModuleInstructionStreamGrpcController` in the Transport Layer description
+
+- [ ] **Fix `docs/realtime/protocol.md`** — rename `ModuleInstructionService` → `ModuleInstructionStreamService` in the section header and introduction
+
+- [ ] **Fix `docs/realtime/telemetry-model.md`** — add `session_abandoned` and `session_interrupted` to the `session_event` values list (currently only four values are documented; `StreamSessionEvent` defines six)
+
+- [ ] **Fix `docs/stats/stats.md`** — fix architecture diagram: `GraceTimerManager` → `ActivitySessionStore`; add `session.interrupted` to the qualifying events list (currently only `completed` and `abandoned` are mentioned)
+
+- [ ] **Fix `docs/sync/sync.md`** — the doc describes sync push as WebSocket (`sync:changed` event over Socket.io); Socket.io was removed in Phase 3.6 and replaced with a gRPC server-streaming `WatchChanges` RPC (`SyncStreamGrpcController`); update the push section accordingly; remove dead See Also links to `../socket/protocol.md` and `../socket/overview.md` (those files were deleted)
+
+- [ ] **Fix `docs/breath/breath-sessions.md`** — last paragraph says "клиент получает WebSocket-push `sync:changed`"; update to gRPC push terminology to match the sync doc fix above
+
+- [ ] **Fix `docs/auth/google-auth.md`** — the Implementation table references `src/users/auth.controller.ts` for `POST /auth/google` and `GET /auth/google/callback`; HTTP controllers were deleted in Phase 4.1; the Google callback relay moved to `src/users/controller/google-callback.controller.ts` (HTTP, still exists) and `POST /auth/google` is now in `src/users/auth.grpc.controller.ts`; update the table
+
+- [ ] **Rename `docs/realtime/telemetry-model.md` → `instruction-model.md`** — "telemetry" is leftover Socket.io vocabulary; update all three inbound links (`session-lifecycle.md`, `protocol.md`, `database.md`) and the doc table in `CLAUDE.md`; run after the content fix above so the fix targets the current filename
+
