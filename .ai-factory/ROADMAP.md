@@ -224,7 +224,7 @@ All docs under `docs/realtime/` and `docs/stats/` were written before Phase 7–
 
 - [x] **Fix `docs/sync/sync.md`** — the doc describes sync push as WebSocket (`sync:changed` event over Socket.io); Socket.io was removed in Phase 3.6 and replaced with a gRPC server-streaming `WatchChanges` RPC (`SyncStreamGrpcController`); update the push section accordingly; remove dead See Also links to `../socket/protocol.md` and `../socket/overview.md` (those files were deleted)
 
-- [ ] **Fix `docs/breath/breath-sessions.md`** — last paragraph says "клиент получает WebSocket-push `sync:changed`"; update to gRPC push terminology to match the sync doc fix above
+- [x] **Fix `docs/breath/breath-sessions.md`** — last paragraph says "клиент получает WebSocket-push `sync:changed`"; update to gRPC push terminology to match the sync doc fix above
 
 - [ ] **Fix `docs/auth/google-auth.md`** — the Implementation table references `src/users/auth.controller.ts` for `POST /auth/google` and `GET /auth/google/callback`; HTTP controllers were deleted in Phase 4.1; the Google callback relay moved to `src/users/controller/google-callback.controller.ts` (HTTP, still exists) and `POST /auth/google` is now in `src/users/auth.grpc.controller.ts`; update the table
 
