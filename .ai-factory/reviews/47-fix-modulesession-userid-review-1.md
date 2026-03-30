@@ -1,9 +1,15 @@
-## Code Review: Fix UUID column types and add FK constraints
+## Code Review Summary
 
-**Plan:** `.ai-factory/plans/48-fix-uuid-column-types-and-add-fk-constraints.md`
-**Files changed:** 4 (3 entities + 1 migration)
+**Files Reviewed:** 4 (3 entities + 1 migration)
+**Risk Level:** 🟢 Low
 
-### Entity changes
+### Context Gates
+
+- **ARCHITECTURE.md** — WARN: no boundary violations. Entities remain in their owning modules; no cross-module repository access introduced. Migration-only FK strategy (no `@ManyToOne`) preserves ORM-level decoupling as documented.
+- **RULES.md** — no violations. No non-null assertions, no sensitive data logging, no unnecessary logs.
+- **ROADMAP.md** — Phase 11 item "Fix UUID column types and add FK constraints" aligns with this commit.
+
+### Entity Changes
 
 All three entity files are correct:
 
@@ -11,9 +17,9 @@ All three entity files are correct:
 - **session-stream-sample.entity.ts** — `moduleSessionId` decorator now specifies `type: 'uuid'`. Clean, minimal change.
 - **user-stats.entity.ts** — `userId` decorator now specifies `type: 'uuid'`. Stale comment replaced. `@Index({ unique: true })` preserved.
 
-### Migration changes
+### Migration Changes
 
-**`up()` method** — verified all four CREATE TABLE blocks:
+**`up()` method** — verified all four affected CREATE TABLE blocks:
 
 | Table | Column type fix | FK added | Comma placement |
 |---|---|---|---|
@@ -24,14 +30,14 @@ All three entity files are correct:
 
 No trailing commas after the last constraint in any block. SQL syntax is valid.
 
-**`down()` method** — no changes made. Verified drop order is still correct with the new FKs:
+**`down()` method** — no changes made. Verified drop order is correct with the new FKs:
 1. `session_stream_samples` (FK → `module_sessions`) dropped before `module_sessions` ✅
 2. `module_sessions` (FK → `users`) dropped before `users` ✅
 3. `personal_access_tokens` (FK → `users`) dropped before `users` ✅
 4. `user_stats` (FK → `users`) dropped before `users` ✅
 5. All other tables with existing FKs to `users` also dropped before `users` ✅
 
-### Entity–migration alignment
+### Entity–Migration Alignment
 
 | Entity column | Decorator type | Migration column type | Match |
 |---|---|---|---|
@@ -41,7 +47,7 @@ No trailing commas after the last constraint in any block. SQL syntax is valid.
 | `UserStats.userId` | `{ type: 'uuid' }` | `uuid NOT NULL` | ✅ |
 | `PersonalAccessToken.userId` | `'uuid'` (already correct) | `uuid NOT NULL` (already correct) | ✅ |
 
-### FK cascade completeness
+### FK Cascade Completeness
 
 After this change, every table with a `userId` referencing `users.id` has `ON DELETE CASCADE`:
 - `user_sessions` (existing) ✅
@@ -56,12 +62,18 @@ The `session_stream_samples.moduleSessionId → module_sessions.id` FK completes
 
 No FK on `activityRefId` — correct. `breath_sessions` rows are independent and outlive module sessions.
 
-### Critical issues
+### Critical Issues
 
 None.
 
 ### Suggestions
 
 None.
+
+### Positive Notes
+
+- Bonus FK on `personal_access_tokens` — not in the plan, but consistent with the goal and correctly applied (entity already had `uuid` type).
+- Clean, focused changes — no unrelated modifications.
+- Comments accurately reflect the new reality (FK in migration, ORM-level decoupling preserved).
 
 REVIEW_PASS
