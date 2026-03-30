@@ -218,7 +218,7 @@ All docs under `docs/realtime/` and `docs/stats/` were written before Phase 7–
 
 - [x] **Fix `docs/realtime/protocol.md`** — rename `ModuleInstructionService` → `ModuleInstructionStreamService` in the section header and introduction
 
-- [ ] **Fix `docs/realtime/telemetry-model.md`** — add `session_abandoned` and `session_interrupted` to the `session_event` values list (currently only four values are documented; `StreamSessionEvent` defines six)
+- [x] **Fix `docs/realtime/telemetry-model.md`** — add `session_abandoned` and `session_interrupted` to the `session_event` values list (currently only four values are documented; `StreamSessionEvent` defines six)
 
 - [ ] **Fix `docs/stats/stats.md`** — fix architecture diagram: `GraceTimerManager` → `ActivitySessionStore`; add `session.interrupted` to the qualifying events list (currently only `completed` and `abandoned` are mentioned)
 

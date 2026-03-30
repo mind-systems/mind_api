@@ -51,9 +51,13 @@ ModuleSession
 { "event": "paused" }
 { "event": "resumed" }
 { "event": "session_ended" }
+{ "event": "session_abandoned" }
+{ "event": "session_interrupted" }
 ```
 
-Пишется `ActivityEngine` при обработке `activity:start/pause/resume/end`. Сервер — авторитетный источник lifecycle-событий.
+`session_abandoned` записывается, когда истекает grace period без переподключения клиента (а также при перезапуске сервера). `session_interrupted` — при явном `activity:stop`.
+
+Пишется `ActivityEngine` при каждом lifecycle-переходе сессии: `activity:start/pause/resume/end/stop` и по истечении grace period. Сервер — авторитетный источник lifecycle-событий.
 
 ## Две независимые временны́е шкалы
 
@@ -61,6 +65,8 @@ ModuleSession
 Шкала инструкций
 ──────────────────────────────────────────────────────
 session_started → breath_phase → … → paused → resumed → … → session_ended
+                                                                          ├── session_abandoned  (grace period истёк)
+                                                                          └── session_interrupted (activity:stop)
 
 Биометрическая шкала (будущее)
 ────────────────────────────────
@@ -78,7 +84,7 @@ T+6000–T+12000ms: биосигнал дыхания → совпадает л�
 
 ## Пауза и инструкции
 
-Когда сессия поставлена на паузу, `ModuleInstructionGrpcController` блокирует входящие сэмплы `breath_phase`. Lifecycle-события (`paused`, `resumed`) при этом пишутся сервером самостоятельно — они проходят всегда. В результате за маркером `paused` возникает чистый пробел в сэмплах фаз, а маркер `resumed` его закрывает.
+Когда сессия поставлена на паузу, `ModuleInstructionStreamGrpcController` блокирует входящие сэмплы `breath_phase`. Lifecycle-события (`paused`, `resumed`) при этом пишутся сервером самостоятельно — они проходят всегда. В результате за маркером `paused` возникает чистый пробел в сэмплах фаз, а маркер `resumed` его закрывает.
 
 ## Backpressure
 
@@ -96,6 +102,6 @@ T+6000–T+12000ms: биосигнал дыхания → совпадает л�
 
 ## See Also
 
-- [Протокол](protocol.md) — описание `ModuleInstructionService`
+- [Протокол](protocol.md) — описание `ModuleInstructionStreamService`
 - [Жизненный цикл сессии](session-lifecycle.md) — состояния сессии, пауза, reconnect
 - [База данных](database.md) — схема таблицы `session_stream_samples`
