@@ -220,7 +220,7 @@ All docs under `docs/realtime/` and `docs/stats/` were written before Phase 7–
 
 - [x] **Fix `docs/realtime/telemetry-model.md`** — add `session_abandoned` and `session_interrupted` to the `session_event` values list (currently only four values are documented; `StreamSessionEvent` defines six)
 
-- [ ] **Fix `docs/stats/stats.md`** — fix architecture diagram: `GraceTimerManager` → `ActivitySessionStore`; add `session.interrupted` to the qualifying events list (currently only `completed` and `abandoned` are mentioned)
+- [x] **Fix `docs/stats/stats.md`** — fix architecture diagram: `GraceTimerManager` → `ActivitySessionStore`; add `session.interrupted` to the qualifying events list (currently only `completed` and `abandoned` are mentioned)
 
 - [ ] **Fix `docs/sync/sync.md`** — the doc describes sync push as WebSocket (`sync:changed` event over Socket.io); Socket.io was removed in Phase 3.6 and replaced with a gRPC server-streaming `WatchChanges` RPC (`SyncStreamGrpcController`); update the push section accordingly; remove dead See Also links to `../socket/protocol.md` and `../socket/overview.md` (those files were deleted)
 

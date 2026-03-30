@@ -99,9 +99,9 @@ longestStreak = max(currentStreak, longestStreak)
 ## Внутренняя архитектура
 
 ```
-ActivityEngine / GraceTimerManager
+ActivityEngine / ActivitySessionStore
         ↓  emits
-  session.completed / session.abandoned  (EventEmitter2)
+  session.completed / session.abandoned / session.interrupted  (EventEmitter2)
         ↓  @OnEvent
      StatsWorker
         ↓  вызывает
