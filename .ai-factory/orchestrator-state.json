@@ -1,6 +1,7 @@
 {
   "implement_reviews": [
     "50-fix-docs-realtime-database-md-review-1.md",
-    "50-fix-docs-realtime-database-md-review-2.md"
+    "50-fix-docs-realtime-database-md-review-2.md",
+    "51-fix-docs-realtime-session-lifecycle-md-review-1.md"
   ]
 }
