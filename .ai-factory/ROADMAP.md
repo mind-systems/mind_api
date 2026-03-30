@@ -214,7 +214,7 @@ All docs under `docs/realtime/` and `docs/stats/` were written before Phase 7–
 
 - [x] **Fix `docs/realtime/session-lifecycle.md`** — add `resumed` to the states table (six states in code, five in doc); fix stale link in See Also that still references `live_sessions`
 
-- [ ] **Fix `docs/realtime/overview.md`** — rename `ModuleInstructionGrpcController` → `ModuleInstructionStreamGrpcController` in the Transport Layer description
+- [x] **Fix `docs/realtime/overview.md`** — rename `ModuleInstructionGrpcController` → `ModuleInstructionStreamGrpcController` in the Transport Layer description
 
 - [ ] **Fix `docs/realtime/protocol.md`** — rename `ModuleInstructionService` → `ModuleInstructionStreamService` in the section header and introduction
 

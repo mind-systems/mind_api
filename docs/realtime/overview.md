@@ -8,7 +8,7 @@ gRPC-стрим и доменная сессия — разные сущност
 
 ## Слои системы
 
-**Transport Layer** — `ModuleStateGrpcController` и `ModuleInstructionGrpcController`. Отвечает только за протокол: маршрутизацию входящих сообщений и отправку исходящих. Аутентификация вынесена в `GrpcAuthInterceptor` — проверяет JWT из metadata и наличие сессии в `user_sessions` до обработки каждого запроса.
+**Transport Layer** — `ModuleStateGrpcController` и `ModuleInstructionStreamGrpcController`. Отвечает только за протокол: маршрутизацию входящих сообщений и отправку исходящих. Аутентификация вынесена в `GrpcAuthInterceptor` — проверяет JWT из metadata и наличие сессии в `user_sessions` до обработки каждого запроса.
 
 **Activity Layer** — `ActivityEngine`, доменное ядро. Управляет жизненным циклом `ModuleSession`: создаёт, возобновляет, завершает, помечает как брошенные. Здесь живут переходы состояний и grace-таймер.
 
