@@ -7,11 +7,11 @@ import { Observable, Subscriber } from 'rxjs';
 import {
   ActivityStartCmd,
   ActivityType as ProtoActivityType,
-  SessionRequest,
-  SessionResponse,
+  StateRequest,
+  StateResponse,
   ModuleStateServiceController,
   ModuleStateServiceControllerMethods,
-  SessionStatus,
+  ActivityStatus,
 } from '../../proto/generated/module_state';
 import { ActivityType as InternalActivityType } from './enums/activity-type.enum';
 import { ActivityEngine } from './services/activity-engine.service';
@@ -61,8 +61,8 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
     );
   }
 
-  trackActivity(request: Observable<SessionRequest>, metadata?: Metadata): Observable<SessionResponse> {
-    return new Observable<SessionResponse>((subscriber) => {
+  trackActivity(request: Observable<StateRequest>, metadata?: Metadata): Observable<StateResponse> {
+    return new Observable<StateResponse>((subscriber) => {
       const user = metadata
         ? ((metadata as any)[GRPC_USER_KEY] as JwtPayload | null)
         : null;
@@ -88,7 +88,7 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
           subscriber.next({
             sessionState: {
               moduleSessionId: session.id,
-              status: SessionStatus.RESUMED,
+              status: ActivityStatus.RESUMED,
               isPaused: false,
             },
           });
@@ -98,7 +98,7 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
         connectedAt = Date.now();
 
         const cmdSub = request.subscribe({
-          next: (msg: SessionRequest) => {
+          next: (msg: StateRequest) => {
             this.routeCommand(userId, msg, subscriber).catch((err: unknown) => {
               this.logger.error(`Unhandled error routing command: userId=${userId}`, err);
               subscriber.next({
@@ -158,8 +158,8 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
 
   private async routeCommand(
     userId: string,
-    msg: SessionRequest,
-    subscriber: Subscriber<SessionResponse>,
+    msg: StateRequest,
+    subscriber: Subscriber<StateResponse>,
   ): Promise<void> {
     try {
       if (msg.activityStart !== undefined) {
@@ -176,7 +176,7 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
         subscriber.next({
           sessionError: {
             code: 'INVALID_COMMAND',
-            message: 'Empty SessionRequest — no command set',
+            message: 'Empty StateRequest — no command set',
             timestamp: Date.now(),
           },
         });
@@ -196,7 +196,7 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
   private async handleActivityStart(
     userId: string,
     cmd: ActivityStartCmd,
-    subscriber: Subscriber<SessionResponse>,
+    subscriber: Subscriber<StateResponse>,
   ): Promise<void> {
     const allowed = this.rateLimiterService.consume(
       `activity-start:${userId}`,
@@ -219,7 +219,7 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
       subscriber.next({
         sessionState: {
           moduleSessionId: existing.sessionId,
-          status: SessionStatus.ACTIVE,
+          status: ActivityStatus.ACTIVE,
         },
       });
       return;
@@ -246,7 +246,7 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
     subscriber.next({
       sessionState: {
         moduleSessionId: session.id,
-        status: SessionStatus.ACTIVE,
+        status: ActivityStatus.ACTIVE,
       },
     });
     this.logger.log(`Activity started: userId=${userId} sessionId=${session.id}`);
@@ -254,14 +254,14 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
 
   private async handleActivityEnd(
     userId: string,
-    subscriber: Subscriber<SessionResponse>,
+    subscriber: Subscriber<StateResponse>,
   ): Promise<void> {
     const session = await this.activityEngine.endActivity(userId);
     if (!session) return;
     subscriber.next({
       sessionState: {
         moduleSessionId: session.id,
-        status: SessionStatus.COMPLETED,
+        status: ActivityStatus.COMPLETED,
       },
     });
     this.logger.log(`Activity ended: userId=${userId} sessionId=${session.id}`);
@@ -269,26 +269,26 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
 
   private async handleActivityStop(
     userId: string,
-    subscriber: Subscriber<SessionResponse>,
+    subscriber: Subscriber<StateResponse>,
   ): Promise<void> {
     const session = await this.activityEngine.stopActivity(userId);
     if (!session) return;
     subscriber.next({
       sessionState: {
         moduleSessionId: session.id,
-        status: SessionStatus.INTERRUPTED,
+        status: ActivityStatus.INTERRUPTED,
       },
     });
     this.logger.log(`Activity stopped: userId=${userId} sessionId=${session.id}`);
   }
 
-  private handleActivityPause(userId: string, subscriber: Subscriber<SessionResponse>): void {
+  private handleActivityPause(userId: string, subscriber: Subscriber<StateResponse>): void {
     try {
       const state = this.activityEngine.pauseActivity(userId);
       subscriber.next({
         sessionState: {
           moduleSessionId: state.sessionId,
-          status: SessionStatus.ACTIVE,
+          status: ActivityStatus.ACTIVE,
           isPaused: true,
         },
       });
@@ -304,13 +304,13 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
     }
   }
 
-  private handleActivityResume(userId: string, subscriber: Subscriber<SessionResponse>): void {
+  private handleActivityResume(userId: string, subscriber: Subscriber<StateResponse>): void {
     try {
       const state = this.activityEngine.unpauseActivity(userId);
       subscriber.next({
         sessionState: {
           moduleSessionId: state.sessionId,
-          status: SessionStatus.ACTIVE,
+          status: ActivityStatus.ACTIVE,
           isPaused: false,
         },
       });

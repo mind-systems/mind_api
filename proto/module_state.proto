@@ -16,10 +16,10 @@ enum ActivityType {
 }
 
 // Maps to SessionStatus enum in src/realtime/enums/session-status.enum.ts.
-// SESSION_STATUS_UNSPECIFIED = 0 is the sentinel — a silent default ACTIVE
+// ACTIVITY_STATUS_UNSPECIFIED = 0 is the sentinel — a silent default ACTIVE
 // could mask bugs where status was never set.
-enum SessionStatus {
-  SESSION_STATUS_UNSPECIFIED = 0;
+enum ActivityStatus {
+  ACTIVITY_STATUS_UNSPECIFIED = 0;
   ACTIVE = 1;
   DISCONNECTED = 2;
   COMPLETED = 3;
@@ -55,9 +55,9 @@ message ActivityResumeCmd {}
 // ---------------------------------------------------------------------------
 
 // Maps to SessionStateDto in src/realtime/dto/session-state.dto.ts.
-message SessionStateEvent {
+message StateEvent {
   string module_session_id = 1;
-  SessionStatus status = 2;
+  ActivityStatus status = 2;
   optional bool is_paused = 3;
 }
 
@@ -65,7 +65,7 @@ message SessionStateEvent {
 // timestamp is int64 Unix millis — not ISO-8601 — because error events are
 // high-frequency and don't need human-readable timestamps.
 // This message is top-level so module_instruction_stream.proto can import it later.
-message SessionErrorEvent {
+message StateErrorEvent {
   string code = 1;
   string message = 2;
   int64 timestamp = 3;
@@ -75,9 +75,9 @@ message SessionErrorEvent {
 // Streaming message wrappers
 // ---------------------------------------------------------------------------
 
-// SessionRequest is the client-to-server stream envelope.
+// StateRequest is the client-to-server stream envelope.
 // Each message carries exactly one command via the oneof.
-message SessionRequest {
+message StateRequest {
   oneof command {
     ActivityStartCmd activity_start = 1;
     ActivityEndCmd activity_end = 2;
@@ -87,23 +87,23 @@ message SessionRequest {
   }
 }
 
-// SessionResponse is the server-to-client stream envelope.
+// StateResponse is the server-to-client stream envelope.
 // Each message carries exactly one event via the oneof.
-message SessionResponse {
+message StateResponse {
   oneof event {
-    SessionStateEvent session_state = 1;
-    SessionErrorEvent session_error = 2;
+    StateEvent session_state = 1;
+    StateErrorEvent session_error = 2;
   }
 }
 
 // ---------------------------------------------------------------------------
 // Service definition
 //
-// Bidirectional stream: the client sends commands (SessionRequest) and receives
-// state/error events (SessionResponse). Auth identity comes from metadata/interceptor,
+// Bidirectional stream: the client sends commands (StateRequest) and receives
+// state/error events (StateResponse). Auth identity comes from metadata/interceptor,
 // not the message.
 // ---------------------------------------------------------------------------
 
 service ModuleStateService {
-  rpc TrackActivity(stream SessionRequest) returns (stream SessionResponse);
+  rpc TrackActivity(stream StateRequest) returns (stream StateResponse);
 }

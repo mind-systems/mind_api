@@ -155,7 +155,7 @@
 
 > Gate: 8.2 and 8.3 can only start after this section is committed.
 
-- [x] **Remove presence from `proto/module_state.proto`** — delete `enum PresenceState { PRESENCE_STATE_UNSPECIFIED = 0; FOREGROUND = 1; BACKGROUND = 2; }` block (lines 18–25); delete `message PresenceCmd { PresenceState state = 1; }` block (lines 62–65); delete `PresenceCmd presence = 6` field from `SessionRequest` oneof (line 101)
+- [x] **Remove presence from `proto/module_state.proto`** — delete `enum PresenceState`, `message PresenceCmd`, and `PresenceCmd presence = 6` field from `SessionRequest` oneof
 
 ### 8.2 Remove NestJS implementation _(parallel with 8.3, requires 8.1)_
 
@@ -186,15 +186,15 @@
 
 ### 10.1 Update `proto/module_state.proto` `[proto]`
 
-- [ ] **Rename `SessionRequest` → `StateRequest`** — update the `rpc TrackActivity` signature
-- [ ] **Rename `SessionResponse` → `StateResponse`** — update the `rpc TrackActivity` signature
-- [ ] **Rename `SessionStatus` → `ActivityStatus`** — status of a user activity, not a generic "session status"; update usage in `SessionStateEvent` field type
-- [ ] **Rename `SessionStateEvent` → `StateEvent`** — update usage inside `StateResponse` oneof
-- [ ] **Rename `SessionErrorEvent` → `StateErrorEvent`** — update the type reference inside `StreamResponse` in `proto/module_instruction_stream.proto`
+- [x] **Rename `SessionRequest` → `StateRequest`** — update the `rpc TrackActivity` signature
+- [x] **Rename `SessionResponse` → `StateResponse`** — update the `rpc TrackActivity` signature
+- [x] **Rename `SessionStatus` → `ActivityStatus`** — status of a user activity, not a generic "session status"; update usage in `SessionStateEvent` field type
+- [x] **Rename `SessionStateEvent` → `StateEvent`** — update usage inside `StateResponse` oneof
+- [x] **Rename `SessionErrorEvent` → `StateErrorEvent`** — update the type reference inside `StreamResponse` in `proto/module_instruction_stream.proto`
 
 ### 10.2 Update NestJS implementation _(requires 10.1)_
 
-- [ ] **Regenerate NestJS stubs** — re-run proto codegen; verify `proto/generated/module_state.ts` uses new type names; verify `proto/generated/module_instruction_stream.ts` references `StateErrorEvent`
-- [ ] **Update `src/realtime/module-state.grpc.controller.ts`** — replace all references to old type names with `StateRequest`, `StateResponse`, `ActivityStatus`, `StateEvent`, `StateErrorEvent` from regenerated stubs
-- [ ] **Update `src/realtime/module-instruction-stream.grpc.controller.ts`** — replace `SessionErrorEvent` with `StateErrorEvent` from regenerated stubs
+- [x] **Regenerate NestJS stubs** — re-run proto codegen; verify `proto/generated/module_state.ts` uses new type names; verify `proto/generated/module_instruction_stream.ts` references `StateErrorEvent`
+- [x] **Update `src/realtime/module-state.grpc.controller.ts`** — replace all references to old type names with `StateRequest`, `StateResponse`, `ActivityStatus`, `StateEvent`, `StateErrorEvent` from regenerated stubs
+- [x] **Update `src/realtime/module-instruction-stream.grpc.controller.ts`** — replace `SessionErrorEvent` with `StateErrorEvent` from regenerated stubs
 

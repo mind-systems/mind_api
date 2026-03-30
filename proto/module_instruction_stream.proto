@@ -11,7 +11,7 @@ import "module_state.proto";
 
 // StreamSample is one instrumentation sample sent by the client.
 // session_id ties the sample to an active module session.
-// timestamp is int64 Unix millis — same convention as SessionErrorEvent.timestamp.
+// timestamp is int64 Unix millis — same convention as StateErrorEvent.timestamp.
 // module_id identifies the producer module (e.g. "breath").
 // instruction_type is module-defined and names the specific measurement
 // (e.g. "breath_phase").
@@ -49,11 +49,11 @@ message StreamAck {
 
 // StreamResponse is the server-to-client stream envelope.
 // Each message carries exactly one event via the oneof.
-// SessionErrorEvent is imported from module_state.proto and reused for error reporting.
+// StateErrorEvent is imported from module_state.proto and reused for error reporting.
 message StreamResponse {
   oneof event {
     StreamAck ack = 1;
-    SessionErrorEvent error = 2;
+    StateErrorEvent error = 2;
   }
 }
 
@@ -62,7 +62,7 @@ message StreamResponse {
 //
 // Bidirectional stream: the client sends a continuous stream of StreamSample
 // samples and the server responds with StreamAck confirmations or
-// SessionErrorEvent errors. Auth identity comes from metadata/interceptor,
+// StateErrorEvent errors. Auth identity comes from metadata/interceptor,
 // not the message.
 // ---------------------------------------------------------------------------
 
