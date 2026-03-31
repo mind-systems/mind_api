@@ -230,3 +230,9 @@ All docs under `docs/realtime/` and `docs/stats/` were written before Phase 7–
 
 - [ ] **Rename `docs/realtime/telemetry-model.md` → `instruction-model.md`** — "telemetry" is leftover Socket.io vocabulary; update all three inbound links (`session-lifecycle.md`, `protocol.md`, `database.md`) and the doc table in `CLAUDE.md`; run after the content fix above so the fix targets the current filename
 
+---
+
+## Phase 13 — Finish "Telemetry" → "Instruction" Rename
+
+- [ ] **Rename `TelemetrySample` → `InstructionSample` in `src/realtime/interfaces/session-buffer.interface.ts`** — update the interface name (lines 1, 8) and all consumers: `stream-engine.service.ts` (lines 15, 82) — import and method signature; `stream-engine.service.spec.ts` (lines 3, 33) — import and test helper
+
