@@ -1,6 +1,6 @@
 # Google Authentication
 
-Вход через Google Sign-In поддерживает два flow — оба передают `serverAuthCode` на бэкенд, где Google-токены обрабатываются исключительно на сервере.
+Вход через Google Sign-In поддерживает два flow — оба передают `server_auth_code` на бэкенд, где Google-токены обрабатываются исключительно на сервере.
 
 ## Как устроен вход
 
@@ -12,7 +12,7 @@
 
 ### Мобильный flow (SDK)
 
-Мобильный клиент получает `serverAuthCode` напрямую от Google Sign-In SDK. Поле `redirectUri` не передаётся — `OAuth2Client.getToken` вызывается только с кодом.
+Мобильный клиент получает `server_auth_code` напрямую от Google Sign-In SDK. Поле `redirect_uri` не передаётся — `OAuth2Client.getToken` вызывается только с кодом.
 
 ### Браузерный flow
 
