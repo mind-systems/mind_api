@@ -70,7 +70,7 @@ RPC определён в `proto/sync.proto` как `rpc WatchChanges(WatchChang
 ```proto
 ChangeEvent {
   events: [
-    { id: 42, entity: "breath_session", ref_id: "uuid...", action: "created" }
+    { id: 42, entity: "breath_session", ref_id: "uuid...", action: "created", created_at: "..." }
   ]
 }
 ```
