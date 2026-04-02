@@ -55,7 +55,7 @@ ModuleSession
 { "event": "session_interrupted" }
 ```
 
-`session_abandoned` записывается, когда истекает grace period без переподключения клиента (а также при перезапуске сервера). `session_interrupted` — при явном `activity:stop`.
+`session_abandoned` записывается, когда истекает grace period без переподключения клиента. `session_interrupted` — при явном `activity:stop`.
 
 Пишется `ActivityEngine` при каждом lifecycle-переходе сессии: `activity:start/pause/resume/end/stop` и по истечении grace period. Сервер — авторитетный источник lifecycle-событий.
 
