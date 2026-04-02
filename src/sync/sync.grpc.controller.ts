@@ -1,5 +1,5 @@
 import { Controller, UseFilters, UseInterceptors } from '@nestjs/common';
-import { GrpcMethod } from '@nestjs/microservices';
+import { GrpcMethod, Payload } from '@nestjs/microservices';
 import {
   GetChangesRequest,
   GetChangesResponse,
@@ -20,7 +20,7 @@ export class SyncGrpcController {
 
   @GrpcMethod('SyncService', 'getChanges')
   async getChanges(
-    request: GetChangesRequest,
+    @Payload() request: GetChangesRequest,
     @GrpcCurrentUser() user: JwtPayload,
   ): Promise<GetChangesResponse> {
     const result = await this.syncService.getChanges(user.sub, request.after, request.limit);

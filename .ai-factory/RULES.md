@@ -32,3 +32,26 @@ this.logger.log(`sendCode: sent codeId=${savedCode.id}`);
 ## Keep logs lean
 
 Do NOT log function entry/exit or intermediate state. Log errors and key business outcomes only.
+
+## Always use `@Payload()` on the request parameter in gRPC methods that also use `@GrpcCurrentUser()`
+
+If any parameter in a gRPC method has a custom decorator (`@GrpcCurrentUser()`), NestJS
+switches to explicit injection mode and only fills parameters that are explicitly decorated.
+The request parameter without `@Payload()` will be `undefined` at runtime.
+
+```typescript
+// WRONG
+async getChanges(
+  request: GetChangesRequest,
+  @GrpcCurrentUser() user: JwtPayload,
+)
+
+// CORRECT
+async getChanges(
+  @Payload() request: GetChangesRequest,
+  @GrpcCurrentUser() user: JwtPayload,
+)
+```
+
+This applies to every gRPC method that uses `@GrpcCurrentUser()`, regardless of whether
+the method is required-auth or optional-auth.

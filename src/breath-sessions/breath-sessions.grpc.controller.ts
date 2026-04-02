@@ -1,5 +1,5 @@
 import { Controller, UseFilters, UseInterceptors } from '@nestjs/common';
-import { RpcException } from '@nestjs/microservices';
+import { Payload, RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import {
   BatchGetSessionsRequest,
@@ -50,7 +50,7 @@ export class BreathSessionsGrpcController
   ) {}
 
   async createSession(
-    request: CreateSessionRequest,
+    @Payload() request: CreateSessionRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<BreathSessionDto> {
     if (!user) {
@@ -73,7 +73,7 @@ export class BreathSessionsGrpcController
 
   @GrpcOptionalAuth()
   async listSessions(
-    request: ListSessionsRequest,
+    @Payload() request: ListSessionsRequest,
     @GrpcCurrentUser() user?: JwtPayload | null,
   ): Promise<ListSessionsResponse> {
     const result = await this.breathSessionsService.findList(
@@ -90,7 +90,7 @@ export class BreathSessionsGrpcController
   }
 
   async getSuggestions(
-    request: GetSuggestionsRequest,
+    @Payload() request: GetSuggestionsRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<GetSuggestionsResponse> {
     if (!user) {
@@ -109,7 +109,7 @@ export class BreathSessionsGrpcController
 
   @GrpcOptionalAuth()
   async batchGetSessions(
-    request: BatchGetSessionsRequest,
+    @Payload() request: BatchGetSessionsRequest,
     @GrpcCurrentUser() user?: JwtPayload | null,
   ): Promise<BatchGetSessionsResponse> {
     if (request.ids.length < 1 || request.ids.length > 50) {
@@ -127,7 +127,7 @@ export class BreathSessionsGrpcController
 
   @GrpcOptionalAuth()
   async getSession(
-    request: GetSessionRequest,
+    @Payload() request: GetSessionRequest,
     @GrpcCurrentUser() user?: JwtPayload | null,
   ): Promise<BreathSessionWithStarredDto> {
     const session = await this.breathSessionsService.findOne(
@@ -138,7 +138,7 @@ export class BreathSessionsGrpcController
   }
 
   async updateSession(
-    request: UpdateSessionRequest,
+    @Payload() request: UpdateSessionRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<BreathSessionDto> {
     if (!user) {
@@ -174,7 +174,7 @@ export class BreathSessionsGrpcController
   }
 
   async replaceSession(
-    request: ReplaceSessionRequest,
+    @Payload() request: ReplaceSessionRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<BreathSessionDto> {
     if (!user) {
@@ -200,7 +200,7 @@ export class BreathSessionsGrpcController
   }
 
   async updateSessionSettings(
-    request: UpdateSessionSettingsRequest,
+    @Payload() request: UpdateSessionSettingsRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<UpdateSessionSettingsResponse> {
     if (!user) {
@@ -219,7 +219,7 @@ export class BreathSessionsGrpcController
   }
 
   async deleteSession(
-    request: DeleteSessionRequest,
+    @Payload() request: DeleteSessionRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<DeleteSessionResponse> {
     if (!user) {

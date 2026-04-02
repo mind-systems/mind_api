@@ -1,5 +1,5 @@
 import { Controller, UseFilters, UseInterceptors } from '@nestjs/common';
-import { RpcException } from '@nestjs/microservices';
+import { Payload, RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import {
   AuthResponse,
@@ -88,7 +88,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   @UseInterceptors(GrpcAuthInterceptor)
   async createToken(
-    request: CreateTokenRequest,
+    @Payload() request: CreateTokenRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<CreateTokenResponse> {
     if (!user) {
@@ -111,7 +111,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   @UseInterceptors(GrpcAuthInterceptor)
   async listTokens(
-    _request: ListTokensRequest,
+    @Payload() _request: ListTokensRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<ListTokensResponse> {
     if (!user) {
@@ -133,7 +133,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   @UseInterceptors(GrpcAuthInterceptor)
   async deleteToken(
-    request: DeleteTokenRequest,
+    @Payload() request: DeleteTokenRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<DeleteTokenResponse> {
     if (!user) {

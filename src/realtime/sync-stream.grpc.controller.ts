@@ -1,5 +1,5 @@
 import { Controller, UseFilters, UseInterceptors } from '@nestjs/common';
-import { GrpcMethod, RpcException } from '@nestjs/microservices';
+import { GrpcMethod, Payload, RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import { Observable } from 'rxjs';
 import {
@@ -27,7 +27,7 @@ export class SyncStreamGrpcController {
 
   @GrpcMethod('SyncService', 'watchChanges')
   watchChanges(
-    request: WatchChangesRequest,
+    @Payload() request: WatchChangesRequest,
     @GrpcCurrentUser() user: JwtPayload | null,
   ): Observable<ChangeEvent> {
     return new Observable<ChangeEvent>((subscriber) => {

@@ -8,6 +8,7 @@ import {
   StatsServiceControllerMethods,
 } from '../../proto/generated/stats';
 import { StatsService } from './stats.service';
+import { Payload } from '@nestjs/microservices';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
@@ -23,7 +24,7 @@ export class StatsGrpcController implements StatsServiceController {
   ) {}
 
   async getStats(
-    _request: GetStatsRequest,
+    @Payload() _request: GetStatsRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<GetStatsResponse> {
     if (!user) {

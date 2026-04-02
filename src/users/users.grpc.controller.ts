@@ -1,5 +1,5 @@
 import { Controller, UseFilters, UseInterceptors } from '@nestjs/common';
-import { RpcException } from '@nestjs/microservices';
+import { Payload, RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import {
   UpdateProfileRequest,
@@ -25,7 +25,7 @@ export class UsersGrpcController implements UserServiceController {
   ) {}
 
   async updateProfile(
-    request: UpdateProfileRequest,
+    @Payload() request: UpdateProfileRequest,
     @GrpcCurrentUser() user?: JwtPayload,
   ): Promise<UserDto> {
     if (!user) {
