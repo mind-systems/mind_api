@@ -1,16 +1,1 @@
-{
-  "implement_reviews": [
-    "50-fix-docs-realtime-database-md-review-1.md",
-    "50-fix-docs-realtime-database-md-review-2.md",
-    "51-fix-docs-realtime-session-lifecycle-md-review-1.md",
-    "52-fix-docs-realtime-overview-md-review-1.md",
-    "53-fix-docs-realtime-protocol-md-review-1.md",
-    "54-fix-docs-realtime-telemetry-model-md-review-1.md",
-    "55-fix-docs-stats-stats-md-review-1.md",
-    "56-fix-docs-sync-sync-md-review-1.md",
-    "57-fix-docs-breath-breath-sessions-md-review-1.md",
-    "58-fix-docs-auth-google-auth-md-review-1.md",
-    "59-rename-docs-realtime-telemetry-model-md-instruction-model-md-review-1.md",
-    "60-rename-telemetrysample-instructionsample-in-src-realtime-interfaces-session-buffer-interface-ts-review-1.md"
-  ]
-}
+{}
