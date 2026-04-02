@@ -42,7 +42,7 @@ Mind Awake API is a NestJS 11 REST backend for a mindfulness breathing app. It h
 | Realtime Overview | docs/realtime/overview.md | Architecture, layers |
 | Realtime Protocol | docs/realtime/protocol.md | ModuleState, ModuleInstruction services |
 | Session Lifecycle | docs/realtime/session-lifecycle.md | States, pause, reconnect |
-| Instruction Model | docs/realtime/telemetry-model.md | Instruction stream, biometric correlation |
+| Instruction Model | docs/realtime/instruction-model.md | Instruction stream, biometric correlation |
 | Realtime Database | docs/realtime/database.md | DB schemas |
 | Realtime Config | docs/realtime/configuration.md | WS_* env vars |
 | User Stats | docs/stats/stats.md | Stats endpoint, streaks |

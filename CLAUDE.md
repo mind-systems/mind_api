@@ -110,7 +110,7 @@ gRPC controllers handle request/response mapping and delegate all business logic
 | Realtime Overview | `docs/realtime/overview.md` | Layered architecture, modules, in-memory state |
 | Realtime Protocol | `docs/realtime/protocol.md` | ModuleStateService, ModuleInstructionService, commands and responses |
 | Session Lifecycle | `docs/realtime/session-lifecycle.md` | States, reconnect, grace period, server restart recovery |
-| Instruction Model | `docs/realtime/telemetry-model.md` | Instruction stream concept, activity:start trigger, biometric correlation |
+| Instruction Model | `docs/realtime/instruction-model.md` | Instruction stream concept, activity:start trigger, biometric correlation |
 | Realtime Database | `docs/realtime/database.md` | live_sessions, session_stream_samples, user_stats schemas |
 | Realtime Config | `docs/realtime/configuration.md` | WS_* environment variables |
 | User Stats | `docs/stats/stats.md` | GET /users/me/stats endpoint, streak rules, min-duration filter |

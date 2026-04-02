@@ -228,7 +228,7 @@ All docs under `docs/realtime/` and `docs/stats/` were written before Phase 7–
 
 - [x] **Fix `docs/auth/google-auth.md`** — the Implementation table references `src/users/auth.controller.ts` for `POST /auth/google` and `GET /auth/google/callback`; HTTP controllers were deleted in Phase 4.1; the Google callback relay moved to `src/users/controller/google-callback.controller.ts` (HTTP, still exists) and `POST /auth/google` is now in `src/users/auth.grpc.controller.ts`; update the table
 
-- [ ] **Rename `docs/realtime/telemetry-model.md` → `instruction-model.md`** — "telemetry" is leftover Socket.io vocabulary; update all three inbound links (`session-lifecycle.md`, `protocol.md`, `database.md`) and the doc table in `CLAUDE.md`; run after the content fix above so the fix targets the current filename
+- [x] **Rename `docs/realtime/telemetry-model.md` → `instruction-model.md`** — "telemetry" is leftover Socket.io vocabulary; update all three inbound links (`session-lifecycle.md`, `protocol.md`, `database.md`) and the doc table in `CLAUDE.md`; run after the content fix above so the fix targets the current filename
 
 ---
 
