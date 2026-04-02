@@ -234,5 +234,5 @@ All docs under `docs/realtime/` and `docs/stats/` were written before Phase 7–
 
 ## Phase 13 — Finish "Telemetry" → "Instruction" Rename
 
-- [ ] **Rename `TelemetrySample` → `InstructionSample` in `src/realtime/interfaces/session-buffer.interface.ts`** — update the interface name (lines 1, 8) and all consumers: `stream-engine.service.ts` (lines 15, 82) — import and method signature; `stream-engine.service.spec.ts` (lines 3, 33) — import and test helper
+- [x] **Rename `TelemetrySample` → `InstructionSample` in `src/realtime/interfaces/session-buffer.interface.ts`** — update the interface name (lines 1, 8) and all consumers: `stream-engine.service.ts` (lines 15, 82) — import and method signature; `stream-engine.service.spec.ts` (lines 3, 33) — import and test helper
 

@@ -10,6 +10,7 @@
     "56-fix-docs-sync-sync-md-review-1.md",
     "57-fix-docs-breath-breath-sessions-md-review-1.md",
     "58-fix-docs-auth-google-auth-md-review-1.md",
-    "59-rename-docs-realtime-telemetry-model-md-instruction-model-md-review-1.md"
+    "59-rename-docs-realtime-telemetry-model-md-instruction-model-md-review-1.md",
+    "60-rename-telemetrysample-instructionsample-in-src-realtime-interfaces-session-buffer-interface-ts-review-1.md"
   ]
 }

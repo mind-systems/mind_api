@@ -1,11 +1,11 @@
-export interface TelemetrySample extends Record<string, unknown> {
+export interface InstructionSample extends Record<string, unknown> {
   timestamp: number;
   data: unknown;
 }
 
 export interface SessionBuffer {
   sessionId: string;
-  samples: TelemetrySample[];
+  samples: InstructionSample[];
   byteSize: number;
   totalReceived: number;
 }

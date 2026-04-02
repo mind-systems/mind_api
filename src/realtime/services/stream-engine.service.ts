@@ -12,7 +12,7 @@ import { SessionStreamSample } from '../entities/session-stream-sample.entity';
 import { ModuleSession } from '../entities/module-session.entity';
 import {
   SessionBuffer,
-  TelemetrySample,
+  InstructionSample,
 } from '../interfaces/session-buffer.interface';
 import { SessionEvents } from '../events/session.events';
 import { RealtimeConfig } from '../constants/realtime-config';
@@ -79,7 +79,7 @@ export class StreamEngine
     await this.flushAll();
   }
 
-  push(sessionId: string, sample: TelemetrySample): PushResult {
+  push(sessionId: string, sample: InstructionSample): PushResult {
     let buffer = this.buffers.get(sessionId);
 
     if (!buffer) {

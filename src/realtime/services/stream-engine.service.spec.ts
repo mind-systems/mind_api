@@ -1,6 +1,6 @@
 import { StreamEngine } from './stream-engine.service';
 import { SessionStreamSample } from '../entities/session-stream-sample.entity';
-import { TelemetrySample } from '../interfaces/session-buffer.interface';
+import { InstructionSample } from '../interfaces/session-buffer.interface';
 import { RealtimeConfig } from '../constants/realtime-config';
 
 function makeRepo() {
@@ -30,7 +30,7 @@ function makeConfig(overrides: Record<string, number> = {}) {
   };
 }
 
-function makeSample(data = 'x', timestamp = 1000): TelemetrySample {
+function makeSample(data = 'x', timestamp = 1000): InstructionSample {
   return { timestamp, data };
 }
 
