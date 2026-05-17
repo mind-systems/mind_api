@@ -1,0 +1,50 @@
+$ npx jest src/users/service/personal-access-token.service.spec.ts
+exit code: 0
+elapsed: 2.3s
+
+PASS src/users/service/personal-access-token.service.spec.ts
+  PersonalAccessTokenService
+    create()
+      token generation and shape
+        ✓ should return a token matching /^pat_[0-9a-f]{64}$/ when create is called (13 ms)
+        ✓ should return response with shape { token, id, name, createdAt } when create succeeds (2 ms)
+        ✓ should NOT include tokenHash in the response when create succeeds (1 ms)
+        ✓ should return different tokens when create is called twice consecutively (1 ms)
+      persistence stores only the hash
+        ✓ should call patRepo.create() with { userId, tokenHash, name } when create is called (2 ms)
+        ✓ should pass the SHA-256 hash and NOT the raw token to patRepo.create() when create is called (2 ms)
+        ✓ should call patRepo.save() with the entity returned by patRepo.create() when create succeeds (1 ms)
+        ✓ should use the saved entity's id and createdAt in the response when create succeeds (2 ms)
+    list()
+      ✓ should call patRepo.find() with correct options when list is called (1 ms)
+      ✓ should return the array produced by patRepo.find() when list is called (1 ms)
+      ✓ should return an empty array when patRepo.find() resolves to [] (1 ms)
+    revoke()
+      ✓ should call patRepo.delete() with { id, userId } when revoke is called (2 ms)
+      ✓ should resolve without error when patRepo.delete() returns { affected: 1 } (1 ms)
+      ✓ should throw NotFoundException when patRepo.delete() returns { affected: 0 } (10 ms)
+      ✓ should throw NotFoundException when patRepo.delete() returns { affected: undefined } (1 ms)
+    validateToken()
+      lookup by hash
+        ✓ should call patRepo.findOne() with { where: { tokenHash: sha256(rawToken) } } when validateToken is called (2 ms)
+        ✓ should NOT pass the raw token to patRepo.findOne() when validateToken is called (1 ms)
+      null-return paths
+        ✓ should return null when patRepo.findOne() resolves to null (1 ms)
+        ✓ should return null when userRepo.findOne() resolves to null (1 ms)
+        ✓ should NOT throw when the associated user is missing (1 ms)
+        ✓ should NOT call userRepo.findOne() when patRepo.findOne() returns null (1 ms)
+        ✓ should NOT call patRepo.update() when patRepo.findOne() returns null (2 ms)
+        ✓ should NOT call patRepo.update() when userRepo.findOne() returns null (1 ms)
+      success path
+        ✓ should return { sub: user.id, email: user.email, name: user.name } when token and user are found (1 ms)
+        ✓ should call userRepo.findOne() with { where: { id: pat.userId } } when token is found (1 ms)
+        ✓ should call patRepo.update() with ({ id: pat.id }, { lastUsedAt: expect.any(Date) }) when validation succeeds (1 ms)
+        ✓ should return a payload with sub (not id) on the JwtPayload when validation succeeds (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       27 passed, 27 total
+Snapshots:   0 total
+Time:        1.005 s, estimated 2 s
+Ran all test suites matching src/users/service/personal-access-token.service.spec.ts.
+
+TEST_PASS
