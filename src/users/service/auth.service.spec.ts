@@ -155,6 +155,7 @@ describe('AuthService', () => {
 
       expect(googleTokenService.exchangeCodeForProfile).toHaveBeenCalledWith(
         'valid-code',
+        undefined,
       );
       expect(txUserRepo.save).not.toHaveBeenCalled();
       expect(result.accessToken).toBe('mock-jwt-token');
