@@ -445,4 +445,601 @@ describe('SyncStreamGrpcController', () => {
       sub.unsubscribe();
     });
   });
+
+  // ── New Task 1: Listener registration ordering ────────────────────────────
+
+  describe('watchChanges — listener registration ordering', () => {
+    it('should call syncStreamService.register before changeLogService.getMinEventId is called', async () => {
+      const callOrder: string[] = [];
+      (syncStreamService.register as jest.Mock).mockImplementation(() => {
+        callOrder.push('register');
+      });
+      (changeLogService.getMinEventId as jest.Mock).mockImplementation(() => {
+        callOrder.push('getMinEventId');
+        return Promise.resolve(1);
+      });
+      changeLogService.getChanges.mockResolvedValue({ events: [], cursor: 0, hasMore: false });
+
+      const sub = controller.watchChanges({ afterId: 0 }, makeUser()).subscribe({ error: () => {} });
+      await flushMicrotasks();
+
+      expect(callOrder[0]).toBe('register');
+      expect(callOrder[1]).toBe('getMinEventId');
+      sub.unsubscribe();
+    });
+
+    it('should call syncStreamService.register before changeLogService.getChanges is called', async () => {
+      const callOrder: string[] = [];
+      (syncStreamService.register as jest.Mock).mockImplementation(() => {
+        callOrder.push('register');
+      });
+      (changeLogService.getMinEventId as jest.Mock).mockImplementation(() => {
+        return Promise.resolve(1);
+      });
+      (changeLogService.getChanges as jest.Mock).mockImplementation(() => {
+        callOrder.push('getChanges');
+        return Promise.resolve({ events: [], cursor: 0, hasMore: false });
+      });
+
+      const sub = controller.watchChanges({ afterId: 0 }, makeUser()).subscribe({ error: () => {} });
+      await flushMicrotasks();
+
+      expect(callOrder[0]).toBe('register');
+      expect(callOrder.indexOf('register')).toBeLessThan(callOrder.indexOf('getChanges'));
+      sub.unsubscribe();
+    });
+
+    it('should call activeStreamRegistry.register before syncStreamService.register', () => {
+      const callOrder: string[] = [];
+      (activeStreamRegistry.register as jest.Mock).mockImplementation(() => {
+        callOrder.push('activeStreamRegistry.register');
+      });
+      (syncStreamService.register as jest.Mock).mockImplementation(() => {
+        callOrder.push('syncStreamService.register');
+      });
+
+      const sub = controller.watchChanges({ afterId: 0 }, makeUser()).subscribe({ error: () => {} });
+
+      expect(callOrder[0]).toBe('activeStreamRegistry.register');
+      expect(callOrder[1]).toBe('syncStreamService.register');
+      sub.unsubscribe();
+    });
+  });
+
+  // ── New Task 2: Live-only mode — direct delivery via pushFn ───────────────
+
+  describe('watchChanges — live-only mode — direct delivery via pushFn', () => {
+    it('should emit a ChangeEvent wrapper directly via subscriber.next when pushFn is invoked in live-only mode', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({}, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+      await flushMicrotasks();
+
+      capturedPushFn!([{ id: 11, entity: 'e', refId: 'r', action: 'created' }]);
+
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].events[0].id).toBe(11);
+      sub.unsubscribe();
+    });
+
+    it('should preserve raw event fields (id, entity, refId, action) when emitting via pushFn in live-only mode', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({}, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+      await flushMicrotasks();
+
+      capturedPushFn!([{ id: 42, entity: 'breath_session', refId: 'ref-xyz', action: 'updated' }]);
+
+      expect(emitted[0].events[0].id).toBe(42);
+      expect(emitted[0].events[0].entity).toBe('breath_session');
+      expect(emitted[0].events[0].refId).toBe('ref-xyz');
+      expect(emitted[0].events[0].action).toBe('updated');
+      sub.unsubscribe();
+    });
+
+    it('should stamp createdAt as an ISO 8601 string on each event emitted via pushFn', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({}, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+      await flushMicrotasks();
+
+      capturedPushFn!([{ id: 1, entity: 'e', refId: 'r', action: 'created' }]);
+
+      expect(emitted[0].events[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      sub.unsubscribe();
+    });
+
+    it('should not buffer events in live-only mode — every pushFn invocation emits a new wrapper', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({}, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+      await flushMicrotasks();
+
+      capturedPushFn!([{ id: 1, entity: 'e', refId: 'r', action: 'created' }]);
+      capturedPushFn!([{ id: 2, entity: 'e', refId: 'r', action: 'updated' }]);
+
+      expect(emitted).toHaveLength(2);
+      sub.unsubscribe();
+    });
+
+    it('should flip isDirect synchronously in live-only mode so pushFn emits immediately without awaiting microtasks', () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({}, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+
+      // No await — isDirect must already be true at this point
+      capturedPushFn!([{ id: 1, entity: 'e', refId: 'r', action: 'created' }]);
+
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].events[0].id).toBe(1);
+      sub.unsubscribe();
+    });
+  });
+
+  // ── New Task 3: Buffer flush after replay ─────────────────────────────────
+
+  describe('watchChanges — buffer flush after replay', () => {
+    it('should buffer events delivered during replay and flush them after replay completes', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      changeLogService.getMinEventId.mockResolvedValue(1);
+      changeLogService.getChanges.mockResolvedValue({
+        events: [makeDbEvent({ id: 50 })],
+        cursor: 50,
+        hasMore: false,
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+
+      // Push while isDirect === false (replay not yet complete)
+      capturedPushFn!([{ id: 101, entity: 'e', refId: 'r', action: 'created' }]);
+
+      await flushMicrotasks();
+
+      expect(emitted).toHaveLength(2);
+      expect(emitted[0].events[0].id).toBe(50);
+      expect(emitted[1].events[0].id).toBe(101);
+      sub.unsubscribe();
+    });
+
+    it('should filter buffered events whose id is less than or equal to lastReplayedCursor before flushing', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      changeLogService.getMinEventId.mockResolvedValue(1);
+      changeLogService.getChanges.mockResolvedValue({
+        events: [makeDbEvent({ id: 100 })],
+        cursor: 100,
+        hasMore: false,
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+
+      capturedPushFn!([
+        { id: 95, entity: 'e', refId: 'r', action: 'created' },
+        { id: 100, entity: 'e', refId: 'r', action: 'updated' },
+        { id: 101, entity: 'e', refId: 'r', action: 'created' },
+        { id: 105, entity: 'e', refId: 'r', action: 'deleted' },
+      ]);
+
+      await flushMicrotasks();
+
+      expect(emitted).toHaveLength(2);
+      const flushEmission = emitted[1];
+      expect(flushEmission.events).toHaveLength(2);
+      expect(flushEmission.events[0].id).toBe(101);
+      expect(flushEmission.events[1].id).toBe(105);
+      sub.unsubscribe();
+    });
+
+    it('should emit no flush wrapper when every buffered event id is at or below lastReplayedCursor', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      changeLogService.getMinEventId.mockResolvedValue(1);
+      changeLogService.getChanges.mockResolvedValue({
+        events: [makeDbEvent({ id: 100 })],
+        cursor: 100,
+        hasMore: false,
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+
+      capturedPushFn!([
+        { id: 50, entity: 'e', refId: 'r', action: 'created' },
+        { id: 100, entity: 'e', refId: 'r', action: 'updated' },
+      ]);
+
+      await flushMicrotasks();
+
+      // Only the replay wrapper — no flush wrapper because all buffered ids <= cursor
+      expect(emitted).toHaveLength(1);
+      sub.unsubscribe();
+    });
+
+    it('should clear the buffer after flushing — subsequent pushFn calls do not re-emit flushed events', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      changeLogService.getMinEventId.mockResolvedValue(1);
+      changeLogService.getChanges.mockResolvedValue({
+        events: [makeDbEvent({ id: 50 })],
+        cursor: 50,
+        hasMore: false,
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+
+      // Push into buffer during replay
+      capturedPushFn!([{ id: 101, entity: 'e', refId: 'r', action: 'created' }]);
+
+      await flushMicrotasks();
+
+      // Now isDirect === true; push a new event
+      capturedPushFn!([{ id: 200, entity: 'e', refId: 'r', action: 'created' }]);
+
+      // The latest wrapper must contain only id=200 — buffer was drained by splice(0)
+      const lastEmission = emitted[emitted.length - 1];
+      expect(lastEmission.events).toHaveLength(1);
+      expect(lastEmission.events[0].id).toBe(200);
+      sub.unsubscribe();
+    });
+  });
+
+  // ── New Task 4: Direct-mode boundary-straddle dedup ───────────────────────
+
+  describe('watchChanges — direct-mode boundary-straddle dedup (pushFn after replay)', () => {
+    it('should drop direct-mode events whose id is less than or equal to lastReplayedCursor', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      changeLogService.getMinEventId.mockResolvedValue(1);
+      changeLogService.getChanges.mockResolvedValue({
+        events: [makeDbEvent({ id: 100 })],
+        cursor: 100,
+        hasMore: false,
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+
+      // Now isDirect === true; lastReplayedCursor === 100
+      capturedPushFn!([
+        { id: 98, entity: 'e', refId: 'r', action: 'created' },
+        { id: 100, entity: 'e', refId: 'r', action: 'updated' },
+        { id: 102, entity: 'e', refId: 'r', action: 'created' },
+        { id: 105, entity: 'e', refId: 'r', action: 'deleted' },
+      ]);
+
+      expect(emitted).toHaveLength(2);
+      const directEmission = emitted[1];
+      expect(directEmission.events).toHaveLength(2);
+      expect(directEmission.events[0].id).toBe(102);
+      expect(directEmission.events[1].id).toBe(105);
+      sub.unsubscribe();
+    });
+
+    it('should not call subscriber.next when every direct-mode event id is at or below lastReplayedCursor', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      changeLogService.getMinEventId.mockResolvedValue(1);
+      changeLogService.getChanges.mockResolvedValue({
+        events: [makeDbEvent({ id: 100 })],
+        cursor: 100,
+        hasMore: false,
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+
+      const lengthBeforePush = emitted.length;
+
+      capturedPushFn!([
+        { id: 50, entity: 'e', refId: 'r', action: 'created' },
+        { id: 100, entity: 'e', refId: 'r', action: 'updated' },
+      ]);
+
+      expect(emitted).toHaveLength(lengthBeforePush);
+      sub.unsubscribe();
+    });
+
+    it('should emit all direct-mode events when every id is strictly greater than lastReplayedCursor', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      changeLogService.getMinEventId.mockResolvedValue(1);
+      changeLogService.getChanges.mockResolvedValue({
+        events: [makeDbEvent({ id: 100 })],
+        cursor: 100,
+        hasMore: false,
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+
+      capturedPushFn!([
+        { id: 200, entity: 'e', refId: 'r', action: 'created' },
+        { id: 300, entity: 'e', refId: 'r', action: 'updated' },
+      ]);
+
+      expect(emitted).toHaveLength(2);
+      const directEmission = emitted[1];
+      expect(directEmission.events).toHaveLength(2);
+      expect(directEmission.events[0].id).toBe(200);
+      expect(directEmission.events[1].id).toBe(300);
+      sub.unsubscribe();
+    });
+
+    it('should stamp createdAt as an ISO 8601 string on direct-mode events', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      changeLogService.getMinEventId.mockResolvedValue(1);
+      changeLogService.getChanges.mockResolvedValue({
+        events: [makeDbEvent({ id: 100 })],
+        cursor: 100,
+        hasMore: false,
+      });
+
+      const emitted: any[] = [];
+      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+
+      capturedPushFn!([{ id: 200, entity: 'e', refId: 'r', action: 'created' }]);
+
+      expect(emitted[1].events[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      sub.unsubscribe();
+    });
+  });
+
+  // ── New Task 5: Teardown via subscription.unsubscribe() ───────────────────
+
+  describe('watchChanges — teardown via subscription.unsubscribe()', () => {
+    it('should call activeStreamRegistry.deregister with (userId, subscriber) when the subscription is unsubscribed', () => {
+      const user = makeUser();
+      const sub = controller.watchChanges({}, user).subscribe({ error: () => {} });
+      sub.unsubscribe();
+      expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(user.sub, expect.any(Subscriber));
+    });
+
+    it('should call syncStreamService.deregister with (userId, pushFn) when the subscription is unsubscribed', () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      const user = makeUser();
+      const sub = controller.watchChanges({}, user).subscribe({ error: () => {} });
+      sub.unsubscribe();
+
+      expect(syncStreamService.deregister).toHaveBeenCalledWith(user.sub, capturedPushFn);
+    });
+
+    it('should not call activeStreamRegistry.deregister or syncStreamService.deregister before unsubscribe', async () => {
+      const sub = controller.watchChanges({}, makeUser()).subscribe({ error: () => {} });
+      await flushMicrotasks();
+
+      expect(activeStreamRegistry.deregister).not.toHaveBeenCalled();
+      expect(syncStreamService.deregister).not.toHaveBeenCalled();
+
+      sub.unsubscribe();
+    });
+
+    it('should call syncStreamService.deregister exactly twice on the cursor-too-old path (explicit + teardown)', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      changeLogService.getMinEventId.mockResolvedValue(100);
+
+      const user = makeUser();
+      controller.watchChanges({ afterId: 50 }, user).subscribe({ error: () => {} });
+
+      await flushMicrotasks();
+
+      expect(syncStreamService.deregister).toHaveBeenCalledTimes(2);
+      expect(syncStreamService.deregister).toHaveBeenNthCalledWith(1, user.sub, capturedPushFn);
+      expect(syncStreamService.deregister).toHaveBeenNthCalledWith(2, user.sub, capturedPushFn);
+    });
+
+    it('should not throw when syncStreamService.deregister is invoked twice on the cursor-too-old path', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      changeLogService.getMinEventId.mockResolvedValue(100);
+
+      let errorReceived: any;
+      controller.watchChanges({ afterId: 50 }, makeUser()).subscribe({
+        error: (e) => { errorReceived = e; },
+      });
+
+      await flushMicrotasks();
+
+      // Default jest.fn() does not throw — double-call is safe
+      expect(syncStreamService.deregister).toHaveBeenCalledTimes(2);
+      expect(errorReceived).toBeInstanceOf(RpcException);
+      void capturedPushFn; // captured for context — double-call uses same ref
+    });
+
+    it('should call activeStreamRegistry.deregister exactly once on the cursor-too-old path', async () => {
+      changeLogService.getMinEventId.mockResolvedValue(100);
+
+      const user = makeUser();
+      controller.watchChanges({ afterId: 50 }, user).subscribe({ error: () => {} });
+
+      await flushMicrotasks();
+
+      expect(activeStreamRegistry.deregister).toHaveBeenCalledTimes(1);
+      expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(user.sub, expect.any(Subscriber));
+    });
+  });
+
+  // ── New Task 6: subscriber.closed short-circuit inside replay loop ─────────
+
+  describe('watchChanges — subscriber.closed short-circuit inside replay loop', () => {
+    it('should stop calling changeLogService.getChanges once the subscriber unsubscribes mid-replay', async () => {
+      changeLogService.getMinEventId.mockResolvedValue(0);
+
+      let subRef: any;
+
+      (changeLogService.getChanges as jest.Mock)
+        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
+        .mockImplementationOnce(() => {
+          subRef!.unsubscribe();
+          return Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true });
+        })
+        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
+        .mockImplementationOnce(() => Promise.resolve({ events: [], cursor: 10, hasMore: false }));
+
+      subRef = controller.watchChanges({ afterId: 0 }, makeUser()).subscribe({ error: () => {} });
+
+      await flushMicrotasks(10);
+
+      expect(changeLogService.getChanges).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not emit further ChangeEvent wrappers after the subscriber unsubscribes mid-replay', async () => {
+      changeLogService.getMinEventId.mockResolvedValue(0);
+
+      let subRef: any;
+      const emitted: any[] = [];
+
+      (changeLogService.getChanges as jest.Mock)
+        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
+        .mockImplementationOnce(() => {
+          subRef!.unsubscribe();
+          return Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true });
+        })
+        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
+        .mockImplementationOnce(() => Promise.resolve({ events: [], cursor: 10, hasMore: false }));
+
+      subRef = controller.watchChanges({ afterId: 0 }, makeUser()).subscribe({
+        next: (v) => emitted.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks(10);
+
+      expect(emitted).toHaveLength(1);
+    });
+
+    it('should still run the subscriber.add teardown (both deregister calls) when unsubscribe happens mid-replay', async () => {
+      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
+      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+        capturedPushFn = fn;
+      });
+
+      changeLogService.getMinEventId.mockResolvedValue(0);
+
+      let subRef: any;
+
+      (changeLogService.getChanges as jest.Mock)
+        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
+        .mockImplementationOnce(() => {
+          subRef!.unsubscribe();
+          return Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true });
+        })
+        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
+        .mockImplementationOnce(() => Promise.resolve({ events: [], cursor: 10, hasMore: false }));
+
+      const user = makeUser();
+      subRef = controller.watchChanges({ afterId: 0 }, user).subscribe({ error: () => {} });
+
+      await flushMicrotasks(10);
+
+      expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(user.sub, expect.any(Subscriber));
+      expect(syncStreamService.deregister).toHaveBeenCalledWith(user.sub, capturedPushFn);
+    });
+  });
 });
