@@ -1,0 +1,201 @@
+$ npx jest src/realtime/module-state.grpc.controller.spec.ts
+exit code: 0
+elapsed: 7.4s
+
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mSession resumed on reconnect: userId=user-1 sessionId=resumed-session[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mSession resumed on reconnect: userId=user-1 sessionId=my-session-id[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=1[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39m[31mStream setup failed: userId=user-1[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39mError: DB error
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/module-state.grpc.controller.spec.ts:239:56[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39m[31mStream setup failed: userId=user-1[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39mError: DB error
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/module-state.grpc.controller.spec.ts:257:56[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39m[31mStream setup failed: userId=user-1[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39mError: DB error
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/module-state.grpc.controller.spec.ts:273:56[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39m[31mStream setup failed: userId=user-1[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39mError: DB error
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/module-state.grpc.controller.spec.ts:290:56[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39m[31mFailed to record disconnect: userId=user-1[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39mError: network fail
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/module-state.grpc.controller.spec.ts:379:66[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39m[31mFailed to record disconnect: userId=user-1[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39mError: network fail
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/module-state.grpc.controller.spec.ts:391:66[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[32m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [32m    LOG[39m [38;5;3m[ModuleStateGrpcController] [39m[32mDisconnected: userId=user-1 connectedDurationMs=0[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39m[31mFailed to stop activity on session revoke: userId=user-1[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39mError: stop failed
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/module-state.grpc.controller.spec.ts:444:53[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39m[31mFailed to stop activity on session revoke: userId=user-1[39m
+[31m[Nest] 75599  - [39m05/17/2026, 9:50:38 PM [31m  ERROR[39m [38;5;3m[ModuleStateGrpcController] [39mError: stop failed
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/module-state.grpc.controller.spec.ts:450:53[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+PASS src/realtime/module-state.grpc.controller.spec.ts
+  ModuleStateGrpcController
+    trackActivity — authentication
+      ✓ should error with UNAUTHENTICATED RpcException when user argument is null (16 ms)
+      ✓ should not call activeStreamRegistry.register when user is null (1 ms)
+      ✓ should not invoke activityEngine.handleReconnect when user is null
+      ✓ should call activeStreamRegistry.register(user.sub, subscriber) when user is present (3 ms)
+    trackActivity — reconnect path
+      ✓ should emit StateResponse.sessionState with status RESUMED and isPaused false when handleReconnect returns a session (1 ms)
+      ✓ should include the resumed session id as moduleSessionId in the emitted StateResponse (2 ms)
+      ✓ should not emit any StateResponse during setup when handleReconnect returns null (1 ms)
+      ✓ should subscribe to the request observable after handleReconnect resolves (1 ms)
+      ✓ should not emit RESUMED when subscriber.closed is already true by the time handleReconnect resolves (1 ms)
+    trackActivity — setup error
+      ✓ should emit StateResponse.sessionError with code INTERNAL_ERROR when handleReconnect rejects (51 ms)
+      ✓ should call subscriber.complete after emitting INTERNAL_ERROR on setup failure (2 ms)
+      ✓ should not subscribe to the request observable when setup fails (1 ms)
+      ✓ should still register the subscriber with activeStreamRegistry before setup runs (1 ms)
+    trackActivity — stream teardown
+      ✓ should call activeStreamRegistry.deregister(userId, subscriber) when the consumer unsubscribes (1 ms)
+      ✓ should call activityEngine.handleTransportDisconnect(userId) on teardown (1 ms)
+      ✓ should call rateLimiterService.evict('activity-start:{userId}') on teardown (1 ms)
+      ✓ should invoke teardown actions in order: deregister → handleTransportDisconnect → evict (1 ms)
+      ✓ should swallow errors thrown by handleTransportDisconnect and not propagate them to the caller (1 ms)
+      ✓ should still call rateLimiterService.evict when handleTransportDisconnect rejects (15 ms)
+      ✓ should run teardown when the request observable completes (1 ms)
+      ✓ should run teardown when the request observable errors (1 ms)
+    handleSessionRevoked
+      ✓ should call activityEngine.stopActivity(payload.userId)
+      ✓ should call activeStreamRegistry.closeAll(payload.userId)
+      ✓ should call closeAll even when stopActivity throws (2 ms)
+      ✓ should not rethrow when stopActivity rejects (1 ms)
+      ✓ should call stopActivity before closeAll (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       26 passed, 26 total
+Snapshots:   0 total
+Time:        2.935 s, estimated 4 s
+Ran all test suites matching src/realtime/module-state.grpc.controller.spec.ts.
+
+TEST_PASS
