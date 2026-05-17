@@ -1,15 +1,14 @@
 import { Controller, Logger, UseFilters, UseInterceptors } from '@nestjs/common';
-import { RpcException } from '@nestjs/microservices';
+import { Payload, RpcException } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
-import { status as GrpcStatus, Metadata } from '@grpc/grpc-js';
+import { status as GrpcStatus } from '@grpc/grpc-js';
 import { Observable, Subscriber } from 'rxjs';
 import {
   ActivityStartCmd,
   ActivityType as ProtoActivityType,
   StateRequest,
   StateResponse,
-  ModuleStateServiceController,
   ModuleStateServiceControllerMethods,
   ActivityStatus,
 } from '../../proto/generated/module_state';
@@ -19,7 +18,7 @@ import { RateLimiterService } from './services/rate-limiter.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
-import { GRPC_USER_KEY } from '../grpc/grpc-auth.constants';
+import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
 import { RealtimeConfig } from './constants/realtime-config';
 import { AuthEvents } from '../users/events/auth.events';
 import type { SessionRevokedPayload } from '../users/events/auth.events';
@@ -39,7 +38,7 @@ function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
 @ModuleStateServiceControllerMethods()
-export class ModuleStateGrpcController implements ModuleStateServiceController {
+export class ModuleStateGrpcController {
   private readonly logger = new Logger(ModuleStateGrpcController.name);
 
   private readonly activityStartLimit: number;
@@ -61,12 +60,11 @@ export class ModuleStateGrpcController implements ModuleStateServiceController {
     );
   }
 
-  trackActivity(request: Observable<StateRequest>, metadata?: Metadata): Observable<StateResponse> {
+  trackActivity(
+    @Payload() request: Observable<StateRequest>,
+    @GrpcCurrentUser() user: JwtPayload | null,
+  ): Observable<StateResponse> {
     return new Observable<StateResponse>((subscriber) => {
-      const user = metadata
-        ? ((metadata as any)[GRPC_USER_KEY] as JwtPayload | null)
-        : null;
-
       if (!user) {
         subscriber.error(
           new RpcException({ code: GrpcStatus.UNAUTHENTICATED, message: 'Missing user context' }),
