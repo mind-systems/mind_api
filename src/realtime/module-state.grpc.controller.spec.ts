@@ -2,7 +2,7 @@ import { RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import { Subject, Subscriber } from 'rxjs';
 import { ModuleStateGrpcController } from './module-state.grpc.controller';
-import { ActivityStatus, StateRequest, StateResponse } from '../../proto/generated/module_state';
+import { ActivityStatus, ActivityType, StateRequest, StateResponse } from '../../proto/generated/module_state';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -459,6 +459,431 @@ describe('ModuleStateGrpcController', () => {
       await controller.handleSessionRevoked({ userId: 'user-1' });
 
       expect(callOrder).toEqual(['stopActivity', 'closeAll']);
+    });
+  });
+
+  // ── Command routing ───────────────────────────────────────────────────────
+
+  describe('trackActivity — command routing', () => {
+    function makeActivityState(
+      overrides?: Partial<{ sessionId: string; isPaused: boolean }>,
+    ) {
+      return { sessionId: 'session-1', isPaused: false, ...overrides } as any;
+    }
+
+    async function setupRoutingStream(user = makeUser()) {
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+
+      const sub = controller.trackActivity(request$, user).subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+        complete: () => {},
+      });
+
+      await flushMicrotasks();
+      return { sub, request$, values };
+    }
+
+    // ── Task 1: ActivityStart ───────────────────────────────────────────────
+
+    describe('trackActivity — command routing → ActivityStart', () => {
+      it('should emit sessionError RATE_LIMIT_EXCEEDED when rateLimiterService.consume returns false', async () => {
+        rateLimiterService.consume.mockReturnValueOnce(false);
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityStart: { activityType: ActivityType.BREATH } });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionError?.code).toBe('RATE_LIMIT_EXCEEDED');
+      });
+
+      it('should not call activityEngine.startActivity when rate limit is exceeded', async () => {
+        rateLimiterService.consume.mockReturnValueOnce(false);
+        const { request$ } = await setupRoutingStream();
+
+        request$.next({ activityStart: { activityType: ActivityType.BREATH } });
+        await flushMicrotasks();
+
+        expect(activityEngine.startActivity).not.toHaveBeenCalled();
+      });
+
+      it('should emit sessionState ACTIVE with existing moduleSessionId when activityEngine.getActiveSession returns a session', async () => {
+        activityEngine.getActiveSession.mockReturnValue(makeActivityState({ sessionId: 'session-1' }));
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityStart: { activityType: ActivityType.BREATH } });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState?.status).toBe(ActivityStatus.ACTIVE);
+        expect(values[0]?.sessionState?.moduleSessionId).toBe('session-1');
+      });
+
+      it('should not call activityEngine.startActivity when an active session already exists', async () => {
+        activityEngine.getActiveSession.mockReturnValue(makeActivityState({ sessionId: 'session-1' }));
+        const { request$ } = await setupRoutingStream();
+
+        request$.next({ activityStart: { activityType: ActivityType.BREATH } });
+        await flushMicrotasks();
+
+        expect(activityEngine.startActivity).not.toHaveBeenCalled();
+      });
+
+      it('should emit sessionError INVALID_ACTIVITY_TYPE when cmd.activityType is unsupported (e.g. ACTIVITY_TYPE_UNSPECIFIED)', async () => {
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityStart: { activityType: ActivityType.ACTIVITY_TYPE_UNSPECIFIED } });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionError?.code).toBe('INVALID_ACTIVITY_TYPE');
+      });
+
+      it('should not call activityEngine.startActivity when activityType is unsupported', async () => {
+        const { request$ } = await setupRoutingStream();
+
+        request$.next({ activityStart: { activityType: ActivityType.ACTIVITY_TYPE_UNSPECIFIED } });
+        await flushMicrotasks();
+
+        expect(activityEngine.startActivity).not.toHaveBeenCalled();
+      });
+
+      it('should call activityEngine.startActivity(userId, { activityType: BREATH, activityRefId: cmd.refId }) on the happy path', async () => {
+        const { request$ } = await setupRoutingStream();
+
+        request$.next({ activityStart: { activityType: ActivityType.BREATH, refId: 'ref-123' } });
+        await flushMicrotasks();
+
+        expect(activityEngine.startActivity).toHaveBeenCalledWith('user-1', {
+          activityType: 'breath',
+          activityRefId: 'ref-123',
+        });
+      });
+
+      it('should emit sessionState ACTIVE with moduleSessionId from the returned session on the happy path', async () => {
+        activityEngine.startActivity.mockResolvedValue(makeSession({ id: 'new-session' }));
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityStart: { activityType: ActivityType.BREATH } });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState?.status).toBe(ActivityStatus.ACTIVE);
+        expect(values[0]?.sessionState?.moduleSessionId).toBe('new-session');
+      });
+
+      it('should forward cmd.refId to the engine as activityRefId (string value preserved)', async () => {
+        const { request$ } = await setupRoutingStream();
+
+        request$.next({ activityStart: { activityType: ActivityType.BREATH, refId: 'my-ref-id' } });
+        await flushMicrotasks();
+
+        expect(activityEngine.startActivity).toHaveBeenCalledWith(
+          'user-1',
+          expect.objectContaining({ activityRefId: 'my-ref-id' }),
+        );
+      });
+
+      it('should omit the isPaused field from the emitted sessionState on the happy path', async () => {
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityStart: { activityType: ActivityType.BREATH } });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState).toBeDefined();
+        expect('isPaused' in values[0].sessionState!).toBe(false);
+      });
+
+      it('should omit the isPaused field from the emitted sessionState when returning an existing session', async () => {
+        activityEngine.getActiveSession.mockReturnValue(makeActivityState({ sessionId: 'session-1' }));
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityStart: { activityType: ActivityType.BREATH } });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState).toBeDefined();
+        expect('isPaused' in values[0].sessionState!).toBe(false);
+      });
+    });
+
+    // ── Task 2: ActivityEnd ─────────────────────────────────────────────────
+
+    describe('trackActivity — command routing → ActivityEnd', () => {
+      it('should call activityEngine.endActivity(userId) when ActivityEnd is received', async () => {
+        const { request$ } = await setupRoutingStream();
+
+        request$.next({ activityEnd: {} });
+        await flushMicrotasks();
+
+        expect(activityEngine.endActivity).toHaveBeenCalledWith('user-1');
+      });
+
+      it('should emit sessionState COMPLETED with moduleSessionId from the returned session', async () => {
+        activityEngine.endActivity.mockResolvedValue(makeSession({ id: 'ended-session' }));
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityEnd: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState?.status).toBe(ActivityStatus.COMPLETED);
+        expect(values[0]?.sessionState?.moduleSessionId).toBe('ended-session');
+      });
+
+      it('should not emit any StateResponse when endActivity resolves to null', async () => {
+        activityEngine.endActivity.mockResolvedValue(null);
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityEnd: {} });
+        await flushMicrotasks();
+
+        expect(values).toHaveLength(0);
+      });
+
+      it('should omit the isPaused field from the emitted sessionState on COMPLETED', async () => {
+        activityEngine.endActivity.mockResolvedValue(makeSession({ id: 'ended-session' }));
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityEnd: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState).toBeDefined();
+        expect('isPaused' in values[0].sessionState!).toBe(false);
+      });
+    });
+
+    // ── Task 3: ActivityStop ────────────────────────────────────────────────
+
+    describe('trackActivity — command routing → ActivityStop', () => {
+      it('should call activityEngine.stopActivity(userId) when ActivityStop is received', async () => {
+        const { request$ } = await setupRoutingStream();
+
+        request$.next({ activityStop: {} });
+        await flushMicrotasks();
+
+        expect(activityEngine.stopActivity).toHaveBeenCalledWith('user-1');
+      });
+
+      it('should emit sessionState INTERRUPTED with moduleSessionId from the returned session', async () => {
+        activityEngine.stopActivity.mockResolvedValue(makeSession({ id: 'stopped-session' }));
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityStop: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState?.status).toBe(ActivityStatus.INTERRUPTED);
+        expect(values[0]?.sessionState?.moduleSessionId).toBe('stopped-session');
+      });
+
+      it('should not emit any StateResponse when stopActivity resolves to null', async () => {
+        activityEngine.stopActivity.mockResolvedValue(null);
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityStop: {} });
+        await flushMicrotasks();
+
+        expect(values).toHaveLength(0);
+      });
+
+      it('should omit the isPaused field from the emitted sessionState on INTERRUPTED', async () => {
+        activityEngine.stopActivity.mockResolvedValue(makeSession({ id: 'stopped-session' }));
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityStop: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState).toBeDefined();
+        expect('isPaused' in values[0].sessionState!).toBe(false);
+      });
+    });
+
+    // ── Task 4: ActivityPause ───────────────────────────────────────────────
+
+    describe('trackActivity — command routing → ActivityPause', () => {
+      it('should call activityEngine.pauseActivity(userId) when ActivityPause is received', async () => {
+        activityEngine.pauseActivity.mockReturnValue(makeActivityState({ isPaused: true }));
+        const { request$ } = await setupRoutingStream();
+
+        request$.next({ activityPause: {} });
+        await flushMicrotasks();
+
+        expect(activityEngine.pauseActivity).toHaveBeenCalledWith('user-1');
+      });
+
+      it('should emit sessionState ACTIVE with isPaused: true and moduleSessionId from the returned state on success', async () => {
+        activityEngine.pauseActivity.mockReturnValue(makeActivityState({ sessionId: 'session-1', isPaused: true }));
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityPause: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState?.status).toBe(ActivityStatus.ACTIVE);
+        expect(values[0]?.sessionState?.moduleSessionId).toBe('session-1');
+        expect(values[0]?.sessionState?.isPaused).toBe(true);
+      });
+
+      it("should emit sessionError with code 'no_active_session' when pauseActivity throws new Error('no_active_session')", async () => {
+        activityEngine.pauseActivity.mockImplementation(() => { throw new Error('no_active_session'); });
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityPause: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionError?.code).toBe('no_active_session');
+      });
+
+      it("should emit sessionError with code 'already_paused' when pauseActivity throws new Error('already_paused')", async () => {
+        activityEngine.pauseActivity.mockImplementation(() => { throw new Error('already_paused'); });
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityPause: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionError?.code).toBe('already_paused');
+      });
+
+      it('should not emit a sessionState when pauseActivity throws', async () => {
+        activityEngine.pauseActivity.mockImplementation(() => { throw new Error('no_active_session'); });
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityPause: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState).toBeUndefined();
+      });
+    });
+
+    // ── Task 5: ActivityResume ──────────────────────────────────────────────
+
+    describe('trackActivity — command routing → ActivityResume', () => {
+      it('should call activityEngine.unpauseActivity(userId) when ActivityResume is received', async () => {
+        activityEngine.unpauseActivity.mockReturnValue(makeActivityState({ isPaused: false }));
+        const { request$ } = await setupRoutingStream();
+
+        request$.next({ activityResume: {} });
+        await flushMicrotasks();
+
+        expect(activityEngine.unpauseActivity).toHaveBeenCalledWith('user-1');
+      });
+
+      it('should emit sessionState ACTIVE with isPaused: false and moduleSessionId from the returned state on success', async () => {
+        activityEngine.unpauseActivity.mockReturnValue(makeActivityState({ sessionId: 'session-1', isPaused: false }));
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityResume: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState?.status).toBe(ActivityStatus.ACTIVE);
+        expect(values[0]?.sessionState?.moduleSessionId).toBe('session-1');
+        expect(values[0]?.sessionState?.isPaused).toBe(false);
+      });
+
+      it("should emit sessionError with code 'no_active_session' when unpauseActivity throws new Error('no_active_session')", async () => {
+        activityEngine.unpauseActivity.mockImplementation(() => { throw new Error('no_active_session'); });
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityResume: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionError?.code).toBe('no_active_session');
+      });
+
+      it("should emit sessionError with code 'not_paused' when unpauseActivity throws new Error('not_paused')", async () => {
+        activityEngine.unpauseActivity.mockImplementation(() => { throw new Error('not_paused'); });
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityResume: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionError?.code).toBe('not_paused');
+      });
+
+      it('should not emit a sessionState when unpauseActivity throws', async () => {
+        activityEngine.unpauseActivity.mockImplementation(() => { throw new Error('no_active_session'); });
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityResume: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionState).toBeUndefined();
+      });
+    });
+
+    // ── Task 6: Empty command and unhandled errors ──────────────────────────
+
+    describe('trackActivity — command routing → empty / unhandled', () => {
+      it('should emit sessionError INVALID_COMMAND when StateRequest has no command field set', async () => {
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({});
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionError?.code).toBe('INVALID_COMMAND');
+      });
+
+      it('should not call any of the routing-dispatched activityEngine methods (startActivity, endActivity, stopActivity, pauseActivity, unpauseActivity) when StateRequest is empty', async () => {
+        const { request$ } = await setupRoutingStream();
+
+        jest.clearAllMocks();
+        request$.next({});
+        await flushMicrotasks();
+
+        expect(activityEngine.startActivity).not.toHaveBeenCalled();
+        expect(activityEngine.endActivity).not.toHaveBeenCalled();
+        expect(activityEngine.stopActivity).not.toHaveBeenCalled();
+        expect(activityEngine.pauseActivity).not.toHaveBeenCalled();
+        expect(activityEngine.unpauseActivity).not.toHaveBeenCalled();
+      });
+
+      it('should emit sessionError INTERNAL_ERROR when a handler throws unexpectedly (e.g. activityEngine.endActivity rejects with a generic Error)', async () => {
+        activityEngine.endActivity.mockRejectedValue(new Error('unexpected'));
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityEnd: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionError?.code).toBe('INTERNAL_ERROR');
+      });
+
+      it('should keep the outer subscription open after emitting INTERNAL_ERROR (sub.closed === false, complete/error not called)', async () => {
+        activityEngine.endActivity.mockRejectedValue(new Error('unexpected'));
+
+        let completed = false;
+        let errored = false;
+        const request$ = new Subject<StateRequest>();
+        const values: StateResponse[] = [];
+
+        const sub = controller.trackActivity(request$, makeUser()).subscribe({
+          next: (v) => values.push(v),
+          error: () => { errored = true; },
+          complete: () => { completed = true; },
+        });
+
+        await flushMicrotasks();
+
+        request$.next({ activityEnd: {} });
+        await flushMicrotasks();
+
+        expect(values[0]?.sessionError?.code).toBe('INTERNAL_ERROR');
+        expect(sub.closed).toBe(false);
+        expect(completed).toBe(false);
+        expect(errored).toBe(false);
+
+        sub.unsubscribe();
+      });
+
+      it('should continue routing subsequent commands after an INTERNAL_ERROR (next command after the failing one still produces a response)', async () => {
+        activityEngine.endActivity.mockRejectedValueOnce(new Error('unexpected'));
+        activityEngine.stopActivity.mockResolvedValue(makeSession({ id: 'stop-session' }));
+        const { request$, values } = await setupRoutingStream();
+
+        request$.next({ activityEnd: {} });
+        await flushMicrotasks();
+
+        request$.next({ activityStop: {} });
+        await flushMicrotasks();
+
+        expect(values).toHaveLength(2);
+        expect(values[0]?.sessionError?.code).toBe('INTERNAL_ERROR');
+        expect(values[1]?.sessionState?.status).toBe(ActivityStatus.INTERRUPTED);
+      });
     });
   });
 });
