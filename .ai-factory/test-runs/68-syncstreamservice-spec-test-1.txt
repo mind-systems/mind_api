@@ -1,0 +1,49 @@
+$ npx jest src/realtime/services/sync-stream.service.spec.ts
+exit code: 0
+elapsed: 3.6s
+
+PASS src/realtime/services/sync-stream.service.spec.ts
+  SyncStreamService
+    register()
+      ✓ should create a new entry for a userId when the first callback is registered (5 ms)
+      ✓ should add a second callback to the same userId without replacing the first (1 ms)
+      ✓ should deduplicate via Set when the same callback reference is registered twice for the same userId
+      ✓ should keep callback Sets separate per userId when registering for multiple users (1 ms)
+    deregister()
+      ✓ should be a no-op when called with an unknown userId
+      ✓ should be a no-op when called with a callback that was never registered for that userId
+      ✓ should remove the callback from the Set without deleting the entry when other callbacks remain (1 ms)
+      ✓ should delete the user entry when the last callback is removed (1 ms)
+      ✓ should clear the pending debounce timer when the last callback for a userId is removed
+      ✓ should not affect other users' entries when deregistering a callback for one userId
+    onChangeLogged()
+      ✓ should be a no-op when the payload's userId is not registered (1 ms)
+      ✓ should create a 300ms pending timer on the first event for a registered userId (1 ms)
+      ✓ should append subsequent events to the same pending batch when they arrive within 300ms
+      ✓ should not create a new timer when an event arrives while a pending batch already exists
+      ✓ should flush exactly once when multiple events arrive within the debounce window (1 ms)
+      ✓ should deliver only the LiveEvent fields { id, entity, refId, action } from the payload, with no userId key on the emitted object (1 ms)
+      ✓ should preserve event arrival order (FIFO) in the flushed batch (1 ms)
+      ✓ should allow a new pending batch to be created after a previous batch has flushed
+    fan-out delivery
+      ✓ should invoke every registered callback for a userId with the accumulated events array when the timer fires (1 ms)
+      ✓ should pass the same events array reference to every callback in a single fan-out (1 ms)
+      ✓ should deliver events only to callbacks registered for the matching userId, not to callbacks registered for other userIds
+      ✓ should not invoke a deregistered callback when the timer fires after its removal (1 ms)
+    for...of error propagation (documented behavior)
+      ✓ should stop iterating callbacks when the first callback throws, leaving subsequent callbacks uninvoked (documented behavior) (1 ms)
+      ✓ should surface the thrown error out of the fake-timer tick (14 ms)
+      ✓ should allow a new pending batch to be created on the same userId after a previous flush threw (1 ms)
+    onModuleDestroy()
+      ✓ should clear all pending debounce timers across all registered userIds so no callbacks fire afterwards
+      ✓ should drop all registrations so a subsequent onChangeLogged for a previously-registered user is a no-op (1 ms)
+      ✓ should be safe to call on an empty registry without throwing (1 ms)
+      ✓ should be safe to call twice in a row without throwing
+
+Test Suites: 1 passed, 1 total
+Tests:       29 passed, 29 total
+Snapshots:   0 total
+Time:        1.509 s
+Ran all test suites matching src/realtime/services/sync-stream.service.spec.ts.
+
+TEST_PASS
