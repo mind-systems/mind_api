@@ -78,7 +78,7 @@ export class SyncStreamGrpcController {
           return;
         }
 
-        let cursor = request.afterId;
+        let cursor = Number(request.afterId);
 
         const minEventId = await this.changeLogService.getMinEventId();
         if (minEventId !== null && cursor !== 0 && cursor < minEventId) {

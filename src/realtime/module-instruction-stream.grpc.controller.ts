@@ -100,7 +100,7 @@ export class ModuleInstructionStreamGrpcController implements ModuleInstructionS
             }
 
             const result = this.streamEngine.push(msg.sessionId, {
-              timestamp: msg.timestamp,
+              timestamp: Number(msg.timestamp),
               moduleId: msg.moduleId,
               instructionType: msg.instructionType,
               data: msg.data,

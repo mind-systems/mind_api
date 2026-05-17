@@ -23,7 +23,7 @@ export class SyncGrpcController {
     @Payload() request: GetChangesRequest,
     @GrpcCurrentUser() user: JwtPayload,
   ): Promise<GetChangesResponse> {
-    const result = await this.syncService.getChanges(user.sub, request.after, request.limit);
+    const result = await this.syncService.getChanges(user.sub, Number(request.after), request.limit);
 
     if ('fullResync' in result) {
       return { fullResync: true };
