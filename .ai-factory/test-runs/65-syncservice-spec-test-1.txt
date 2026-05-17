@@ -1,0 +1,41 @@
+$ npx jest src/sync/sync.service.spec.ts
+exit code: 0
+elapsed: 2.9s
+
+PASS src/sync/sync.service.spec.ts
+  SyncService
+    getChanges() — happy path
+      ✓ should return events, cursor and hasMore from changeLogService when changes exist (5 ms)
+      ✓ should set hasMore=true when changeLogService returns a result with hasMore=true (1 ms)
+      ✓ should set hasMore=false when changeLogService returns a result with hasMore=false
+      ✓ should pass userId, afterId and limit through to changeLogService.getChanges unchanged (1 ms)
+    getChanges() — empty result
+      ✓ should return an empty events array when changeLogService returns no events
+      ✓ should preserve afterId as the cursor when changeLogService returns no events (cursor must not collapse to 0) (1 ms)
+      ✓ should report hasMore=false when no events are returned
+    getChanges() — full-resync trigger
+      ✓ should return { fullResync: true } when afterId < minEventId and afterId !== 0 and minEventId !== null
+      ✓ should not call changeLogService.getChanges() when the full-resync branch is taken (1 ms)
+      ✓ should call changeLogService.getMinEventId() exactly once on the full-resync path
+    getChanges() — no full-resync on edge inputs
+      ✓ should not trigger full-resync when afterId === 0 even if minEventId is greater than 0 (sentinel "start from beginning")
+      ✓ should not trigger full-resync when minEventId === null (empty changelog) (1 ms)
+      ✓ should not trigger full-resync when afterId >= minEventId
+      ✓ should call changeLogService.getChanges() in each of the non-full-resync edge cases (1 ms)
+    getChanges() — event field projection
+      ✓ should map each event to exactly { id, entity, refId, action, createdAt } when underlying events carry extra fields like userId (1 ms)
+      ✓ should not include userId on any returned event (1 ms)
+      ✓ should preserve the order of events as returned by changeLogService (1 ms)
+      ✓ should forward the cursor and hasMore from changeLogService unchanged alongside the projected events (1 ms)
+    purgeOldEvents()
+      ✓ should call changeLogService.purge() with no arguments when purgeOldEvents() is invoked
+      ✓ should resolve without throwing when changeLogService.purge() resolves (1 ms)
+      ✓ should propagate the rejection when changeLogService.purge() rejects (no silent swallow) (10 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       21 passed, 21 total
+Snapshots:   0 total
+Time:        1.19 s, estimated 2 s
+Ran all test suites matching src/sync/sync.service.spec.ts.
+
+TEST_PASS
