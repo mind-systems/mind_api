@@ -1,0 +1,49 @@
+$ npx jest src/realtime/sync-stream.grpc.controller.spec.ts
+exit code: 0
+elapsed: 6.6s
+
+PASS src/realtime/sync-stream.grpc.controller.spec.ts
+  SyncStreamGrpcController
+    watchChanges — authentication
+      ✓ should emit UNAUTHENTICATED RpcException when user is null (34 ms)
+      ✓ should not call any collaborator when user is null (2 ms)
+    watchChanges — live-only mode (afterId === undefined) and unconditional registrations
+      ✓ should not call changeLogService.getMinEventId when afterId is undefined (1 ms)
+      ✓ should not call changeLogService.getChanges when afterId is undefined (1 ms)
+      ✓ should register the live push listener via syncStreamService unconditionally when watchChanges is invoked (1 ms)
+      ✓ should register the subscriber with activeStreamRegistry unconditionally when watchChanges is invoked (27 ms)
+    watchChanges — single-batch replay (hasMore: false)
+      ✓ should call changeLogService.getMinEventId once when afterId is provided (1 ms)
+      ✓ should call changeLogService.getChanges once with (userId, Number(afterId), 100) when hasMore is false on first call
+      ✓ should emit exactly one ChangeEvent wrapper message when replay returns a single non-empty batch with hasMore false
+      ✓ should convert each replay event's createdAt Date to an ISO string in the emitted ChangeEvent wrapper
+      ✓ should preserve id, entity, refId and action fields from the replay event in the emitted wrapper's inner event (1 ms)
+    watchChanges — multi-batch replay (hasMore loop)
+      ✓ should call changeLogService.getChanges twice when first batch returns hasMore true and second returns hasMore false (1 ms)
+      ✓ should pass Number(request.afterId) as the cursor argument on the first getChanges call (1 ms)
+      ✓ should use the cursor returned by the first batch as the second getChanges call's cursor argument (1 ms)
+      ✓ should emit two separate ChangeEvent wrapper messages when replay completes in two non-empty batches (1 ms)
+      ✓ should stop calling getChanges after hasMore becomes false
+    watchChanges — cursor-too-old → FAILED_PRECONDITION
+      ✓ should emit FAILED_PRECONDITION RpcException when afterId is below minEventId and afterId is not 0
+      ✓ should call syncStreamService.deregister before emitting the FAILED_PRECONDITION error (27 ms)
+      ✓ should not call changeLogService.getChanges when the cursor is too old
+      ✓ should pass the same pushFn captured by syncStreamService.register to syncStreamService.deregister on cursor-too-old (1 ms)
+    watchChanges — afterId=0 sentinel bypasses cursor check
+      ✓ should not emit FAILED_PRECONDITION when afterId is 0 even if minEventId is 100
+      ✓ should proceed to call changeLogService.getChanges when afterId is 0 and minEventId is 100
+      ✓ should emit replayed events normally when afterId is 0 sentinel (1 ms)
+    watchChanges — empty changelog (minEventId === null) bypasses cursor check
+      ✓ should not emit FAILED_PRECONDITION when minEventId is null even if afterId is greater than 0
+      ✓ should call changeLogService.getChanges with (userId, Number(afterId), 100) when minEventId is null (1 ms)
+    watchChanges — empty batches skipped
+      ✓ should not call subscriber.next for a batch whose events array is empty (1 ms)
+      ✓ should emit only the non-empty batch when one empty batch and one non-empty batch are returned in sequence
+
+Test Suites: 1 passed, 1 total
+Tests:       27 passed, 27 total
+Snapshots:   0 total
+Time:        3.321 s, estimated 4 s
+Ran all test suites matching src/realtime/sync-stream.grpc.controller.spec.ts.
+
+TEST_PASS
