@@ -1,13 +1,14 @@
 # Project: Mind Awake API
 
 ## Overview
-Mind Awake API is a NestJS-based REST backend for a mindfulness breathing application. It provides passwordless email-code authentication, JWT session management, CRUD operations for breath sessions (with shared/public access), and structured logging.
+Mind Awake API is a NestJS-based gRPC backend for a mindfulness breathing application. It exposes all business logic over gRPC (port 50051) with a single HTTP relay endpoint for Google OAuth browser flow. Features: passwordless email-code authentication, Google Sign-In, JWT session management, breath session CRUD, real-time activity tracking via bidi-streaming gRPC, sync change events, and user statistics.
 
 ## Core Features
-- **Authentication:** Passwordless OTP via email — `POST /auth/send-code` + `POST /auth/verify-code` → JWT (auto-creates account on first login)
-- **JWT Security:** Bearer guard with session-based validation (session deleted on logout), scheduled cleanup of expired sessions
+- **Authentication:** Passwordless OTP via email (`rpc SendCode` + `rpc VerifyCode` → JWT); Google Sign-In (`rpc GoogleAuth`); Personal Access Tokens (`rpc CreateToken / ListTokens / DeleteToken`)
+- **JWT Security:** `GrpcAuthInterceptor` validates token + `user_sessions` table on every gRPC call; session invalidated on `rpc Logout`; scheduled cleanup of expired sessions
 - **Email Delivery:** Resend integration with HTML template (magic link + manual code, 15-min TTL)
-- **Breath Sessions:** Full CRUD with owner-based access control and public shared-link support
+- **Breath Sessions:** Full CRUD (`rpc CreateSession / GetSession / ListSessions / UpdateSession / ReplaceSession / DeleteSession`) with owner-based access control and public shared-link support
+- **Real-time:** Bidi-streaming `ModuleStateService` (activity lifecycle) + `ModuleInstructionStreamService` (instruction samples); server-streaming `WatchChanges` (sync push)
 - **Logging:** Winston with daily log rotation to `logs/` directory (combined + error streams)
 - **Infrastructure:** Multi-stage Docker builds (dev/prod), Makefile automation, Jenkins CI pipelines
 

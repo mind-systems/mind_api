@@ -4,37 +4,26 @@
 
 ---
 
-## Эндпоинт
+## gRPC-метод
 
-### `GET /users/me/stats`
-
-Возвращает агрегированную статистику аутентифицированного пользователя.
-
-**Авторизация:** Bearer JWT обязателен.
-
-**Ответ — 200 OK**
-
-```json
-{
-  "totalSessions": 42,
-  "totalDurationSeconds": 12600,
-  "currentStreak": 5,
-  "longestStreak": 14,
-  "lastSessionDate": "2026-03-14",
-  "maxCompletedComplexity": 24000
-}
 ```
+rpc GetStats(GetStatsRequest) returns (GetStatsResponse)   — StatsService
+```
+
+`GetStatsRequest` пустое — пользователь определяется по metadata gRPC-вызова. Возвращает агрегированную статистику аутентифицированного пользователя.
+
+**Поля `GetStatsResponse`:**
 
 | Поле | Тип | Описание |
 |------|-----|----------|
-| `totalSessions` | integer | Количество завершённых квалифицирующих сессий |
-| `totalDurationSeconds` | integer | Суммарная длительность всех квалифицирующих сессий (секунды) |
-| `currentStreak` | integer | Текущая серия — количество последовательных дней с хотя бы одной квалифицирующей сессией |
-| `longestStreak` | integer | Рекорд серии за всё время |
-| `lastSessionDate` | string (YYYY-MM-DD) или null | UTC-дата последней квалифицирующей сессии |
-| `maxCompletedComplexity` | float | Сглаженная максимальная сложность завершённых сессий дыхания |
+| `total_sessions` | int32 | Количество завершённых квалифицирующих сессий |
+| `total_duration_seconds` | int32 | Суммарная длительность всех квалифицирующих сессий (секунды) |
+| `current_streak` | int32 | Текущая серия — количество последовательных дней с хотя бы одной квалифицирующей сессией |
+| `longest_streak` | int32 | Рекорд серии за всё время |
+| `last_session_date` | string (YYYY-MM-DD), optional | UTC-дата последней квалифицирующей сессии |
+| `max_completed_complexity` | double | Сглаженная максимальная сложность завершённых сессий дыхания |
 
-Если у пользователя ещё нет записей, все числовые поля возвращают `0`, `lastSessionDate` — `null`.
+Если у пользователя ещё нет записей, все числовые поля возвращают `0`, `last_session_date` отсутствует.
 
 ---
 

@@ -194,3 +194,26 @@ npm run migration:revert
 - ❌ **Skipping guards** — accessing `request.user` without a guard. Always apply `@UseGuards(JwtAuthGuard)` at the controller or route level.
 - ❌ **Circular module imports** — if Module A imports Module B and Module B imports Module A, extract the shared logic to a `SharedModule` or a new standalone module.
 - ❌ **Hardcoded secrets** — never hardcode JWT secrets, Resend API keys, or DB passwords. Always use `ConfigService` / environment variables.
+
+---
+
+## Features
+
+| Feature | Hashes |
+|---------|--------|
+| Email OTP auth | |
+| Google Sign-In | |
+| User profile | |
+| Personal access tokens | |
+| Breath session CRUD | |
+| Time-of-day suggestions | |
+| Session statistics (streak, duration, complexity) | |
+| Device ping | |
+| Sync change journal (TTL, purge) | |
+| Sync unary (cursor, full-resync sentinel) | |
+| gRPC transport | f39c8bd |
+| Sync change stream | 733e428 19935b7 |
+| Activity session stream | 128bb67 |
+| Instruction stream | 449f3f9 |
+| Session revocation disconnect | da84ee0 |
+| Roadmap drop history | a5959dc |
