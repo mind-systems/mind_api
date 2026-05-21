@@ -1,5 +1,7 @@
 import type { UserDto } from '../../proto/generated/auth';
 import type { UserResponseDto } from '../users/dto/auth-response.dto';
+import type { BciDevice as BciDeviceProto } from '../../proto/generated/bci_devices';
+import type { BciDevice } from '../bci/entities/bci-device.entity';
 import { UserRole } from '../users/interfaces/user-role.enum';
 import {
   StepType,
@@ -135,4 +137,13 @@ export function fromProtoExercises(
     restDuration: e.restDuration,
     repeatCount: e.repeatCount,
   }));
+}
+
+export function toProtoBciDevice(entity: BciDevice): BciDeviceProto {
+  return {
+    id: entity.id,
+    serial: entity.serial,
+    createdAt: entity.createdAt.toISOString(),
+    updatedAt: entity.updatedAt.toISOString(),
+  };
 }
