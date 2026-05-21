@@ -20,9 +20,7 @@ import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator'
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
 export class UsersGrpcController implements UserServiceController {
-  constructor(
-    private readonly userService: UserService,
-  ) {}
+  constructor(private readonly userService: UserService) {}
 
   async updateProfile(
     @Payload() request: UpdateProfileRequest,

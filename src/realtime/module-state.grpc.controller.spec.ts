@@ -2,13 +2,23 @@ import { RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import { Subject, Subscriber } from 'rxjs';
 import { ModuleStateGrpcController } from './module-state.grpc.controller';
-import { ActivityStatus, ActivityType, StateRequest, StateResponse } from '../../proto/generated/module_state';
+import {
+  ActivityStatus,
+  ActivityType,
+  StateRequest,
+  StateResponse,
+} from '../../proto/generated/module_state';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function makeUser(overrides?: Partial<JwtPayload>): JwtPayload {
-  return { sub: 'user-1', email: 'test@example.com', name: 'Test User', ...overrides };
+  return {
+    sub: 'user-1',
+    email: 'test@example.com',
+    name: 'Test User',
+    ...overrides,
+  };
 }
 
 function makeSession(overrides?: Partial<{ id: string }>) {
@@ -110,7 +120,9 @@ describe('ModuleStateGrpcController', () => {
     it('should call activeStreamRegistry.register(user.sub, subscriber) when user is present', () => {
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
-      const sub = controller.trackActivity(request$, user).subscribe({ error: () => {} });
+      const sub = controller
+        .trackActivity(request$, user)
+        .subscribe({ error: () => {} });
       expect(activeStreamRegistry.register).toHaveBeenCalledWith(
         user.sub,
         expect.any(Subscriber),
@@ -123,7 +135,9 @@ describe('ModuleStateGrpcController', () => {
 
   describe('trackActivity — reconnect path', () => {
     it('should emit StateResponse.sessionState with status RESUMED and isPaused false when handleReconnect returns a session', async () => {
-      activityEngine.handleReconnect.mockResolvedValue(makeSession({ id: 'resumed-session' }));
+      activityEngine.handleReconnect.mockResolvedValue(
+        makeSession({ id: 'resumed-session' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -145,7 +159,9 @@ describe('ModuleStateGrpcController', () => {
     });
 
     it('should include the resumed session id as moduleSessionId in the emitted StateResponse', async () => {
-      activityEngine.handleReconnect.mockResolvedValue(makeSession({ id: 'my-session-id' }));
+      activityEngine.handleReconnect.mockResolvedValue(
+        makeSession({ id: 'my-session-id' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -186,7 +202,9 @@ describe('ModuleStateGrpcController', () => {
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
       const subscribeSpy = jest.spyOn(request$, 'subscribe');
-      const sub = controller.trackActivity(request$, user).subscribe({ error: () => {} });
+      const sub = controller
+        .trackActivity(request$, user)
+        .subscribe({ error: () => {} });
 
       // setup() has not yet resumed — request$ must not be subscribed to yet
       expect(subscribeSpy).not.toHaveBeenCalled();
@@ -202,14 +220,19 @@ describe('ModuleStateGrpcController', () => {
     it('should not emit RESUMED when subscriber.closed is already true by the time handleReconnect resolves', async () => {
       // Capture the subscriber via register so we can close it before reconnect resolves
       let capturedSubscriber: Subscriber<StateResponse> | undefined;
-      activeStreamRegistry.register = jest.fn((_userId, sub: Subscriber<StateResponse>) => {
-        capturedSubscriber = sub;
-      });
+      activeStreamRegistry.register = jest.fn(
+        (_userId, sub: Subscriber<StateResponse>) => {
+          capturedSubscriber = sub;
+        },
+      );
 
       // Make handleReconnect a deferred promise so we control when setup() resumes
       let resolveReconnect!: (val: any) => void;
       activityEngine.handleReconnect = jest.fn(
-        () => new Promise<any>((resolve) => { resolveReconnect = resolve; }),
+        () =>
+          new Promise<any>((resolve) => {
+            resolveReconnect = resolve;
+          }),
       );
 
       const user = makeUser();
@@ -261,7 +284,9 @@ describe('ModuleStateGrpcController', () => {
       let completed = false;
       controller.trackActivity(request$, user).subscribe({
         error: () => {},
-        complete: () => { completed = true; },
+        complete: () => {
+          completed = true;
+        },
       });
 
       await flushMicrotasks();
@@ -344,7 +369,9 @@ describe('ModuleStateGrpcController', () => {
 
       sub.unsubscribe();
 
-      expect(activityEngine.handleTransportDisconnect).toHaveBeenCalledWith(user.sub);
+      expect(activityEngine.handleTransportDisconnect).toHaveBeenCalledWith(
+        user.sub,
+      );
     });
 
     it("should call rateLimiterService.evict('activity-start:{userId}') on teardown", async () => {
@@ -353,17 +380,23 @@ describe('ModuleStateGrpcController', () => {
 
       sub.unsubscribe();
 
-      expect(rateLimiterService.evict).toHaveBeenCalledWith(`activity-start:${user.sub}`);
+      expect(rateLimiterService.evict).toHaveBeenCalledWith(
+        `activity-start:${user.sub}`,
+      );
     });
 
     it('should invoke teardown actions in order: deregister → handleTransportDisconnect → evict', async () => {
       const callOrder: string[] = [];
-      activeStreamRegistry.deregister = jest.fn(() => { callOrder.push('deregister'); });
+      activeStreamRegistry.deregister = jest.fn(() => {
+        callOrder.push('deregister');
+      });
       activityEngine.handleTransportDisconnect = jest.fn(() => {
         callOrder.push('handleTransportDisconnect');
         return Promise.resolve();
       });
-      rateLimiterService.evict = jest.fn(() => { callOrder.push('evict'); });
+      rateLimiterService.evict = jest.fn(() => {
+        callOrder.push('evict');
+      });
 
       const user = makeUser();
       const { sub } = await setupConnectedStream(user);
@@ -372,11 +405,17 @@ describe('ModuleStateGrpcController', () => {
 
       // handleTransportDisconnect is inside an async IIFE — its invocation is still
       // synchronous (it starts the async work) so the order is deterministic.
-      expect(callOrder).toEqual(['deregister', 'handleTransportDisconnect', 'evict']);
+      expect(callOrder).toEqual([
+        'deregister',
+        'handleTransportDisconnect',
+        'evict',
+      ]);
     });
 
     it('should swallow errors thrown by handleTransportDisconnect and not propagate them to the caller', async () => {
-      activityEngine.handleTransportDisconnect.mockRejectedValue(new Error('network fail'));
+      activityEngine.handleTransportDisconnect.mockRejectedValue(
+        new Error('network fail'),
+      );
 
       const user = makeUser();
       const { sub } = await setupConnectedStream(user);
@@ -388,7 +427,9 @@ describe('ModuleStateGrpcController', () => {
     });
 
     it('should still call rateLimiterService.evict when handleTransportDisconnect rejects', async () => {
-      activityEngine.handleTransportDisconnect.mockRejectedValue(new Error('network fail'));
+      activityEngine.handleTransportDisconnect.mockRejectedValue(
+        new Error('network fail'),
+      );
 
       const user = makeUser();
       const { sub } = await setupConnectedStream(user);
@@ -396,7 +437,9 @@ describe('ModuleStateGrpcController', () => {
       sub.unsubscribe();
 
       // evict is synchronous and runs right after starting the async IIFE
-      expect(rateLimiterService.evict).toHaveBeenCalledWith(`activity-start:${user.sub}`);
+      expect(rateLimiterService.evict).toHaveBeenCalledWith(
+        `activity-start:${user.sub}`,
+      );
 
       await flushMicrotasks();
     });
@@ -448,13 +491,20 @@ describe('ModuleStateGrpcController', () => {
 
     it('should not rethrow when stopActivity rejects', async () => {
       activityEngine.stopActivity.mockRejectedValue(new Error('stop failed'));
-      await expect(controller.handleSessionRevoked({ userId: 'user-1' })).resolves.toBeUndefined();
+      await expect(
+        controller.handleSessionRevoked({ userId: 'user-1' }),
+      ).resolves.toBeUndefined();
     });
 
     it('should call stopActivity before closeAll', async () => {
       const callOrder: string[] = [];
-      activityEngine.stopActivity = jest.fn(async () => { callOrder.push('stopActivity'); return null; });
-      activeStreamRegistry.closeAll = jest.fn(() => { callOrder.push('closeAll'); });
+      activityEngine.stopActivity = jest.fn(async () => {
+        callOrder.push('stopActivity');
+        return null;
+      });
+      activeStreamRegistry.closeAll = jest.fn(() => {
+        callOrder.push('closeAll');
+      });
 
       await controller.handleSessionRevoked({ userId: 'user-1' });
 
@@ -509,7 +559,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should emit sessionState ACTIVE with existing moduleSessionId when activityEngine.getActiveSession returns a session', async () => {
-        activityEngine.getActiveSession.mockReturnValue(makeActivityState({ sessionId: 'session-1' }));
+        activityEngine.getActiveSession.mockReturnValue(
+          makeActivityState({ sessionId: 'session-1' }),
+        );
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityStart: { activityType: ActivityType.BREATH } });
@@ -520,7 +572,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should not call activityEngine.startActivity when an active session already exists', async () => {
-        activityEngine.getActiveSession.mockReturnValue(makeActivityState({ sessionId: 'session-1' }));
+        activityEngine.getActiveSession.mockReturnValue(
+          makeActivityState({ sessionId: 'session-1' }),
+        );
         const { request$ } = await setupRoutingStream();
 
         request$.next({ activityStart: { activityType: ActivityType.BREATH } });
@@ -532,7 +586,11 @@ describe('ModuleStateGrpcController', () => {
       it('should emit sessionError INVALID_ACTIVITY_TYPE when cmd.activityType is unsupported (e.g. ACTIVITY_TYPE_UNSPECIFIED)', async () => {
         const { request$, values } = await setupRoutingStream();
 
-        request$.next({ activityStart: { activityType: ActivityType.ACTIVITY_TYPE_UNSPECIFIED } });
+        request$.next({
+          activityStart: {
+            activityType: ActivityType.ACTIVITY_TYPE_UNSPECIFIED,
+          },
+        });
         await flushMicrotasks();
 
         expect(values[0]?.sessionError?.code).toBe('INVALID_ACTIVITY_TYPE');
@@ -541,7 +599,11 @@ describe('ModuleStateGrpcController', () => {
       it('should not call activityEngine.startActivity when activityType is unsupported', async () => {
         const { request$ } = await setupRoutingStream();
 
-        request$.next({ activityStart: { activityType: ActivityType.ACTIVITY_TYPE_UNSPECIFIED } });
+        request$.next({
+          activityStart: {
+            activityType: ActivityType.ACTIVITY_TYPE_UNSPECIFIED,
+          },
+        });
         await flushMicrotasks();
 
         expect(activityEngine.startActivity).not.toHaveBeenCalled();
@@ -550,7 +612,12 @@ describe('ModuleStateGrpcController', () => {
       it('should call activityEngine.startActivity(userId, { activityType: BREATH, activityRefId: cmd.refId }) on the happy path', async () => {
         const { request$ } = await setupRoutingStream();
 
-        request$.next({ activityStart: { activityType: ActivityType.BREATH, refId: 'ref-123' } });
+        request$.next({
+          activityStart: {
+            activityType: ActivityType.BREATH,
+            refId: 'ref-123',
+          },
+        });
         await flushMicrotasks();
 
         expect(activityEngine.startActivity).toHaveBeenCalledWith('user-1', {
@@ -560,7 +627,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should emit sessionState ACTIVE with moduleSessionId from the returned session on the happy path', async () => {
-        activityEngine.startActivity.mockResolvedValue(makeSession({ id: 'new-session' }));
+        activityEngine.startActivity.mockResolvedValue(
+          makeSession({ id: 'new-session' }),
+        );
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityStart: { activityType: ActivityType.BREATH } });
@@ -573,7 +642,12 @@ describe('ModuleStateGrpcController', () => {
       it('should forward cmd.refId to the engine as activityRefId (string value preserved)', async () => {
         const { request$ } = await setupRoutingStream();
 
-        request$.next({ activityStart: { activityType: ActivityType.BREATH, refId: 'my-ref-id' } });
+        request$.next({
+          activityStart: {
+            activityType: ActivityType.BREATH,
+            refId: 'my-ref-id',
+          },
+        });
         await flushMicrotasks();
 
         expect(activityEngine.startActivity).toHaveBeenCalledWith(
@@ -593,7 +667,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should omit the isPaused field from the emitted sessionState when returning an existing session', async () => {
-        activityEngine.getActiveSession.mockReturnValue(makeActivityState({ sessionId: 'session-1' }));
+        activityEngine.getActiveSession.mockReturnValue(
+          makeActivityState({ sessionId: 'session-1' }),
+        );
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityStart: { activityType: ActivityType.BREATH } });
@@ -617,7 +693,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should emit sessionState COMPLETED with moduleSessionId from the returned session', async () => {
-        activityEngine.endActivity.mockResolvedValue(makeSession({ id: 'ended-session' }));
+        activityEngine.endActivity.mockResolvedValue(
+          makeSession({ id: 'ended-session' }),
+        );
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityEnd: {} });
@@ -638,7 +716,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should omit the isPaused field from the emitted sessionState on COMPLETED', async () => {
-        activityEngine.endActivity.mockResolvedValue(makeSession({ id: 'ended-session' }));
+        activityEngine.endActivity.mockResolvedValue(
+          makeSession({ id: 'ended-session' }),
+        );
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityEnd: {} });
@@ -662,14 +742,20 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should emit sessionState INTERRUPTED with moduleSessionId from the returned session', async () => {
-        activityEngine.stopActivity.mockResolvedValue(makeSession({ id: 'stopped-session' }));
+        activityEngine.stopActivity.mockResolvedValue(
+          makeSession({ id: 'stopped-session' }),
+        );
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityStop: {} });
         await flushMicrotasks();
 
-        expect(values[0]?.sessionState?.status).toBe(ActivityStatus.INTERRUPTED);
-        expect(values[0]?.sessionState?.moduleSessionId).toBe('stopped-session');
+        expect(values[0]?.sessionState?.status).toBe(
+          ActivityStatus.INTERRUPTED,
+        );
+        expect(values[0]?.sessionState?.moduleSessionId).toBe(
+          'stopped-session',
+        );
       });
 
       it('should not emit any StateResponse when stopActivity resolves to null', async () => {
@@ -683,7 +769,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should omit the isPaused field from the emitted sessionState on INTERRUPTED', async () => {
-        activityEngine.stopActivity.mockResolvedValue(makeSession({ id: 'stopped-session' }));
+        activityEngine.stopActivity.mockResolvedValue(
+          makeSession({ id: 'stopped-session' }),
+        );
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityStop: {} });
@@ -698,7 +786,9 @@ describe('ModuleStateGrpcController', () => {
 
     describe('trackActivity — command routing → ActivityPause', () => {
       it('should call activityEngine.pauseActivity(userId) when ActivityPause is received', async () => {
-        activityEngine.pauseActivity.mockReturnValue(makeActivityState({ isPaused: true }));
+        activityEngine.pauseActivity.mockReturnValue(
+          makeActivityState({ isPaused: true }),
+        );
         const { request$ } = await setupRoutingStream();
 
         request$.next({ activityPause: {} });
@@ -708,7 +798,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should emit sessionState ACTIVE with isPaused: true and moduleSessionId from the returned state on success', async () => {
-        activityEngine.pauseActivity.mockReturnValue(makeActivityState({ sessionId: 'session-1', isPaused: true }));
+        activityEngine.pauseActivity.mockReturnValue(
+          makeActivityState({ sessionId: 'session-1', isPaused: true }),
+        );
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityPause: {} });
@@ -720,7 +812,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it("should emit sessionError with code 'no_active_session' when pauseActivity throws new Error('no_active_session')", async () => {
-        activityEngine.pauseActivity.mockImplementation(() => { throw new Error('no_active_session'); });
+        activityEngine.pauseActivity.mockImplementation(() => {
+          throw new Error('no_active_session');
+        });
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityPause: {} });
@@ -730,7 +824,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it("should emit sessionError with code 'already_paused' when pauseActivity throws new Error('already_paused')", async () => {
-        activityEngine.pauseActivity.mockImplementation(() => { throw new Error('already_paused'); });
+        activityEngine.pauseActivity.mockImplementation(() => {
+          throw new Error('already_paused');
+        });
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityPause: {} });
@@ -740,7 +836,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should not emit a sessionState when pauseActivity throws', async () => {
-        activityEngine.pauseActivity.mockImplementation(() => { throw new Error('no_active_session'); });
+        activityEngine.pauseActivity.mockImplementation(() => {
+          throw new Error('no_active_session');
+        });
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityPause: {} });
@@ -754,7 +852,9 @@ describe('ModuleStateGrpcController', () => {
 
     describe('trackActivity — command routing → ActivityResume', () => {
       it('should call activityEngine.unpauseActivity(userId) when ActivityResume is received', async () => {
-        activityEngine.unpauseActivity.mockReturnValue(makeActivityState({ isPaused: false }));
+        activityEngine.unpauseActivity.mockReturnValue(
+          makeActivityState({ isPaused: false }),
+        );
         const { request$ } = await setupRoutingStream();
 
         request$.next({ activityResume: {} });
@@ -764,7 +864,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should emit sessionState ACTIVE with isPaused: false and moduleSessionId from the returned state on success', async () => {
-        activityEngine.unpauseActivity.mockReturnValue(makeActivityState({ sessionId: 'session-1', isPaused: false }));
+        activityEngine.unpauseActivity.mockReturnValue(
+          makeActivityState({ sessionId: 'session-1', isPaused: false }),
+        );
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityResume: {} });
@@ -776,7 +878,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it("should emit sessionError with code 'no_active_session' when unpauseActivity throws new Error('no_active_session')", async () => {
-        activityEngine.unpauseActivity.mockImplementation(() => { throw new Error('no_active_session'); });
+        activityEngine.unpauseActivity.mockImplementation(() => {
+          throw new Error('no_active_session');
+        });
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityResume: {} });
@@ -786,7 +890,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it("should emit sessionError with code 'not_paused' when unpauseActivity throws new Error('not_paused')", async () => {
-        activityEngine.unpauseActivity.mockImplementation(() => { throw new Error('not_paused'); });
+        activityEngine.unpauseActivity.mockImplementation(() => {
+          throw new Error('not_paused');
+        });
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityResume: {} });
@@ -796,7 +902,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should not emit a sessionState when unpauseActivity throws', async () => {
-        activityEngine.unpauseActivity.mockImplementation(() => { throw new Error('no_active_session'); });
+        activityEngine.unpauseActivity.mockImplementation(() => {
+          throw new Error('no_active_session');
+        });
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityResume: {} });
@@ -852,8 +960,12 @@ describe('ModuleStateGrpcController', () => {
 
         const sub = controller.trackActivity(request$, makeUser()).subscribe({
           next: (v) => values.push(v),
-          error: () => { errored = true; },
-          complete: () => { completed = true; },
+          error: () => {
+            errored = true;
+          },
+          complete: () => {
+            completed = true;
+          },
         });
 
         await flushMicrotasks();
@@ -870,8 +982,12 @@ describe('ModuleStateGrpcController', () => {
       });
 
       it('should continue routing subsequent commands after an INTERNAL_ERROR (next command after the failing one still produces a response)', async () => {
-        activityEngine.endActivity.mockRejectedValueOnce(new Error('unexpected'));
-        activityEngine.stopActivity.mockResolvedValue(makeSession({ id: 'stop-session' }));
+        activityEngine.endActivity.mockRejectedValueOnce(
+          new Error('unexpected'),
+        );
+        activityEngine.stopActivity.mockResolvedValue(
+          makeSession({ id: 'stop-session' }),
+        );
         const { request$, values } = await setupRoutingStream();
 
         request$.next({ activityEnd: {} });
@@ -882,7 +998,9 @@ describe('ModuleStateGrpcController', () => {
 
         expect(values).toHaveLength(2);
         expect(values[0]?.sessionError?.code).toBe('INTERNAL_ERROR');
-        expect(values[1]?.sessionState?.status).toBe(ActivityStatus.INTERRUPTED);
+        expect(values[1]?.sessionState?.status).toBe(
+          ActivityStatus.INTERRUPTED,
+        );
       });
     });
   });

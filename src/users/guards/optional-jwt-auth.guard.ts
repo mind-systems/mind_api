@@ -43,7 +43,7 @@ export class OptionalJwtAuthGuard implements CanActivate {
   }
 
   private extractToken(request: RequestWithUser): string | undefined {
-    const authHeader = request.headers?.authorization as string | undefined;
+    const authHeader = request.headers?.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       return authHeader.substring(7);
     }

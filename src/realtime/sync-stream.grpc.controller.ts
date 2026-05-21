@@ -7,7 +7,10 @@ import {
   SyncEventDto,
   WatchChangesRequest,
 } from '../../proto/generated/sync';
-import { ChangeLogService, ChangesResult } from '../changelog/changelog.service';
+import {
+  ChangeLogService,
+  ChangesResult,
+} from '../changelog/changelog.service';
 import { SyncStreamService } from './services/sync-stream.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
@@ -33,7 +36,10 @@ export class SyncStreamGrpcController {
     return new Observable<ChangeEvent>((subscriber) => {
       if (!user) {
         subscriber.error(
-          new RpcException({ code: GrpcStatus.UNAUTHENTICATED, message: 'Missing user context' }),
+          new RpcException({
+            code: GrpcStatus.UNAUTHENTICATED,
+            message: 'Missing user context',
+          }),
         );
         return;
       }
@@ -50,7 +56,14 @@ export class SyncStreamGrpcController {
 
       // Step A — Register listener BEFORE replay to guarantee no gap between replay end
       // and live push start. Events are buffered into liveBuffer until replay completes.
-      const pushFn = (events: Array<{ id: number; entity: string; refId: string; action: string }>): void => {
+      const pushFn = (
+        events: Array<{
+          id: number;
+          entity: string;
+          refId: string;
+          action: string;
+        }>,
+      ): void => {
         // createdAt approximation: CHANGE_EVENT_LOGGED fires immediately after DB insert,
         // so the timestamp difference from the DB createdAt column is negligible.
         const stamped: SyncEventDto[] = events.map((e) => ({
@@ -97,7 +110,11 @@ export class SyncStreamGrpcController {
         let hasMore = true;
         while (hasMore) {
           if (subscriber.closed) return;
-          const result: ChangesResult = await this.changeLogService.getChanges(userId, cursor, 100);
+          const result: ChangesResult = await this.changeLogService.getChanges(
+            userId,
+            cursor,
+            100,
+          );
           // Skip empty batches to avoid sending no-op messages to the client.
           if (result.events.length > 0) {
             subscriber.next({
@@ -117,7 +134,9 @@ export class SyncStreamGrpcController {
 
         // Step C — Flush events that arrived during replay.
         // Filter out any events already covered by replay (id <= lastReplayedCursor).
-        const pending = liveBuffer.splice(0).filter((e) => e.id > lastReplayedCursor);
+        const pending = liveBuffer
+          .splice(0)
+          .filter((e) => e.id > lastReplayedCursor);
         if (pending.length > 0) {
           subscriber.next({ events: pending });
         }

@@ -21,7 +21,11 @@ import { ModuleInstructionStreamGrpcController } from './module-instruction-stre
     AuthModule,
     TypeOrmModule.forFeature([ModuleSession, SessionStreamSample]),
   ],
-  controllers: [SyncStreamGrpcController, ModuleStateGrpcController, ModuleInstructionStreamGrpcController],
+  controllers: [
+    SyncStreamGrpcController,
+    ModuleStateGrpcController,
+    ModuleInstructionStreamGrpcController,
+  ],
   providers: [
     StateStore,
     ActivitySessionStore,

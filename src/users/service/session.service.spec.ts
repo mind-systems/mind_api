@@ -84,7 +84,9 @@ describe('SessionService', () => {
       expect(repo.delete).toHaveBeenCalledWith({
         tokenHash: hash('some-token'),
       });
-      expect(emitter.emit).toHaveBeenCalledWith(AuthEvents.SESSION_REVOKED, { userId: 'user-1' });
+      expect(emitter.emit).toHaveBeenCalledWith(AuthEvents.SESSION_REVOKED, {
+        userId: 'user-1',
+      });
     });
 
     it('does not delete or emit when session does not exist', async () => {

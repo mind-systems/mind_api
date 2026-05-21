@@ -85,7 +85,9 @@ export function toProtoExerciseDto(exercise: BreathExercise): ExerciseDtoProto {
   };
 }
 
-export function toProtoBreathSessionDto(session: BreathSession): BreathSessionDto {
+export function toProtoBreathSessionDto(
+  session: BreathSession,
+): BreathSessionDto {
   return {
     id: session.id,
     userId: session.userId,
@@ -122,7 +124,9 @@ function fromProtoStepType(type: StepType): 'inhale' | 'exhale' | 'hold' {
   }
 }
 
-export function fromProtoExercises(exercises: ExerciseDtoProto[]): BreathExercise[] {
+export function fromProtoExercises(
+  exercises: ExerciseDtoProto[],
+): BreathExercise[] {
   return exercises.map((e) => ({
     steps: e.steps.map((s) => ({
       type: fromProtoStepType(s.type),

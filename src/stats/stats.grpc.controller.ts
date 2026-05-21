@@ -19,9 +19,7 @@ import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator'
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
 export class StatsGrpcController implements StatsServiceController {
-  constructor(
-    private readonly statsService: StatsService,
-  ) {}
+  constructor(private readonly statsService: StatsService) {}
 
   async getStats(
     @Payload() _request: GetStatsRequest,

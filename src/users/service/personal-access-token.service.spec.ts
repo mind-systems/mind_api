@@ -48,7 +48,9 @@ describe('PersonalAccessTokenService', () => {
       ],
     }).compile();
 
-    service = module.get<PersonalAccessTokenService>(PersonalAccessTokenService);
+    service = module.get<PersonalAccessTokenService>(
+      PersonalAccessTokenService,
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -60,7 +62,11 @@ describe('PersonalAccessTokenService', () => {
       let result: { token: string; id: string; name: string; createdAt: Date };
 
       beforeEach(async () => {
-        const entity = { id: PAT_ID, name: PAT_NAME, createdAt: CREATED_AT } as PersonalAccessToken;
+        const entity = {
+          id: PAT_ID,
+          name: PAT_NAME,
+          createdAt: CREATED_AT,
+        } as PersonalAccessToken;
         patRepo.create.mockReturnValue(entity);
         patRepo.save.mockResolvedValue(entity);
 
@@ -83,7 +89,11 @@ describe('PersonalAccessTokenService', () => {
       });
 
       it('should return different tokens when create is called twice consecutively', async () => {
-        const entity = { id: PAT_ID, name: PAT_NAME, createdAt: CREATED_AT } as PersonalAccessToken;
+        const entity = {
+          id: PAT_ID,
+          name: PAT_NAME,
+          createdAt: CREATED_AT,
+        } as PersonalAccessToken;
         patRepo.create.mockReturnValue(entity);
         patRepo.save.mockResolvedValue(entity);
 
@@ -96,7 +106,11 @@ describe('PersonalAccessTokenService', () => {
 
     describe('persistence stores only the hash', () => {
       it('should call patRepo.create() with { userId, tokenHash, name } when create is called', async () => {
-        const entity = { id: PAT_ID, name: PAT_NAME, createdAt: CREATED_AT } as PersonalAccessToken;
+        const entity = {
+          id: PAT_ID,
+          name: PAT_NAME,
+          createdAt: CREATED_AT,
+        } as PersonalAccessToken;
         patRepo.create.mockReturnValue(entity);
         patRepo.save.mockResolvedValue(entity);
 
@@ -113,7 +127,11 @@ describe('PersonalAccessTokenService', () => {
       });
 
       it('should pass the SHA-256 hash and NOT the raw token to patRepo.create() when create is called', async () => {
-        const entity = { id: PAT_ID, name: PAT_NAME, createdAt: CREATED_AT } as PersonalAccessToken;
+        const entity = {
+          id: PAT_ID,
+          name: PAT_NAME,
+          createdAt: CREATED_AT,
+        } as PersonalAccessToken;
         patRepo.create.mockReturnValue(entity);
         patRepo.save.mockResolvedValue(entity);
 
@@ -125,7 +143,11 @@ describe('PersonalAccessTokenService', () => {
       });
 
       it('should call patRepo.save() with the entity returned by patRepo.create() when create succeeds', async () => {
-        const entity = { id: PAT_ID, name: PAT_NAME, createdAt: CREATED_AT } as PersonalAccessToken;
+        const entity = {
+          id: PAT_ID,
+          name: PAT_NAME,
+          createdAt: CREATED_AT,
+        } as PersonalAccessToken;
         patRepo.create.mockReturnValue(entity);
         patRepo.save.mockResolvedValue(entity);
 
@@ -134,10 +156,14 @@ describe('PersonalAccessTokenService', () => {
         expect(patRepo.save).toHaveBeenCalledWith(entity);
       });
 
-      it('should use the saved entity\'s id and createdAt in the response when create succeeds', async () => {
+      it("should use the saved entity's id and createdAt in the response when create succeeds", async () => {
         const savedId = 'saved-uuid-999';
         const savedCreatedAt = new Date('2025-06-15T12:00:00.000Z');
-        const entity = { id: savedId, name: PAT_NAME, createdAt: savedCreatedAt } as PersonalAccessToken;
+        const entity = {
+          id: savedId,
+          name: PAT_NAME,
+          createdAt: savedCreatedAt,
+        } as PersonalAccessToken;
         patRepo.create.mockReturnValue(entity);
         patRepo.save.mockResolvedValue(entity);
 
@@ -168,8 +194,18 @@ describe('PersonalAccessTokenService', () => {
 
     it('should return the array produced by patRepo.find() when list is called', async () => {
       const tokens = [
-        { id: 'id-1', name: 'Token 1', createdAt: CREATED_AT, lastUsedAt: null },
-        { id: 'id-2', name: 'Token 2', createdAt: CREATED_AT, lastUsedAt: null },
+        {
+          id: 'id-1',
+          name: 'Token 1',
+          createdAt: CREATED_AT,
+          lastUsedAt: null,
+        },
+        {
+          id: 'id-2',
+          name: 'Token 2',
+          createdAt: CREATED_AT,
+          lastUsedAt: null,
+        },
       ] as PersonalAccessToken[];
       patRepo.find.mockResolvedValue(tokens);
 
@@ -197,7 +233,10 @@ describe('PersonalAccessTokenService', () => {
 
       await service.revoke(PAT_ID, USER_ID);
 
-      expect(patRepo.delete).toHaveBeenCalledWith({ id: PAT_ID, userId: USER_ID });
+      expect(patRepo.delete).toHaveBeenCalledWith({
+        id: PAT_ID,
+        userId: USER_ID,
+      });
     });
 
     it('should resolve without error when patRepo.delete() returns { affected: 1 }', async () => {
@@ -209,13 +248,17 @@ describe('PersonalAccessTokenService', () => {
     it('should throw NotFoundException when patRepo.delete() returns { affected: 0 }', async () => {
       patRepo.delete.mockResolvedValue({ affected: 0 });
 
-      await expect(service.revoke(PAT_ID, USER_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.revoke(PAT_ID, USER_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw NotFoundException when patRepo.delete() returns { affected: undefined }', async () => {
       patRepo.delete.mockResolvedValue({ affected: undefined });
 
-      await expect(service.revoke(PAT_ID, USER_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.revoke(PAT_ID, USER_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -224,7 +267,8 @@ describe('PersonalAccessTokenService', () => {
   // ---------------------------------------------------------------------------
 
   describe('validateToken()', () => {
-    const RAW_TOKEN = 'pat_abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+    const RAW_TOKEN =
+      'pat_abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
 
     describe('lookup by hash', () => {
       it('should call patRepo.findOne() with { where: { tokenHash: sha256(rawToken) } } when validateToken is called', async () => {
@@ -233,7 +277,9 @@ describe('PersonalAccessTokenService', () => {
         await service.validateToken(RAW_TOKEN);
 
         const expectedHash = sha256(RAW_TOKEN);
-        expect(patRepo.findOne).toHaveBeenCalledWith({ where: { tokenHash: expectedHash } });
+        expect(patRepo.findOne).toHaveBeenCalledWith({
+          where: { tokenHash: expectedHash },
+        });
       });
 
       it('should NOT pass the raw token to patRepo.findOne() when validateToken is called', async () => {
@@ -327,7 +373,9 @@ describe('PersonalAccessTokenService', () => {
       it('should call userRepo.findOne() with { where: { id: pat.userId } } when token is found', async () => {
         await service.validateToken(RAW_TOKEN);
 
-        expect(userRepo.findOne).toHaveBeenCalledWith({ where: { id: mockPat.userId } });
+        expect(userRepo.findOne).toHaveBeenCalledWith({
+          where: { id: mockPat.userId },
+        });
       });
 
       it('should call patRepo.update() with ({ id: pat.id }, { lastUsedAt: expect.any(Date) }) when validation succeeds', async () => {

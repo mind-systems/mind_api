@@ -14,16 +14,18 @@ import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator'
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
 export class SyncGrpcController {
-  constructor(
-    private readonly syncService: SyncService,
-  ) {}
+  constructor(private readonly syncService: SyncService) {}
 
   @GrpcMethod('SyncService', 'getChanges')
   async getChanges(
     @Payload() request: GetChangesRequest,
     @GrpcCurrentUser() user: JwtPayload,
   ): Promise<GetChangesResponse> {
-    const result = await this.syncService.getChanges(user.sub, Number(request.after), request.limit);
+    const result = await this.syncService.getChanges(
+      user.sub,
+      Number(request.after),
+      request.limit,
+    );
 
     if ('fullResync' in result) {
       return { fullResync: true };

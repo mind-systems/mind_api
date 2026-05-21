@@ -362,30 +362,20 @@ export class InitialSchema1774863293946 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "breath_sessions"`);
 
     // devices
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_devices_last_seen_at"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_devices_last_seen_at"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "devices"`);
 
     // user_sessions
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_user_sessions_userId"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_user_sessions_userId"`);
     await queryRunner.query(
       `DROP INDEX IF EXISTS "IDX_user_sessions_tokenHash"`,
     );
     await queryRunner.query(`DROP TABLE IF EXISTS "user_sessions"`);
 
     // auth_codes
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_auth_codes_expires_at"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_auth_codes_code_hash"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_auth_codes_email"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_auth_codes_expires_at"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_auth_codes_code_hash"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_auth_codes_email"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "auth_codes"`);
 
     // users
@@ -402,9 +392,7 @@ export class InitialSchema1774863293946 implements MigrationInterface {
     await queryRunner.query(
       `DROP TYPE IF EXISTS "public"."module_sessions_status_enum"`,
     );
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."users_role_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "public"."users_role_enum"`);
 
     // Extension
     await queryRunner.query(`DROP EXTENSION IF EXISTS "uuid-ossp"`);

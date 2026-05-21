@@ -23,9 +23,7 @@ export class AddBciDevicesTable1779369537954 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_bci_devices_user_id"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_bci_devices_user_id"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "bci_devices"`);
   }
 }

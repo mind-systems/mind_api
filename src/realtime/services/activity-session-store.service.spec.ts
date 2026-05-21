@@ -10,7 +10,9 @@ function makeActivitySessionStore(graceMs?: number): ActivitySessionStore {
   return new ActivitySessionStore(configService as any);
 }
 
-function makeActivityState(overrides: Partial<ActivityState> = {}): ActivityState {
+function makeActivityState(
+  overrides: Partial<ActivityState> = {},
+): ActivityState {
   const now = new Date();
   return {
     sessionId: 'session-1',
@@ -352,7 +354,7 @@ describe('ActivitySessionStore', () => {
       store = makeActivitySessionStore(1_000);
     });
 
-    it('should fire each userId\'s callback independently when concurrent timers are started for different userIds', () => {
+    it("should fire each userId's callback independently when concurrent timers are started for different userIds", () => {
       const cbA = jest.fn();
       const cbB = jest.fn();
 
@@ -365,7 +367,7 @@ describe('ActivitySessionStore', () => {
       expect(cbB).toHaveBeenCalledTimes(1);
     });
 
-    it('should leave userB\'s pending timer intact when userA\'s timer expires', () => {
+    it("should leave userB's pending timer intact when userA's timer expires", () => {
       const cbA = jest.fn();
       const cbB = jest.fn();
 
@@ -382,7 +384,7 @@ describe('ActivitySessionStore', () => {
       expect(cbB).not.toHaveBeenCalled();
     });
 
-    it('should leave userB\'s pending timer intact when userA\'s timer is cancelled via cancelGraceTimer()', () => {
+    it("should leave userB's pending timer intact when userA's timer is cancelled via cancelGraceTimer()", () => {
       const cbA = jest.fn();
       const cbB = jest.fn();
 

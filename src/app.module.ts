@@ -13,6 +13,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { StatsModule } from './stats/stats.module';
 import { ChangelogModule } from './changelog/changelog.module';
 import { SyncModule } from './sync/sync.module';
+import { BciModule } from './bci/bci.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -30,6 +31,7 @@ import { SyncModule } from './sync/sync.module';
     AuthModule,
     UserModule,
     BreathSessionsModule,
+    BciModule,
     DeviceModule,
     RealtimeModule,
     StatsModule,

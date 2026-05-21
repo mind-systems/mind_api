@@ -1,4 +1,9 @@
-import { Controller, Logger, UseFilters, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Logger,
+  UseFilters,
+  UseInterceptors,
+} from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus, Metadata } from '@grpc/grpc-js';
 import { Observable } from 'rxjs';
@@ -22,7 +27,9 @@ import type { JwtPayload } from '../users/interfaces/auth.interface';
 @UseInterceptors(GrpcAuthInterceptor)
 @ModuleInstructionStreamServiceControllerMethods()
 export class ModuleInstructionStreamGrpcController implements ModuleInstructionStreamServiceController {
-  private readonly logger = new Logger(ModuleInstructionStreamGrpcController.name);
+  private readonly logger = new Logger(
+    ModuleInstructionStreamGrpcController.name,
+  );
 
   constructor(
     private readonly streamEngine: StreamEngine,
@@ -41,7 +48,10 @@ export class ModuleInstructionStreamGrpcController implements ModuleInstructionS
 
       if (!user) {
         subscriber.error(
-          new RpcException({ code: GrpcStatus.UNAUTHENTICATED, message: 'Missing user context' }),
+          new RpcException({
+            code: GrpcStatus.UNAUTHENTICATED,
+            message: 'Missing user context',
+          }),
         );
         return;
       }
@@ -88,7 +98,10 @@ export class ModuleInstructionStreamGrpcController implements ModuleInstructionS
               return;
             }
 
-            if (session.isPaused && msg.instructionType === StreamDataType.BREATH_PHASE) {
+            if (
+              session.isPaused &&
+              msg.instructionType === StreamDataType.BREATH_PHASE
+            ) {
               subscriber.next({
                 error: {
                   code: 'SESSION_PAUSED',

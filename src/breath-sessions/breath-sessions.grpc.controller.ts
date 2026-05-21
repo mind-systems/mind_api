@@ -32,18 +32,13 @@ import {
 } from '../grpc/grpc-mappers';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
-import {
-  GrpcCurrentUser,
-  GrpcOptionalAuth,
-} from '../grpc/decorators';
+import { GrpcCurrentUser, GrpcOptionalAuth } from '../grpc/decorators';
 
 @Controller()
 @BreathSessionServiceControllerMethods()
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
-export class BreathSessionsGrpcController
-  implements BreathSessionServiceController
-{
+export class BreathSessionsGrpcController implements BreathSessionServiceController {
   constructor(
     private readonly breathSessionsService: BreathSessionsService,
     private readonly breathSessionSettingsService: BreathSessionSettingsService,

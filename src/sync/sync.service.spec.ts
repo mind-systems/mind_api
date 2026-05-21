@@ -56,7 +56,9 @@ describe('SyncService', () => {
     it('should return events, cursor and hasMore from changeLogService when changes exist', async () => {
       const event = makeRawEvent({ id: 10 });
       changeLog.getMinEventId.mockResolvedValue(1);
-      changeLog.getChanges.mockResolvedValue(makeChangesResult([event], 10, false));
+      changeLog.getChanges.mockResolvedValue(
+        makeChangesResult([event], 10, false),
+      );
 
       const result = await service.getChanges('user-uuid-1', 5, 20);
 
@@ -91,9 +93,7 @@ describe('SyncService', () => {
 
     it('should pass userId, afterId and limit through to changeLogService.getChanges unchanged', async () => {
       changeLog.getMinEventId.mockResolvedValue(null);
-      changeLog.getChanges.mockResolvedValue(
-        makeChangesResult([], 42, false),
-      );
+      changeLog.getChanges.mockResolvedValue(makeChangesResult([], 42, false));
 
       await service.getChanges('target-user', 42, 50);
 
@@ -238,7 +238,9 @@ describe('SyncService', () => {
         createdAt,
       });
       changeLog.getMinEventId.mockResolvedValue(null);
-      changeLog.getChanges.mockResolvedValue(makeChangesResult([raw], 7, false));
+      changeLog.getChanges.mockResolvedValue(
+        makeChangesResult([raw], 7, false),
+      );
 
       const result = await service.getChanges('user-abc', 0, 10);
       const events = (result as any).events as Record<string, unknown>[];
@@ -259,7 +261,9 @@ describe('SyncService', () => {
         makeRawEvent({ id: 2, userId: 'user-b' }),
       ];
       changeLog.getMinEventId.mockResolvedValue(null);
-      changeLog.getChanges.mockResolvedValue(makeChangesResult(events, 2, false));
+      changeLog.getChanges.mockResolvedValue(
+        makeChangesResult(events, 2, false),
+      );
 
       const result = await service.getChanges('user-a', 0, 10);
       const returned = (result as any).events as Record<string, unknown>[];
@@ -320,7 +324,9 @@ describe('SyncService', () => {
     it('should propagate the rejection when changeLogService.purge() rejects (no silent swallow)', async () => {
       changeLog.purge.mockRejectedValue(new Error('DB connection lost'));
 
-      await expect(service.purgeOldEvents()).rejects.toThrow('DB connection lost');
+      await expect(service.purgeOldEvents()).rejects.toThrow(
+        'DB connection lost',
+      );
     });
   });
 });

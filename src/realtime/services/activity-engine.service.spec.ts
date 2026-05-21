@@ -57,7 +57,7 @@ describe('ActivityEngine', () => {
     repo = makeRepo();
     emitter = makeEmitter();
     streamEngine = makeStreamEngine();
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
     engine = new ActivityEngine(
       repo as any,
       activitySessionStore,

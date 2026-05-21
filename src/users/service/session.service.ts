@@ -38,7 +38,10 @@ export class SessionService {
 
   async revoke(token: string): Promise<void> {
     const tokenHash = this.hash(token);
-    const session = await this.repo.findOne({ where: { tokenHash }, select: ['userId'] });
+    const session = await this.repo.findOne({
+      where: { tokenHash },
+      select: ['userId'],
+    });
     if (!session) return;
     await this.repo.delete({ tokenHash });
     this.logger.log('Session revoked');

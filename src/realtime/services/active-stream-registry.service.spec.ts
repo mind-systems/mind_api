@@ -81,7 +81,9 @@ describe('ActiveStreamRegistry', () => {
     });
 
     it('should be a no-op when called with an unknown userId', () => {
-      expect(() => registry.deregister('ghost', makeSubscriber())).not.toThrow();
+      expect(() =>
+        registry.deregister('ghost', makeSubscriber()),
+      ).not.toThrow();
       expect(registry.size).toBe(0);
     });
 

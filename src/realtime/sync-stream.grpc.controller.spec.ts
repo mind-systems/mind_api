@@ -8,10 +8,23 @@ import type { WatchChangesRequest } from '../../proto/generated/sync';
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function makeUser(overrides?: Partial<JwtPayload>): JwtPayload {
-  return { sub: 'user-1', email: 'test@example.com', name: 'Test User', ...overrides };
+  return {
+    sub: 'user-1',
+    email: 'test@example.com',
+    name: 'Test User',
+    ...overrides,
+  };
 }
 
-function makeDbEvent(overrides?: Partial<{ id: number; entity: string; refId: string; action: string; createdAt: Date }>) {
+function makeDbEvent(
+  overrides?: Partial<{
+    id: number;
+    entity: string;
+    refId: string;
+    action: string;
+    createdAt: Date;
+  }>,
+) {
   return {
     id: 1,
     entity: 'breath_session',
@@ -25,7 +38,9 @@ function makeDbEvent(overrides?: Partial<{ id: number; entity: string; refId: st
 function makeChangeLogService() {
   return {
     getMinEventId: jest.fn().mockResolvedValue(1),
-    getChanges: jest.fn().mockResolvedValue({ events: [], cursor: 0, hasMore: false }),
+    getChanges: jest
+      .fn()
+      .mockResolvedValue({ events: [], cursor: 0, hasMore: false }),
   };
 }
 
@@ -98,14 +113,18 @@ describe('SyncStreamGrpcController', () => {
 
   describe('watchChanges — live-only mode (afterId === undefined) and unconditional registrations', () => {
     it('should not call changeLogService.getMinEventId when afterId is undefined', async () => {
-      const sub = controller.watchChanges({}, makeUser()).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges({}, makeUser())
+        .subscribe({ error: () => {} });
       await flushMicrotasks();
       expect(changeLogService.getMinEventId).not.toHaveBeenCalled();
       sub.unsubscribe();
     });
 
     it('should not call changeLogService.getChanges when afterId is undefined', async () => {
-      const sub = controller.watchChanges({}, makeUser()).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges({}, makeUser())
+        .subscribe({ error: () => {} });
       await flushMicrotasks();
       expect(changeLogService.getChanges).not.toHaveBeenCalled();
       sub.unsubscribe();
@@ -113,15 +132,25 @@ describe('SyncStreamGrpcController', () => {
 
     it('should register the live push listener via syncStreamService unconditionally when watchChanges is invoked', () => {
       const user = makeUser();
-      const sub = controller.watchChanges({}, user).subscribe({ error: () => {} });
-      expect(syncStreamService.register).toHaveBeenCalledWith(user.sub, expect.any(Function));
+      const sub = controller
+        .watchChanges({}, user)
+        .subscribe({ error: () => {} });
+      expect(syncStreamService.register).toHaveBeenCalledWith(
+        user.sub,
+        expect.any(Function),
+      );
       sub.unsubscribe();
     });
 
     it('should register the subscriber with activeStreamRegistry unconditionally when watchChanges is invoked', () => {
       const user = makeUser();
-      const sub = controller.watchChanges({}, user).subscribe({ error: () => {} });
-      expect(activeStreamRegistry.register).toHaveBeenCalledWith(user.sub, expect.any(Subscriber));
+      const sub = controller
+        .watchChanges({}, user)
+        .subscribe({ error: () => {} });
+      expect(activeStreamRegistry.register).toHaveBeenCalledWith(
+        user.sub,
+        expect.any(Subscriber),
+      );
       sub.unsubscribe();
     });
   });
@@ -142,7 +171,9 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should call changeLogService.getMinEventId once when afterId is provided', async () => {
-      const sub = controller.watchChanges(request, makeUser()).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges(request, makeUser())
+        .subscribe({ error: () => {} });
       await flushMicrotasks();
       expect(changeLogService.getMinEventId).toHaveBeenCalledTimes(1);
       sub.unsubscribe();
@@ -150,10 +181,16 @@ describe('SyncStreamGrpcController', () => {
 
     it('should call changeLogService.getChanges once with (userId, Number(afterId), 100) when hasMore is false on first call', async () => {
       const user = makeUser();
-      const sub = controller.watchChanges(request, user).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges(request, user)
+        .subscribe({ error: () => {} });
       await flushMicrotasks();
       expect(changeLogService.getChanges).toHaveBeenCalledTimes(1);
-      expect(changeLogService.getChanges).toHaveBeenCalledWith(user.sub, 42, 100);
+      expect(changeLogService.getChanges).toHaveBeenCalledWith(
+        user.sub,
+        42,
+        100,
+      );
       sub.unsubscribe();
     });
 
@@ -185,8 +222,13 @@ describe('SyncStreamGrpcController', () => {
       sub.unsubscribe();
     });
 
-    it('should preserve id, entity, refId and action fields from the replay event in the emitted wrapper\'s inner event', async () => {
-      const dbEvent = makeDbEvent({ id: 99, entity: 'breath_session', refId: 'ref-abc', action: 'updated' });
+    it("should preserve id, entity, refId and action fields from the replay event in the emitted wrapper's inner event", async () => {
+      const dbEvent = makeDbEvent({
+        id: 99,
+        entity: 'breath_session',
+        refId: 'ref-abc',
+        action: 'updated',
+      });
       changeLogService.getChanges.mockResolvedValue({
         events: [dbEvent],
         cursor: 42,
@@ -215,16 +257,32 @@ describe('SyncStreamGrpcController', () => {
     let eventB: any;
 
     beforeEach(() => {
-      eventA = makeDbEvent({ id: 20, entity: 'entity_a', refId: 'ref-a', action: 'created' });
-      eventB = makeDbEvent({ id: 30, entity: 'entity_b', refId: 'ref-b', action: 'updated' });
+      eventA = makeDbEvent({
+        id: 20,
+        entity: 'entity_a',
+        refId: 'ref-a',
+        action: 'created',
+      });
+      eventB = makeDbEvent({
+        id: 30,
+        entity: 'entity_b',
+        refId: 'ref-b',
+        action: 'updated',
+      });
       changeLogService.getMinEventId.mockResolvedValue(1);
       changeLogService.getChanges
         .mockResolvedValueOnce({ events: [eventA], cursor: 50, hasMore: true })
-        .mockResolvedValueOnce({ events: [eventB], cursor: 75, hasMore: false });
+        .mockResolvedValueOnce({
+          events: [eventB],
+          cursor: 75,
+          hasMore: false,
+        });
     });
 
     it('should call changeLogService.getChanges twice when first batch returns hasMore true and second returns hasMore false', async () => {
-      const sub = controller.watchChanges(request, makeUser()).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges(request, makeUser())
+        .subscribe({ error: () => {} });
       await flushMicrotasks(5);
       expect(changeLogService.getChanges).toHaveBeenCalledTimes(2);
       sub.unsubscribe();
@@ -232,17 +290,31 @@ describe('SyncStreamGrpcController', () => {
 
     it('should pass Number(request.afterId) as the cursor argument on the first getChanges call', async () => {
       const user = makeUser();
-      const sub = controller.watchChanges(request, user).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges(request, user)
+        .subscribe({ error: () => {} });
       await flushMicrotasks(5);
-      expect(changeLogService.getChanges).toHaveBeenNthCalledWith(1, user.sub, 10, 100);
+      expect(changeLogService.getChanges).toHaveBeenNthCalledWith(
+        1,
+        user.sub,
+        10,
+        100,
+      );
       sub.unsubscribe();
     });
 
     it("should use the cursor returned by the first batch as the second getChanges call's cursor argument", async () => {
       const user = makeUser();
-      const sub = controller.watchChanges(request, user).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges(request, user)
+        .subscribe({ error: () => {} });
       await flushMicrotasks(5);
-      expect(changeLogService.getChanges).toHaveBeenNthCalledWith(2, user.sub, 50, 100);
+      expect(changeLogService.getChanges).toHaveBeenNthCalledWith(
+        2,
+        user.sub,
+        50,
+        100,
+      );
       sub.unsubscribe();
     });
 
@@ -260,7 +332,9 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should stop calling getChanges after hasMore becomes false', async () => {
-      const sub = controller.watchChanges(request, makeUser()).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges(request, makeUser())
+        .subscribe({ error: () => {} });
       await flushMicrotasks(5);
       expect(changeLogService.getChanges).toHaveBeenCalledTimes(2);
       await flushMicrotasks(5);
@@ -294,10 +368,14 @@ describe('SyncStreamGrpcController', () => {
 
     it('should call syncStreamService.deregister before emitting the FAILED_PRECONDITION error', async () => {
       const callOrder: string[] = [];
-      syncStreamService.deregister = jest.fn(() => { callOrder.push('deregister'); });
+      syncStreamService.deregister = jest.fn(() => {
+        callOrder.push('deregister');
+      });
 
       controller.watchChanges(request, makeUser()).subscribe({
-        error: () => { callOrder.push('error'); },
+        error: () => {
+          callOrder.push('error');
+        },
       });
 
       await flushMicrotasks();
@@ -307,14 +385,16 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should not call changeLogService.getChanges when the cursor is too old', async () => {
-      controller.watchChanges(request, makeUser()).subscribe({ error: () => {} });
+      controller
+        .watchChanges(request, makeUser())
+        .subscribe({ error: () => {} });
       await flushMicrotasks();
       expect(changeLogService.getChanges).not.toHaveBeenCalled();
     });
 
     it('should pass the same pushFn captured by syncStreamService.register to syncStreamService.deregister on cursor-too-old', async () => {
       let capturedPushFn: ((events: any[]) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -324,7 +404,10 @@ describe('SyncStreamGrpcController', () => {
 
       await flushMicrotasks();
 
-      expect(syncStreamService.deregister).toHaveBeenCalledWith(userId, capturedPushFn);
+      expect(syncStreamService.deregister).toHaveBeenCalledWith(
+        userId,
+        capturedPushFn,
+      );
     });
   });
 
@@ -345,7 +428,9 @@ describe('SyncStreamGrpcController', () => {
     it('should not emit FAILED_PRECONDITION when afterId is 0 even if minEventId is 100', async () => {
       let errored = false;
       const sub = controller.watchChanges(request, makeUser()).subscribe({
-        error: () => { errored = true; },
+        error: () => {
+          errored = true;
+        },
       });
       await flushMicrotasks();
       expect(errored).toBe(false);
@@ -354,9 +439,15 @@ describe('SyncStreamGrpcController', () => {
 
     it('should proceed to call changeLogService.getChanges when afterId is 0 and minEventId is 100', async () => {
       const user = makeUser();
-      const sub = controller.watchChanges(request, user).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges(request, user)
+        .subscribe({ error: () => {} });
       await flushMicrotasks();
-      expect(changeLogService.getChanges).toHaveBeenCalledWith(user.sub, 0, 100);
+      expect(changeLogService.getChanges).toHaveBeenCalledWith(
+        user.sub,
+        0,
+        100,
+      );
       sub.unsubscribe();
     });
 
@@ -390,7 +481,9 @@ describe('SyncStreamGrpcController', () => {
     it('should not emit FAILED_PRECONDITION when minEventId is null even if afterId is greater than 0', async () => {
       let errored = false;
       const sub = controller.watchChanges(request, makeUser()).subscribe({
-        error: () => { errored = true; },
+        error: () => {
+          errored = true;
+        },
       });
       await flushMicrotasks();
       expect(errored).toBe(false);
@@ -399,9 +492,15 @@ describe('SyncStreamGrpcController', () => {
 
     it('should call changeLogService.getChanges with (userId, Number(afterId), 100) when minEventId is null', async () => {
       const user = makeUser();
-      const sub = controller.watchChanges(request, user).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges(request, user)
+        .subscribe({ error: () => {} });
       await flushMicrotasks();
-      expect(changeLogService.getChanges).toHaveBeenCalledWith(user.sub, 50, 100);
+      expect(changeLogService.getChanges).toHaveBeenCalledWith(
+        user.sub,
+        50,
+        100,
+      );
       sub.unsubscribe();
     });
   });
@@ -417,7 +516,11 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should not call subscriber.next for a batch whose events array is empty', async () => {
-      changeLogService.getChanges.mockResolvedValue({ events: [], cursor: 10, hasMore: false });
+      changeLogService.getChanges.mockResolvedValue({
+        events: [],
+        cursor: 10,
+        hasMore: false,
+      });
       const emitted: any[] = [];
       const sub = controller.watchChanges(request, makeUser()).subscribe({
         next: (v) => emitted.push(v),
@@ -432,7 +535,11 @@ describe('SyncStreamGrpcController', () => {
       const secondEvent = makeDbEvent({ id: 15 });
       changeLogService.getChanges
         .mockResolvedValueOnce({ events: [], cursor: 5, hasMore: true })
-        .mockResolvedValueOnce({ events: [secondEvent], cursor: 10, hasMore: false });
+        .mockResolvedValueOnce({
+          events: [secondEvent],
+          cursor: 10,
+          hasMore: false,
+        });
 
       const emitted: any[] = [];
       const sub = controller.watchChanges(request, makeUser()).subscribe({
@@ -451,16 +558,22 @@ describe('SyncStreamGrpcController', () => {
   describe('watchChanges — listener registration ordering', () => {
     it('should call syncStreamService.register before changeLogService.getMinEventId is called', async () => {
       const callOrder: string[] = [];
-      (syncStreamService.register as jest.Mock).mockImplementation(() => {
+      syncStreamService.register.mockImplementation(() => {
         callOrder.push('register');
       });
-      (changeLogService.getMinEventId as jest.Mock).mockImplementation(() => {
+      changeLogService.getMinEventId.mockImplementation(() => {
         callOrder.push('getMinEventId');
         return Promise.resolve(1);
       });
-      changeLogService.getChanges.mockResolvedValue({ events: [], cursor: 0, hasMore: false });
+      changeLogService.getChanges.mockResolvedValue({
+        events: [],
+        cursor: 0,
+        hasMore: false,
+      });
 
-      const sub = controller.watchChanges({ afterId: 0 }, makeUser()).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges({ afterId: 0 }, makeUser())
+        .subscribe({ error: () => {} });
       await flushMicrotasks();
 
       expect(callOrder[0]).toBe('register');
@@ -470,35 +583,41 @@ describe('SyncStreamGrpcController', () => {
 
     it('should call syncStreamService.register before changeLogService.getChanges is called', async () => {
       const callOrder: string[] = [];
-      (syncStreamService.register as jest.Mock).mockImplementation(() => {
+      syncStreamService.register.mockImplementation(() => {
         callOrder.push('register');
       });
-      (changeLogService.getMinEventId as jest.Mock).mockImplementation(() => {
+      changeLogService.getMinEventId.mockImplementation(() => {
         return Promise.resolve(1);
       });
-      (changeLogService.getChanges as jest.Mock).mockImplementation(() => {
+      changeLogService.getChanges.mockImplementation(() => {
         callOrder.push('getChanges');
         return Promise.resolve({ events: [], cursor: 0, hasMore: false });
       });
 
-      const sub = controller.watchChanges({ afterId: 0 }, makeUser()).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges({ afterId: 0 }, makeUser())
+        .subscribe({ error: () => {} });
       await flushMicrotasks();
 
       expect(callOrder[0]).toBe('register');
-      expect(callOrder.indexOf('register')).toBeLessThan(callOrder.indexOf('getChanges'));
+      expect(callOrder.indexOf('register')).toBeLessThan(
+        callOrder.indexOf('getChanges'),
+      );
       sub.unsubscribe();
     });
 
     it('should call activeStreamRegistry.register before syncStreamService.register', () => {
       const callOrder: string[] = [];
-      (activeStreamRegistry.register as jest.Mock).mockImplementation(() => {
+      activeStreamRegistry.register.mockImplementation(() => {
         callOrder.push('activeStreamRegistry.register');
       });
-      (syncStreamService.register as jest.Mock).mockImplementation(() => {
+      syncStreamService.register.mockImplementation(() => {
         callOrder.push('syncStreamService.register');
       });
 
-      const sub = controller.watchChanges({ afterId: 0 }, makeUser()).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges({ afterId: 0 }, makeUser())
+        .subscribe({ error: () => {} });
 
       expect(callOrder[0]).toBe('activeStreamRegistry.register');
       expect(callOrder[1]).toBe('syncStreamService.register');
@@ -510,8 +629,17 @@ describe('SyncStreamGrpcController', () => {
 
   describe('watchChanges — live-only mode — direct delivery via pushFn', () => {
     it('should emit a ChangeEvent wrapper directly via subscriber.next when pushFn is invoked in live-only mode', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -530,8 +658,17 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should preserve raw event fields (id, entity, refId, action) when emitting via pushFn in live-only mode', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -542,7 +679,14 @@ describe('SyncStreamGrpcController', () => {
       });
       await flushMicrotasks();
 
-      capturedPushFn!([{ id: 42, entity: 'breath_session', refId: 'ref-xyz', action: 'updated' }]);
+      capturedPushFn!([
+        {
+          id: 42,
+          entity: 'breath_session',
+          refId: 'ref-xyz',
+          action: 'updated',
+        },
+      ]);
 
       expect(emitted[0].events[0].id).toBe(42);
       expect(emitted[0].events[0].entity).toBe('breath_session');
@@ -552,8 +696,17 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should stamp createdAt as an ISO 8601 string on each event emitted via pushFn', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -566,13 +719,24 @@ describe('SyncStreamGrpcController', () => {
 
       capturedPushFn!([{ id: 1, entity: 'e', refId: 'r', action: 'created' }]);
 
-      expect(emitted[0].events[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      expect(emitted[0].events[0].createdAt).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+      );
       sub.unsubscribe();
     });
 
     it('should not buffer events in live-only mode — every pushFn invocation emits a new wrapper', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -591,8 +755,17 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should flip isDirect synchronously in live-only mode so pushFn emits immediately without awaiting microtasks', () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -615,8 +788,17 @@ describe('SyncStreamGrpcController', () => {
 
   describe('watchChanges — buffer flush after replay', () => {
     it('should buffer events delivered during replay and flush them after replay completes', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -628,13 +810,17 @@ describe('SyncStreamGrpcController', () => {
       });
 
       const emitted: any[] = [];
-      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
-        next: (v) => emitted.push(v),
-        error: () => {},
-      });
+      const sub = controller
+        .watchChanges({ afterId: 10 }, makeUser())
+        .subscribe({
+          next: (v) => emitted.push(v),
+          error: () => {},
+        });
 
       // Push while isDirect === false (replay not yet complete)
-      capturedPushFn!([{ id: 101, entity: 'e', refId: 'r', action: 'created' }]);
+      capturedPushFn!([
+        { id: 101, entity: 'e', refId: 'r', action: 'created' },
+      ]);
 
       await flushMicrotasks();
 
@@ -645,8 +831,17 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should filter buffered events whose id is less than or equal to lastReplayedCursor before flushing', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -658,10 +853,12 @@ describe('SyncStreamGrpcController', () => {
       });
 
       const emitted: any[] = [];
-      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
-        next: (v) => emitted.push(v),
-        error: () => {},
-      });
+      const sub = controller
+        .watchChanges({ afterId: 10 }, makeUser())
+        .subscribe({
+          next: (v) => emitted.push(v),
+          error: () => {},
+        });
 
       capturedPushFn!([
         { id: 95, entity: 'e', refId: 'r', action: 'created' },
@@ -681,8 +878,17 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should emit no flush wrapper when every buffered event id is at or below lastReplayedCursor', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -694,10 +900,12 @@ describe('SyncStreamGrpcController', () => {
       });
 
       const emitted: any[] = [];
-      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
-        next: (v) => emitted.push(v),
-        error: () => {},
-      });
+      const sub = controller
+        .watchChanges({ afterId: 10 }, makeUser())
+        .subscribe({
+          next: (v) => emitted.push(v),
+          error: () => {},
+        });
 
       capturedPushFn!([
         { id: 50, entity: 'e', refId: 'r', action: 'created' },
@@ -712,8 +920,17 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should clear the buffer after flushing — subsequent pushFn calls do not re-emit flushed events', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -725,18 +942,24 @@ describe('SyncStreamGrpcController', () => {
       });
 
       const emitted: any[] = [];
-      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
-        next: (v) => emitted.push(v),
-        error: () => {},
-      });
+      const sub = controller
+        .watchChanges({ afterId: 10 }, makeUser())
+        .subscribe({
+          next: (v) => emitted.push(v),
+          error: () => {},
+        });
 
       // Push into buffer during replay
-      capturedPushFn!([{ id: 101, entity: 'e', refId: 'r', action: 'created' }]);
+      capturedPushFn!([
+        { id: 101, entity: 'e', refId: 'r', action: 'created' },
+      ]);
 
       await flushMicrotasks();
 
       // Now isDirect === true; push a new event
-      capturedPushFn!([{ id: 200, entity: 'e', refId: 'r', action: 'created' }]);
+      capturedPushFn!([
+        { id: 200, entity: 'e', refId: 'r', action: 'created' },
+      ]);
 
       // The latest wrapper must contain only id=200 — buffer was drained by splice(0)
       const lastEmission = emitted[emitted.length - 1];
@@ -750,8 +973,17 @@ describe('SyncStreamGrpcController', () => {
 
   describe('watchChanges — direct-mode boundary-straddle dedup (pushFn after replay)', () => {
     it('should drop direct-mode events whose id is less than or equal to lastReplayedCursor', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -763,10 +995,12 @@ describe('SyncStreamGrpcController', () => {
       });
 
       const emitted: any[] = [];
-      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
-        next: (v) => emitted.push(v),
-        error: () => {},
-      });
+      const sub = controller
+        .watchChanges({ afterId: 10 }, makeUser())
+        .subscribe({
+          next: (v) => emitted.push(v),
+          error: () => {},
+        });
 
       await flushMicrotasks();
 
@@ -787,8 +1021,17 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should not call subscriber.next when every direct-mode event id is at or below lastReplayedCursor', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -800,10 +1043,12 @@ describe('SyncStreamGrpcController', () => {
       });
 
       const emitted: any[] = [];
-      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
-        next: (v) => emitted.push(v),
-        error: () => {},
-      });
+      const sub = controller
+        .watchChanges({ afterId: 10 }, makeUser())
+        .subscribe({
+          next: (v) => emitted.push(v),
+          error: () => {},
+        });
 
       await flushMicrotasks();
 
@@ -819,8 +1064,17 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should emit all direct-mode events when every id is strictly greater than lastReplayedCursor', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -832,10 +1086,12 @@ describe('SyncStreamGrpcController', () => {
       });
 
       const emitted: any[] = [];
-      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
-        next: (v) => emitted.push(v),
-        error: () => {},
-      });
+      const sub = controller
+        .watchChanges({ afterId: 10 }, makeUser())
+        .subscribe({
+          next: (v) => emitted.push(v),
+          error: () => {},
+        });
 
       await flushMicrotasks();
 
@@ -853,8 +1109,17 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should stamp createdAt as an ISO 8601 string on direct-mode events', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -866,16 +1131,22 @@ describe('SyncStreamGrpcController', () => {
       });
 
       const emitted: any[] = [];
-      const sub = controller.watchChanges({ afterId: 10 }, makeUser()).subscribe({
-        next: (v) => emitted.push(v),
-        error: () => {},
-      });
+      const sub = controller
+        .watchChanges({ afterId: 10 }, makeUser())
+        .subscribe({
+          next: (v) => emitted.push(v),
+          error: () => {},
+        });
 
       await flushMicrotasks();
 
-      capturedPushFn!([{ id: 200, entity: 'e', refId: 'r', action: 'created' }]);
+      capturedPushFn!([
+        { id: 200, entity: 'e', refId: 'r', action: 'created' },
+      ]);
 
-      expect(emitted[1].events[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      expect(emitted[1].events[0].createdAt).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+      );
       sub.unsubscribe();
     });
   });
@@ -885,26 +1156,47 @@ describe('SyncStreamGrpcController', () => {
   describe('watchChanges — teardown via subscription.unsubscribe()', () => {
     it('should call activeStreamRegistry.deregister with (userId, subscriber) when the subscription is unsubscribed', () => {
       const user = makeUser();
-      const sub = controller.watchChanges({}, user).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges({}, user)
+        .subscribe({ error: () => {} });
       sub.unsubscribe();
-      expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(user.sub, expect.any(Subscriber));
+      expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(
+        user.sub,
+        expect.any(Subscriber),
+      );
     });
 
     it('should call syncStreamService.deregister with (userId, pushFn) when the subscription is unsubscribed', () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
       const user = makeUser();
-      const sub = controller.watchChanges({}, user).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges({}, user)
+        .subscribe({ error: () => {} });
       sub.unsubscribe();
 
-      expect(syncStreamService.deregister).toHaveBeenCalledWith(user.sub, capturedPushFn);
+      expect(syncStreamService.deregister).toHaveBeenCalledWith(
+        user.sub,
+        capturedPushFn,
+      );
     });
 
     it('should not call activeStreamRegistry.deregister or syncStreamService.deregister before unsubscribe', async () => {
-      const sub = controller.watchChanges({}, makeUser()).subscribe({ error: () => {} });
+      const sub = controller
+        .watchChanges({}, makeUser())
+        .subscribe({ error: () => {} });
       await flushMicrotasks();
 
       expect(activeStreamRegistry.deregister).not.toHaveBeenCalled();
@@ -914,26 +1206,54 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should call syncStreamService.deregister exactly twice on the cursor-too-old path (explicit + teardown)', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
       changeLogService.getMinEventId.mockResolvedValue(100);
 
       const user = makeUser();
-      controller.watchChanges({ afterId: 50 }, user).subscribe({ error: () => {} });
+      controller
+        .watchChanges({ afterId: 50 }, user)
+        .subscribe({ error: () => {} });
 
       await flushMicrotasks();
 
       expect(syncStreamService.deregister).toHaveBeenCalledTimes(2);
-      expect(syncStreamService.deregister).toHaveBeenNthCalledWith(1, user.sub, capturedPushFn);
-      expect(syncStreamService.deregister).toHaveBeenNthCalledWith(2, user.sub, capturedPushFn);
+      expect(syncStreamService.deregister).toHaveBeenNthCalledWith(
+        1,
+        user.sub,
+        capturedPushFn,
+      );
+      expect(syncStreamService.deregister).toHaveBeenNthCalledWith(
+        2,
+        user.sub,
+        capturedPushFn,
+      );
     });
 
     it('should not throw when syncStreamService.deregister is invoked twice on the cursor-too-old path', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -941,7 +1261,9 @@ describe('SyncStreamGrpcController', () => {
 
       let errorReceived: any;
       controller.watchChanges({ afterId: 50 }, makeUser()).subscribe({
-        error: (e) => { errorReceived = e; },
+        error: (e) => {
+          errorReceived = e;
+        },
       });
 
       await flushMicrotasks();
@@ -956,12 +1278,17 @@ describe('SyncStreamGrpcController', () => {
       changeLogService.getMinEventId.mockResolvedValue(100);
 
       const user = makeUser();
-      controller.watchChanges({ afterId: 50 }, user).subscribe({ error: () => {} });
+      controller
+        .watchChanges({ afterId: 50 }, user)
+        .subscribe({ error: () => {} });
 
       await flushMicrotasks();
 
       expect(activeStreamRegistry.deregister).toHaveBeenCalledTimes(1);
-      expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(user.sub, expect.any(Subscriber));
+      expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(
+        user.sub,
+        expect.any(Subscriber),
+      );
     });
   });
 
@@ -973,16 +1300,36 @@ describe('SyncStreamGrpcController', () => {
 
       let subRef: any;
 
-      (changeLogService.getChanges as jest.Mock)
-        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
+      changeLogService.getChanges
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            events: [makeDbEvent({ id: 10 })],
+            cursor: 10,
+            hasMore: true,
+          }),
+        )
         .mockImplementationOnce(() => {
           subRef!.unsubscribe();
-          return Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true });
+          return Promise.resolve({
+            events: [makeDbEvent({ id: 10 })],
+            cursor: 10,
+            hasMore: true,
+          });
         })
-        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
-        .mockImplementationOnce(() => Promise.resolve({ events: [], cursor: 10, hasMore: false }));
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            events: [makeDbEvent({ id: 10 })],
+            cursor: 10,
+            hasMore: true,
+          }),
+        )
+        .mockImplementationOnce(() =>
+          Promise.resolve({ events: [], cursor: 10, hasMore: false }),
+        );
 
-      subRef = controller.watchChanges({ afterId: 0 }, makeUser()).subscribe({ error: () => {} });
+      subRef = controller
+        .watchChanges({ afterId: 0 }, makeUser())
+        .subscribe({ error: () => {} });
 
       await flushMicrotasks(10);
 
@@ -995,14 +1342,32 @@ describe('SyncStreamGrpcController', () => {
       let subRef: any;
       const emitted: any[] = [];
 
-      (changeLogService.getChanges as jest.Mock)
-        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
+      changeLogService.getChanges
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            events: [makeDbEvent({ id: 10 })],
+            cursor: 10,
+            hasMore: true,
+          }),
+        )
         .mockImplementationOnce(() => {
           subRef!.unsubscribe();
-          return Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true });
+          return Promise.resolve({
+            events: [makeDbEvent({ id: 10 })],
+            cursor: 10,
+            hasMore: true,
+          });
         })
-        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
-        .mockImplementationOnce(() => Promise.resolve({ events: [], cursor: 10, hasMore: false }));
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            events: [makeDbEvent({ id: 10 })],
+            cursor: 10,
+            hasMore: true,
+          }),
+        )
+        .mockImplementationOnce(() =>
+          Promise.resolve({ events: [], cursor: 10, hasMore: false }),
+        );
 
       subRef = controller.watchChanges({ afterId: 0 }, makeUser()).subscribe({
         next: (v) => emitted.push(v),
@@ -1015,8 +1380,17 @@ describe('SyncStreamGrpcController', () => {
     });
 
     it('should still run the subscriber.add teardown (both deregister calls) when unsubscribe happens mid-replay', async () => {
-      let capturedPushFn: ((events: Array<{ id: number; entity: string; refId: string; action: string }>) => void) | undefined;
-      (syncStreamService.register as jest.Mock).mockImplementation((_userId, fn) => {
+      let capturedPushFn:
+        | ((
+            events: Array<{
+              id: number;
+              entity: string;
+              refId: string;
+              action: string;
+            }>,
+          ) => void)
+        | undefined;
+      syncStreamService.register.mockImplementation((_userId, fn) => {
         capturedPushFn = fn;
       });
 
@@ -1024,22 +1398,48 @@ describe('SyncStreamGrpcController', () => {
 
       let subRef: any;
 
-      (changeLogService.getChanges as jest.Mock)
-        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
+      changeLogService.getChanges
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            events: [makeDbEvent({ id: 10 })],
+            cursor: 10,
+            hasMore: true,
+          }),
+        )
         .mockImplementationOnce(() => {
           subRef!.unsubscribe();
-          return Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true });
+          return Promise.resolve({
+            events: [makeDbEvent({ id: 10 })],
+            cursor: 10,
+            hasMore: true,
+          });
         })
-        .mockImplementationOnce(() => Promise.resolve({ events: [makeDbEvent({ id: 10 })], cursor: 10, hasMore: true }))
-        .mockImplementationOnce(() => Promise.resolve({ events: [], cursor: 10, hasMore: false }));
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            events: [makeDbEvent({ id: 10 })],
+            cursor: 10,
+            hasMore: true,
+          }),
+        )
+        .mockImplementationOnce(() =>
+          Promise.resolve({ events: [], cursor: 10, hasMore: false }),
+        );
 
       const user = makeUser();
-      subRef = controller.watchChanges({ afterId: 0 }, user).subscribe({ error: () => {} });
+      subRef = controller
+        .watchChanges({ afterId: 0 }, user)
+        .subscribe({ error: () => {} });
 
       await flushMicrotasks(10);
 
-      expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(user.sub, expect.any(Subscriber));
-      expect(syncStreamService.deregister).toHaveBeenCalledWith(user.sub, capturedPushFn);
+      expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(
+        user.sub,
+        expect.any(Subscriber),
+      );
+      expect(syncStreamService.deregister).toHaveBeenCalledWith(
+        user.sub,
+        capturedPushFn,
+      );
     });
   });
 });

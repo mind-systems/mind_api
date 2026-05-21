@@ -1,4 +1,9 @@
-import { Controller, Logger, UseFilters, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Logger,
+  UseFilters,
+  UseInterceptors,
+} from '@nestjs/common';
 import { Payload, RpcException } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
@@ -67,7 +72,10 @@ export class ModuleStateGrpcController {
     return new Observable<StateResponse>((subscriber) => {
       if (!user) {
         subscriber.error(
-          new RpcException({ code: GrpcStatus.UNAUTHENTICATED, message: 'Missing user context' }),
+          new RpcException({
+            code: GrpcStatus.UNAUTHENTICATED,
+            message: 'Missing user context',
+          }),
         );
         return;
       }
@@ -90,7 +98,9 @@ export class ModuleStateGrpcController {
               isPaused: false,
             },
           });
-          this.logger.log(`Session resumed on reconnect: userId=${userId} sessionId=${session.id}`);
+          this.logger.log(
+            `Session resumed on reconnect: userId=${userId} sessionId=${session.id}`,
+          );
         }
 
         connectedAt = Date.now();
@@ -98,7 +108,10 @@ export class ModuleStateGrpcController {
         const cmdSub = request.subscribe({
           next: (msg: StateRequest) => {
             this.routeCommand(userId, msg, subscriber).catch((err: unknown) => {
-              this.logger.error(`Unhandled error routing command: userId=${userId}`, err);
+              this.logger.error(
+                `Unhandled error routing command: userId=${userId}`,
+                err,
+              );
               subscriber.next({
                 sessionError: {
                   code: 'INTERNAL_ERROR',
@@ -131,12 +144,17 @@ export class ModuleStateGrpcController {
       subscriber.add(() => {
         this.activeStreamRegistry.deregister(userId, subscriber);
         const connectedDurationMs = connectedAt ? Date.now() - connectedAt : 0;
-        this.logger.log(`Disconnected: userId=${userId} connectedDurationMs=${connectedDurationMs}`);
+        this.logger.log(
+          `Disconnected: userId=${userId} connectedDurationMs=${connectedDurationMs}`,
+        );
 
         (async () => {
           await this.activityEngine.handleTransportDisconnect(userId);
         })().catch((err: unknown) => {
-          this.logger.error(`Failed to record disconnect: userId=${userId}`, err);
+          this.logger.error(
+            `Failed to record disconnect: userId=${userId}`,
+            err,
+          );
         });
 
         this.rateLimiterService.evict(`activity-start:${userId}`);
@@ -149,7 +167,10 @@ export class ModuleStateGrpcController {
     try {
       await this.activityEngine.stopActivity(payload.userId);
     } catch (err: unknown) {
-      this.logger.error(`Failed to stop activity on session revoke: userId=${payload.userId}`, err);
+      this.logger.error(
+        `Failed to stop activity on session revoke: userId=${payload.userId}`,
+        err,
+      );
     }
     this.activeStreamRegistry.closeAll(payload.userId);
   }
@@ -180,7 +201,10 @@ export class ModuleStateGrpcController {
         });
       }
     } catch (err: unknown) {
-      this.logger.error(`Unexpected error handling command: userId=${userId}`, err);
+      this.logger.error(
+        `Unexpected error handling command: userId=${userId}`,
+        err,
+      );
       subscriber.next({
         sessionError: {
           code: 'INTERNAL_ERROR',
@@ -247,7 +271,9 @@ export class ModuleStateGrpcController {
         status: ActivityStatus.ACTIVE,
       },
     });
-    this.logger.log(`Activity started: userId=${userId} sessionId=${session.id}`);
+    this.logger.log(
+      `Activity started: userId=${userId} sessionId=${session.id}`,
+    );
   }
 
   private async handleActivityEnd(
@@ -277,10 +303,15 @@ export class ModuleStateGrpcController {
         status: ActivityStatus.INTERRUPTED,
       },
     });
-    this.logger.log(`Activity stopped: userId=${userId} sessionId=${session.id}`);
+    this.logger.log(
+      `Activity stopped: userId=${userId} sessionId=${session.id}`,
+    );
   }
 
-  private handleActivityPause(userId: string, subscriber: Subscriber<StateResponse>): void {
+  private handleActivityPause(
+    userId: string,
+    subscriber: Subscriber<StateResponse>,
+  ): void {
     try {
       const state = this.activityEngine.pauseActivity(userId);
       subscriber.next({
@@ -302,7 +333,10 @@ export class ModuleStateGrpcController {
     }
   }
 
-  private handleActivityResume(userId: string, subscriber: Subscriber<StateResponse>): void {
+  private handleActivityResume(
+    userId: string,
+    subscriber: Subscriber<StateResponse>,
+  ): void {
     try {
       const state = this.activityEngine.unpauseActivity(userId);
       subscriber.next({
@@ -323,5 +357,4 @@ export class ModuleStateGrpcController {
       });
     }
   }
-
 }

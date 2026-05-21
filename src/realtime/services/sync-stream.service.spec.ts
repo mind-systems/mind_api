@@ -2,7 +2,12 @@ import { SyncStreamService, LiveEvent } from './sync-stream.service';
 
 function makePayload(
   userId: string,
-  overrides: Partial<{ id: number; entity: string; refId: string; action: string }> = {},
+  overrides: Partial<{
+    id: number;
+    entity: string;
+    refId: string;
+    action: string;
+  }> = {},
 ): any {
   return {
     id: overrides.id ?? 1,
@@ -196,7 +201,12 @@ describe('SyncStreamService', () => {
       });
       jest.advanceTimersByTime(300);
       expect(cb).toHaveBeenCalledWith([
-        { id: 42, entity: 'breath_session', refId: 'ref-abc', action: 'CREATED' },
+        {
+          id: 42,
+          entity: 'breath_session',
+          refId: 'ref-abc',
+          action: 'CREATED',
+        },
       ]);
     });
 
