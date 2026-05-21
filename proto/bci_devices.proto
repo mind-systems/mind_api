@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package mind;
+
+import "google/protobuf/empty.proto";
+
+// ---------------------------------------------------------------------------
+// Shared types
+// ---------------------------------------------------------------------------
+
+// Maps to BciDevice entity in src/bci/entities/bci-device.entity.ts.
+// created_at / updated_at are ISO-8601 strings to match the project convention
+// used in SyncEventDto (proto/sync.proto).
+message BciDevice {
+  string id = 1;
+  string serial = 2;
+  string created_at = 3;
+  string updated_at = 4;
+}
+
+// ---------------------------------------------------------------------------
+// Per-RPC request / response messages
+// ---------------------------------------------------------------------------
+
+// List — auth identity comes from metadata/interceptor, not the message.
+message ListBciDevicesResponse {
+  repeated BciDevice devices = 1;
+}
+
+// Register — auth identity comes from metadata/interceptor, not the message.
+message RegisterBciDeviceRequest {
+  string serial = 1;
+}
+
+// Delete — auth identity comes from metadata/interceptor, not the message.
+message DeleteBciDeviceRequest {
+  string id = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Service definition
+//
+// List   — unary RPC returning all BCI devices registered to the authenticated user.
+// Register — unary RPC that registers a new BCI device by serial number and
+//            returns the created BciDevice record.
+// Delete — unary RPC that removes a BCI device by id; returns Empty on success.
+// ---------------------------------------------------------------------------
+
+service BciDevicesService {
+  rpc List(google.protobuf.Empty) returns (ListBciDevicesResponse);
+  rpc Register(RegisterBciDeviceRequest) returns (BciDevice);
+  rpc Delete(DeleteBciDeviceRequest) returns (google.protobuf.Empty);
+}
