@@ -68,9 +68,9 @@ session_started → breath_phase → … → paused → resumed → … → sess
                                                                           ├── session_abandoned  (grace period истёк)
                                                                           └── session_interrupted (activity:stop)
 
-Биометрическая шкала (будущее)
-────────────────────────────────
-HR sample → HR sample → SpO2 → respiration → …
+Биометрическая шкала
+────────────────────
+cardio → nfb → emotions → cardio → …
 ```
 
 Аналитика выполняет time-join по `moduleSessionId + timestamp`. Поток инструкций должен быть полным — содержать все lifecycle-переходы, чтобы любой биометрический пробел объяснялся без обращения к отдельной таблице.
@@ -80,7 +80,7 @@ T+6000ms: инструкция — exhale 6s
 T+6000–T+12000ms: биосигнал дыхания → совпадает ли реальный паттерн?
 ```
 
-Биометрические потоки (дыхательный пояс, ЭЭГ) пойдут через отдельный gRPC-сервис и отдельную таблицу, но будут привязываться к той же `ModuleSession` по `moduleSessionId`.
+Биометрические сэмплы идут через `ModuleBiometricStreamService` и хранятся в таблице `bio_session_samples`, привязываясь к той же `ModuleSession` по `moduleSessionId`. Подробнее — [Биометрический поток](biometric-stream.md).
 
 ## Пауза и инструкции
 

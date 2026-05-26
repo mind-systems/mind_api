@@ -1,6 +1,6 @@
 # Realtime — Схема базы данных
 
-Realtime-система использует три таблицы. `module_sessions` фиксирует жизненный цикл каждой активности. `session_stream_samples` хранит батчи сэмплов, переданные через `ModuleInstructionStreamService`. `user_stats` содержит агрегированную статистику пользователя.
+Realtime-система использует четыре таблицы. `module_sessions` фиксирует жизненный цикл каждой активности. `session_stream_samples` хранит батчи сэмплов, переданные через `ModuleInstructionStreamService`. `bio_session_samples` хранит батчи биометрических сэмплов, переданные через `ModuleBiometricStreamService`. `user_stats` содержит агрегированную статистику пользователя.
 
 ## module_sessions
 
@@ -33,6 +33,20 @@ Realtime-система использует три таблицы. `module_sess
 | `samples` | jsonb | Массив объектов сэмплов батча. |
 | `flushedAt` | timestamp | Время сброса батча. |
 | `createdAt` | timestamp | |
+
+## bio_session_samples
+
+Хранит батчи биометрических сэмплов, переданные через `ModuleBiometricStreamService`. `BiometricStreamEngine` сбрасывает буфер в эту таблицу каждые 5 секунд или при завершении сессии (`completed`, `abandoned`, `interrupted`) или при отзыве auth-сессии (`session.revoked`).
+
+| Колонка | Тип | Описание |
+|---------|-----|----------|
+| `id` | uuid PK | |
+| `moduleSessionId` | uuid FK → module_sessions | ON DELETE CASCADE. Проиндексирован. |
+| `samples` | jsonb | Массив объектов `{timestamp, sampleType, data}` батча. `sessionId` внутри не дублируется — он избыточен относительно `moduleSessionId` строки. |
+| `flushedAt` | timestamp | Время сброса батча. |
+| `createdAt` | timestamp | |
+
+Структура колонок зеркалит `session_stream_samples`. Биометрические сэмплы и инструкционные сэмплы соединяются аналитикой по `(moduleSessionId, timestamp)` — это позволяет восстановить полную картину сессии: что приложение сказало пользователю и как организм отреагировал.
 
 ## user_stats
 
