@@ -44,7 +44,7 @@ Parallel gRPC bidi stream for biometric samples (cardio / NFB / emotions / futur
 
 - [x] **Migration `AddBioSessionSamplesTable`** — Per note 03 §3. Generate via `npx typeorm migration:create src/migrations/AddBioSessionSamplesTable`. Mirror `session_stream_samples` (`src/migrations/1774863293946-InitialSchema.ts:285-298`) exactly — **quoted camelCase** columns, not snake_case. Columns: `"id"`, `"moduleSessionId"`, `"samples"`, `"flushedAt"`, `"createdAt"`. Constraints: PK `PK_bio_session_samples_id`, FK `FK_bio_session_samples_moduleSessionId` → `module_sessions(id)` CASCADE. Index: `IDX_bio_session_samples_moduleSessionId`. Both `up` and `down`. [7m 11s]
 
-- [ ] **`BioSessionSample` entity + register in `RealtimeModule`** — Per note 03 §3. Create `src/realtime/entities/bio-session-sample.entity.ts` as direct mirror of `session-stream-sample.entity.ts` (camelCase fields, no `name:` mapping). Add to `RealtimeModule.imports`' `TypeOrmModule.forFeature([...])`. `@InjectRepository(BioSessionSample)` confined to `RealtimeModule`.
+- [x] **`BioSessionSample` entity + register in `RealtimeModule`** — Per note 03 §3. Create `src/realtime/entities/bio-session-sample.entity.ts` as direct mirror of `session-stream-sample.entity.ts` (camelCase fields, no `name:` mapping). Add to `RealtimeModule.imports`' `TypeOrmModule.forFeature([...])`. `@InjectRepository(BioSessionSample)` confined to `RealtimeModule`. [4m 34s]
 
 - [ ] **Add `WS_BIO_*` config keys to `realtime-config.ts`** — Append four entries per note 03 §7: `BIO_STREAM_MAX_BUFFER_BYTES`, `BIO_STREAM_MAX_SESSIONS`, `BIO_BACKPRESSURE_SAMPLES_PER_SEC`, `BIO_STREAM_FLUSH_INTERVAL_MS`. Defaults: 1 MB / 1000 / 50 / 5000. File compiles standalone; engine task consumes them next.
 

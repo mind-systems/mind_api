@@ -10,6 +10,7 @@ import { RateLimiterService } from './services/rate-limiter.service';
 import { ObservabilityService } from './services/observability.service';
 import { ModuleSession } from './entities/module-session.entity';
 import { SessionStreamSample } from './entities/session-stream-sample.entity';
+import { BioSessionSample } from './entities/bio-session-sample.entity';
 import { SyncStreamGrpcController } from './sync-stream.grpc.controller';
 import { SyncStreamService } from './services/sync-stream.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
@@ -19,7 +20,7 @@ import { ModuleInstructionStreamGrpcController } from './module-instruction-stre
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([ModuleSession, SessionStreamSample]),
+    TypeOrmModule.forFeature([ModuleSession, SessionStreamSample, BioSessionSample]),
   ],
   controllers: [
     SyncStreamGrpcController,
