@@ -50,7 +50,7 @@ Parallel gRPC bidi stream for biometric samples (cardio / NFB / emotions / futur
 
 - [x] **Introduce `BioSessionBuffer` and `BioSampleInternal` interfaces** — Create `src/realtime/interfaces/bio-session-buffer.interface.ts`. Shapes per note 03 §5 (Why-new-buffer-types subsection): `BioSampleInternal {timestamp, sampleType, data}`, `BioSessionBuffer {sessionId, samples, byteSize, totalReceived, totalDropped}`. Do not reuse `InstructionSample`/`SessionBuffer` — closed shape, explicit `totalDropped` for cumulative drop tracking. [3m 49s]
 
-- [ ] **`BiometricStreamEngine` service** — Implement per `.ai-factory/notes/05-biometric-stream-engine.md` (full spec: DI, lifecycle hooks, `pushBatch`, `flush`/`flushAll`, four `@OnEvent` handlers including `REVOKED` from Phase 18). Register as provider in `RealtimeModule`.
+- [x] **`BiometricStreamEngine` service** — Implement per `.ai-factory/notes/05-biometric-stream-engine.md` (full spec: DI, lifecycle hooks, `pushBatch`, `flush`/`flushAll`, four `@OnEvent` handlers including `REVOKED` from Phase 18). Register as provider in `RealtimeModule`. [6m 57s]
 
 - [ ] **`ModuleBiometricStreamGrpcController`** — Implement per `.ai-factory/notes/06-biometric-stream-controller.md` (full spec: DI of `BiometricStreamEngine`/`ActivityEngine`/shared `ActiveStreamRegistry`, 7-step validation chain in exact order, all five ack fields, warn-log on per-call drops). Register as controller in `RealtimeModule`. Prerequisite: Phase 17 (instruction controller refactored to `@GrpcCurrentUser()`).
 

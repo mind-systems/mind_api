@@ -6,6 +6,7 @@ import { ActivityEngine } from './services/activity-engine.service';
 import { ActivitySessionStore } from './services/activity-session-store.service';
 import { StartupRecoveryService } from './services/startup-recovery.service';
 import { StreamEngine } from './services/stream-engine.service';
+import { BiometricStreamEngine } from './services/biometric-stream-engine.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { ObservabilityService } from './services/observability.service';
 import { ModuleSession } from './entities/module-session.entity';
@@ -34,6 +35,7 @@ import { ModuleInstructionStreamGrpcController } from './module-instruction-stre
     ActivityEngine,
     StartupRecoveryService,
     StreamEngine,
+    BiometricStreamEngine,
     ObservabilityService,
     SyncStreamService,
     ActiveStreamRegistry,
