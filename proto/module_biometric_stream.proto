@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package mind;
+
+import "google/protobuf/struct.proto";
+import "module_state.proto";
+
+// ---------------------------------------------------------------------------
+// Client → server samples
+// ---------------------------------------------------------------------------
+
+// BioSample is one biometric data point sent by the client.
+// session_id ties the sample to an active module session.
+// timestamp is int64 Unix millis — same convention as StateErrorEvent.timestamp.
+// sample_type is a free-string discriminator identifying the biometric kind
+// (e.g. "cardio", "emotions", "nfb"). There is intentionally no module_id:
+// biometric data is not module-shaped; the producing module is implied by
+// the module_sessions.activityType of the associated session.
+// data carries the untyped payload so individual sample types can evolve their
+// schemas independently without a proto change.
+message BioSample {
+  string session_id = 1;
+  int64 timestamp = 2;
+  string sample_type = 3;
+  google.protobuf.Struct data = 4;
+}
+
+// BioSampleBatch groups multiple BioSample messages into one stream frame to
+// reduce per-message overhead over the bidi connection.
+message BioSampleBatch {
+  repeated BioSample samples = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Server → client acknowledgements
+// ---------------------------------------------------------------------------
+
+// BioStreamAck is the server acknowledgement for a batch of received bio samples.
+// received_count is the cumulative number of samples accepted since this bidi
+// connection was opened.
+// dropped_count is the cumulative number of samples discarded (e.g. rate-limited)
+// since this bidi connection was opened. Cumulative semantics allow the client to
+// detect any drops that occurred between two consecutive acks without the server
+// having to send an ack for every batch.
+// max_samples_per_second is the server-side rate limit hint the client should
+// respect to avoid further drops.
+// timestamp is int64 Unix millis when the ack was produced.
+// Auth identity comes from metadata/interceptor, not the message.
+message BioStreamAck {
+  string session_id = 1;
+  int64 received_count = 2;
+  int64 dropped_count = 3;
+  int32 max_samples_per_second = 4;
+  int64 timestamp = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Streaming message wrappers
+// ---------------------------------------------------------------------------
+
+// BioStreamResponse is the server-to-client stream envelope.
+// Each message carries exactly one event via the oneof.
+// StateErrorEvent is imported from module_state.proto and reused for error reporting.
+message BioStreamResponse {
+  oneof event {
+    BioStreamAck ack = 1;
+    StateErrorEvent error = 2;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Service definition
+//
+// Bidirectional stream: the client sends a continuous stream of BioSampleBatch
+// messages and the server responds with BioStreamAck confirmations or
+// StateErrorEvent errors. Auth identity comes from metadata/interceptor,
+// not the message.
+// ---------------------------------------------------------------------------
+
+service ModuleBiometricStreamService {
+  rpc StreamData(stream BioSampleBatch) returns (stream BioStreamResponse);
+}
