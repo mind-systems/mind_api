@@ -14,6 +14,7 @@ import { StatsModule } from './stats/stats.module';
 import { ChangelogModule } from './changelog/changelog.module';
 import { SyncModule } from './sync/sync.module';
 import { BciModule } from './bci/bci.module';
+import { NfbCalibrationModule } from './nfb-calibration/nfb-calibration.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -32,6 +33,7 @@ import { BciModule } from './bci/bci.module';
     UserModule,
     BreathSessionsModule,
     BciModule,
+    NfbCalibrationModule,
     DeviceModule,
     RealtimeModule,
     StatsModule,
