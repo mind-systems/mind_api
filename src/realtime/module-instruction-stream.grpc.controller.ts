@@ -4,13 +4,12 @@ import {
   UseFilters,
   UseInterceptors,
 } from '@nestjs/common';
-import { RpcException } from '@nestjs/microservices';
-import { status as GrpcStatus, Metadata } from '@grpc/grpc-js';
+import { Payload, RpcException } from '@nestjs/microservices';
+import { status as GrpcStatus } from '@grpc/grpc-js';
 import { Observable } from 'rxjs';
 import {
   StreamSample,
   StreamResponse,
-  ModuleInstructionStreamServiceController,
   ModuleInstructionStreamServiceControllerMethods,
 } from '../../proto/generated/module_instruction_stream';
 import { StreamEngine } from './services/stream-engine.service';
@@ -18,7 +17,7 @@ import { ActivityEngine } from './services/activity-engine.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
-import { GRPC_USER_KEY } from '../grpc/grpc-auth.constants';
+import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
 import { StreamDataType } from './constants/stream-data-types';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 
@@ -26,7 +25,7 @@ import type { JwtPayload } from '../users/interfaces/auth.interface';
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
 @ModuleInstructionStreamServiceControllerMethods()
-export class ModuleInstructionStreamGrpcController implements ModuleInstructionStreamServiceController {
+export class ModuleInstructionStreamGrpcController {
   private readonly logger = new Logger(
     ModuleInstructionStreamGrpcController.name,
   );
@@ -38,14 +37,10 @@ export class ModuleInstructionStreamGrpcController implements ModuleInstructionS
   ) {}
 
   streamData(
-    request: Observable<StreamSample>,
-    metadata?: Metadata,
+    @Payload() request: Observable<StreamSample>,
+    @GrpcCurrentUser() user: JwtPayload | null,
   ): Observable<StreamResponse> {
     return new Observable<StreamResponse>((subscriber) => {
-      const user = metadata
-        ? ((metadata as any)[GRPC_USER_KEY] as JwtPayload | null)
-        : null;
-
       if (!user) {
         subscriber.error(
           new RpcException({

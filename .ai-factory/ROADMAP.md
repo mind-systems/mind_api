@@ -24,7 +24,7 @@ Lightweight per-user resource for tracking paired Neiry headbands by hardware se
 
 ## Phase 17 — Refactor: align `ModuleInstructionStreamGrpcController` user injection
 
-- [ ] **Replace `metadata?: Metadata` with `@GrpcCurrentUser()` in `streamData`** — `ModuleInstructionStreamGrpcController.streamData` (`src/realtime/module-instruction-stream.grpc.controller.ts:41-47`) still extracts the user via `(metadata as any)[GRPC_USER_KEY]`. Migrate to the parameter decorator (same change Phase 15 made to `ModuleStateGrpcController`). Drop the `GRPC_USER_KEY` import, keep the UNAUTHENTICATED null-check. No behavior change. Prerequisite for Phase 19 so the new biometric controller is a true mirror.
+- [x] **Replace `metadata?: Metadata` with `@GrpcCurrentUser()` in `streamData`** — `ModuleInstructionStreamGrpcController.streamData` (`src/realtime/module-instruction-stream.grpc.controller.ts:41-47`) still extracts the user via `(metadata as any)[GRPC_USER_KEY]`. Migrate to the parameter decorator (same change Phase 15 made to `ModuleStateGrpcController`). Drop the `GRPC_USER_KEY` import, keep the UNAUTHENTICATED null-check. No behavior change. Prerequisite for Phase 19 so the new biometric controller is a true mirror. [6m 1s]
 
 ## Phase 18 — Fix: flush buffers on session-revoke
 
