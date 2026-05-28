@@ -196,4 +196,16 @@ export class StreamEngine
       `onSessionInterrupted: buffer cleared for sessionId=${payload.sessionId}`,
     );
   }
+
+  @OnEvent(SessionEvents.REVOKED)
+  async onSessionRevoked(payload: { sessionId: string }): Promise<void> {
+    this.logger.log(
+      `onSessionRevoked: flushing sessionId=${payload.sessionId}`,
+    );
+    await this.flush(payload.sessionId);
+    this.buffers.delete(payload.sessionId);
+    this.logger.log(
+      `onSessionRevoked: buffer cleared for sessionId=${payload.sessionId}`,
+    );
+  }
 }
