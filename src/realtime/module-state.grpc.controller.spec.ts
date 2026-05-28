@@ -59,6 +59,12 @@ function makeConfigService() {
   };
 }
 
+function makeEventEmitter() {
+  return {
+    emit: jest.fn(),
+  };
+}
+
 /** Drains the microtask queue enough for async setup() to complete. */
 async function flushMicrotasks(times = 3): Promise<void> {
   for (let i = 0; i < times; i++) {
@@ -74,18 +80,21 @@ describe('ModuleStateGrpcController', () => {
   let rateLimiterService: ReturnType<typeof makeRateLimiterService>;
   let activeStreamRegistry: ReturnType<typeof makeActiveStreamRegistry>;
   let configService: ReturnType<typeof makeConfigService>;
+  let eventEmitter: ReturnType<typeof makeEventEmitter>;
 
   beforeEach(() => {
     activityEngine = makeActivityEngine();
     rateLimiterService = makeRateLimiterService();
     activeStreamRegistry = makeActiveStreamRegistry();
     configService = makeConfigService();
+    eventEmitter = makeEventEmitter();
 
     controller = new ModuleStateGrpcController(
       activityEngine as any,
       rateLimiterService as any,
       activeStreamRegistry as any,
       configService as any,
+      eventEmitter as any,
     );
   });
 

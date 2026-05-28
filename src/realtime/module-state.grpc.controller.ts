@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Payload, RpcException } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import { Observable, Subscriber } from 'rxjs';
 import {
@@ -27,6 +27,7 @@ import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator'
 import { RealtimeConfig } from './constants/realtime-config';
 import { AuthEvents } from '../users/events/auth.events';
 import type { SessionRevokedPayload } from '../users/events/auth.events';
+import { SessionEvents } from './events/session.events';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 
 function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
@@ -54,6 +55,7 @@ export class ModuleStateGrpcController {
     private readonly rateLimiterService: RateLimiterService,
     private readonly activeStreamRegistry: ActiveStreamRegistry,
     configService: ConfigService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.activityStartLimit = configService.get<number>(
       RealtimeConfig.RATE_LIMIT_ACTIVITY_START_PER_MIN,
@@ -164,6 +166,8 @@ export class ModuleStateGrpcController {
 
   @OnEvent(AuthEvents.SESSION_REVOKED)
   async handleSessionRevoked(payload: SessionRevokedPayload): Promise<void> {
+    const sessionId =
+      this.activityEngine.getActiveSession(payload.userId)?.sessionId ?? null;
     try {
       await this.activityEngine.stopActivity(payload.userId);
     } catch (err: unknown) {
@@ -171,6 +175,9 @@ export class ModuleStateGrpcController {
         `Failed to stop activity on session revoke: userId=${payload.userId}`,
         err,
       );
+      if (sessionId !== null) {
+        this.eventEmitter.emit(SessionEvents.REVOKED, { sessionId });
+      }
     }
     this.activeStreamRegistry.closeAll(payload.userId);
   }
