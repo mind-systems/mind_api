@@ -2,6 +2,8 @@ import type { UserDto } from '../../proto/generated/auth';
 import type { UserResponseDto } from '../users/dto/auth-response.dto';
 import type { BciDevice as BciDeviceProto } from '../../proto/generated/bci_devices';
 import type { BciDevice } from '../bci/entities/bci-device.entity';
+import type { NfbCalibrationRecord as NfbCalibrationRecordProto } from '../../proto/generated/nfb_calibration';
+import type { NfbCalibrationRecord } from '../nfb-calibration/entities/nfb-calibration-record.entity';
 import { UserRole } from '../users/interfaces/user-role.enum';
 import {
   StepType,
@@ -145,5 +147,25 @@ export function toProtoBciDevice(entity: BciDevice): BciDeviceProto {
     serial: entity.serial,
     createdAt: entity.createdAt.toISOString(),
     updatedAt: entity.updatedAt.toISOString(),
+  };
+}
+
+export function toProtoNfbCalibrationRecord(
+  entity: NfbCalibrationRecord,
+): NfbCalibrationRecordProto {
+  return {
+    id: entity.id,
+    deviceSerial: entity.deviceSerial,
+    calibratedAt: entity.calibratedAt.toISOString(),
+    isValid: entity.isValid,
+    failReason: entity.failReason ?? '',
+    individualFrequency: entity.individualFrequency,
+    individualPeakFrequencyPower: entity.individualPeakFrequencyPower,
+    individualPeakFrequencySuppression: entity.individualPeakFrequencySuppression,
+    individualBandwidth: entity.individualBandwidth,
+    individualNormalizedPower: entity.individualNormalizedPower,
+    lowerFrequency: entity.lowerFrequency,
+    upperFrequency: entity.upperFrequency,
+    createdAt: entity.createdAt.toISOString(),
   };
 }
