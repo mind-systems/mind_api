@@ -67,6 +67,7 @@ async function bootstrap() {
         join(process.cwd(), 'proto', 'sync.proto'),
         join(process.cwd(), 'proto', 'users.proto'),
         join(process.cwd(), 'proto', 'bci_devices.proto'),
+        join(process.cwd(), 'proto', 'module_biometric_stream.proto'),
       ],
     },
   });
