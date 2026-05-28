@@ -17,16 +17,22 @@ import { SyncStreamService } from './services/sync-stream.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
 import { ModuleStateGrpcController } from './module-state.grpc.controller';
 import { ModuleInstructionStreamGrpcController } from './module-instruction-stream.grpc.controller';
+import { ModuleBiometricStreamGrpcController } from './module-biometric-stream.grpc.controller';
 
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([ModuleSession, SessionStreamSample, BioSessionSample]),
+    TypeOrmModule.forFeature([
+      ModuleSession,
+      SessionStreamSample,
+      BioSessionSample,
+    ]),
   ],
   controllers: [
     SyncStreamGrpcController,
     ModuleStateGrpcController,
     ModuleInstructionStreamGrpcController,
+    ModuleBiometricStreamGrpcController,
   ],
   providers: [
     StateStore,
