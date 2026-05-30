@@ -15,6 +15,7 @@ import { ChangelogModule } from './changelog/changelog.module';
 import { SyncModule } from './sync/sync.module';
 import { BciModule } from './bci/bci.module';
 import { NfbCalibrationModule } from './nfb-calibration/nfb-calibration.module';
+import { SessionsModule } from './sessions/sessions.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -39,6 +40,7 @@ import { NfbCalibrationModule } from './nfb-calibration/nfb-calibration.module';
     StatsModule,
     ChangelogModule,
     SyncModule,
+    SessionsModule,
   ],
   controllers: [HealthController],
 })
