@@ -9,10 +9,11 @@ package mind;
 // Maps to ActivityType enum in src/realtime/enums/activity-type.enum.ts.
 // ACTIVITY_TYPE_UNSPECIFIED = 0 is the sentinel to prevent uninitialized fields
 // from silently matching a real value.
-// Only one real member for now; the enum is the extension point for future activity types.
+// Extension point for future activity types.
 enum ActivityType {
   ACTIVITY_TYPE_UNSPECIFIED = 0;
   BREATH = 1;
+  MEDITATION = 2;
 }
 
 // Maps to SessionStatus enum in src/realtime/enums/session-status.enum.ts.

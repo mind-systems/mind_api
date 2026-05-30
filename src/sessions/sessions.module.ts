@@ -14,7 +14,11 @@ import { SessionsService } from './sessions.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ModuleSession, BioSessionSample, SessionStreamSample]),
+    TypeOrmModule.forFeature([
+      ModuleSession,
+      BioSessionSample,
+      SessionStreamSample,
+    ]),
     AuthModule,
   ],
   controllers: [SessionsController],

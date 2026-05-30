@@ -67,7 +67,14 @@ export class SessionsService {
       const durationSeconds = Math.round(
         (row.endedAt.getTime() - row.startedAt.getTime()) / 1000,
       );
-      return [{ id: row.id, startedAt: row.startedAt, endedAt: row.endedAt, durationSeconds }];
+      return [
+        {
+          id: row.id,
+          startedAt: row.startedAt,
+          endedAt: row.endedAt,
+          durationSeconds,
+        },
+      ];
     });
 
     return { items, total };
@@ -76,8 +83,13 @@ export class SessionsService {
   // NOTE: does NOT require endedAt IS NOT NULL — in-flight sessions are intentionally queryable.
   // The dashboard's live-session view needs to read data while a session is still active.
   // UUIDs are not guessable; the userId ownership check is the security boundary.
-  private async assertSessionOwnership(userId: string, sessionId: string): Promise<void> {
-    const session = await this.moduleSessionRepo.findOne({ where: { id: sessionId } });
+  private async assertSessionOwnership(
+    userId: string,
+    sessionId: string,
+  ): Promise<void> {
+    const session = await this.moduleSessionRepo.findOne({
+      where: { id: sessionId },
+    });
     if (!session) {
       throw new NotFoundException(`Session ${sessionId} not found`);
     }
@@ -99,7 +111,9 @@ export class SessionsService {
     const fromMs = fromDate?.getTime();
     const toMs = toDate?.getTime();
 
-    const where: FindOptionsWhere<BioSessionSample> = { moduleSessionId: sessionId };
+    const where: FindOptionsWhere<BioSessionSample> = {
+      moduleSessionId: sessionId,
+    };
     // Coarse flushedAt filter: lower bound drops batches that definitely predate the window.
     // Upper bound is padded by FLUSHED_AT_PAD_MS so batches flushed slightly after `to` are
     // still fetched — the per-sample timestamp filter below does the exact [from, to) trim.
@@ -111,7 +125,9 @@ export class SessionsService {
     } else if (fromDate) {
       where.flushedAt = MoreThanOrEqual(fromDate);
     } else if (toDate) {
-      where.flushedAt = LessThan(new Date(toDate.getTime() + FLUSHED_AT_PAD_MS));
+      where.flushedAt = LessThan(
+        new Date(toDate.getTime() + FLUSHED_AT_PAD_MS),
+      );
     }
 
     const rows = await this.bioSampleRepo.find({
@@ -121,7 +137,9 @@ export class SessionsService {
     });
 
     if (rows.length === ROW_CAP) {
-      throw new PayloadTooLargeException('Result set too large; narrow the time window');
+      throw new PayloadTooLargeException(
+        'Result set too large; narrow the time window',
+      );
     }
 
     // `timestamp` is client unix-ms (verified write-path shape: { timestamp, sampleType, data }).
@@ -129,7 +147,10 @@ export class SessionsService {
     const flat: Record<string, unknown>[] = [];
     for (const row of rows) {
       for (const sample of row.samples ?? []) {
-        const ts = typeof sample['timestamp'] === 'number' ? sample['timestamp'] : undefined;
+        const ts =
+          typeof sample['timestamp'] === 'number'
+            ? sample['timestamp']
+            : undefined;
         if (ts === undefined) {
           // Defensive: skip malformed samples rather than crashing the whole request.
           continue;
@@ -138,7 +159,9 @@ export class SessionsService {
         if (toMs !== undefined && ts >= toMs) continue;
         flat.push(sample);
         if (flat.length > FLAT_CAP) {
-          throw new PayloadTooLargeException('Result set too large; narrow the time window');
+          throw new PayloadTooLargeException(
+            'Result set too large; narrow the time window',
+          );
         }
       }
     }
@@ -161,7 +184,9 @@ export class SessionsService {
     const fromMs = fromDate?.getTime();
     const toMs = toDate?.getTime();
 
-    const where: FindOptionsWhere<SessionStreamSample> = { moduleSessionId: sessionId };
+    const where: FindOptionsWhere<SessionStreamSample> = {
+      moduleSessionId: sessionId,
+    };
     // Same coarse flushedAt filter strategy as listBiometrics — padded upper bound prevents
     // false-413 on narrow windows in long sessions.
     if (fromDate && toDate) {
@@ -172,7 +197,9 @@ export class SessionsService {
     } else if (fromDate) {
       where.flushedAt = MoreThanOrEqual(fromDate);
     } else if (toDate) {
-      where.flushedAt = LessThan(new Date(toDate.getTime() + FLUSHED_AT_PAD_MS));
+      where.flushedAt = LessThan(
+        new Date(toDate.getTime() + FLUSHED_AT_PAD_MS),
+      );
     }
 
     const rows = await this.streamSampleRepo.find({
@@ -182,7 +209,9 @@ export class SessionsService {
     });
 
     if (rows.length === ROW_CAP) {
-      throw new PayloadTooLargeException('Result set too large; narrow the time window');
+      throw new PayloadTooLargeException(
+        'Result set too large; narrow the time window',
+      );
     }
 
     // Verified write-path shape (module-instruction-stream.grpc.controller.ts:110-115):
@@ -191,7 +220,10 @@ export class SessionsService {
     const flat: Record<string, unknown>[] = [];
     for (const row of rows) {
       for (const sample of row.samples ?? []) {
-        const ts = typeof sample['timestamp'] === 'number' ? sample['timestamp'] : undefined;
+        const ts =
+          typeof sample['timestamp'] === 'number'
+            ? sample['timestamp']
+            : undefined;
         if (ts === undefined) {
           // Defensive: skip malformed samples rather than crashing the whole request.
           continue;
@@ -200,7 +232,9 @@ export class SessionsService {
         if (toMs !== undefined && ts >= toMs) continue;
         flat.push(sample);
         if (flat.length > FLAT_CAP) {
-          throw new PayloadTooLargeException('Result set too large; narrow the time window');
+          throw new PayloadTooLargeException(
+            'Result set too large; narrow the time window',
+          );
         }
       }
     }

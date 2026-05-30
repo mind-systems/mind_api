@@ -33,7 +33,10 @@ export class NfbCalibrationRecord {
   @Column({ name: 'individual_peak_frequency_power', type: 'double precision' })
   individualPeakFrequencyPower: number;
 
-  @Column({ name: 'individual_peak_frequency_suppression', type: 'double precision' })
+  @Column({
+    name: 'individual_peak_frequency_suppression',
+    type: 'double precision',
+  })
   individualPeakFrequencySuppression: number;
 
   @Column({ name: 'individual_bandwidth', type: 'double precision' })

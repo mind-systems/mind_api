@@ -11,7 +11,10 @@ export class NfbCalibrationService {
     private readonly repo: Repository<NfbCalibrationRecord>,
   ) {}
 
-  async record(userId: string, req: RecordNfbCalibrationRequest): Promise<NfbCalibrationRecord> {
+  async record(
+    userId: string,
+    req: RecordNfbCalibrationRequest,
+  ): Promise<NfbCalibrationRecord> {
     const entity = this.repo.create({
       userId,
       deviceSerial: req.deviceSerial,
@@ -20,7 +23,8 @@ export class NfbCalibrationService {
       failReason: req.failReason || null,
       individualFrequency: req.individualFrequency,
       individualPeakFrequencyPower: req.individualPeakFrequencyPower,
-      individualPeakFrequencySuppression: req.individualPeakFrequencySuppression,
+      individualPeakFrequencySuppression:
+        req.individualPeakFrequencySuppression,
       individualBandwidth: req.individualBandwidth,
       individualNormalizedPower: req.individualNormalizedPower,
       lowerFrequency: req.lowerFrequency,

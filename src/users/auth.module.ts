@@ -40,7 +40,11 @@ import { MailModule } from '../mail/mail.module';
       inject: [ConfigService],
     }),
   ],
-  controllers: [GoogleCallbackController, AuthGrpcController, AuthRestController],
+  controllers: [
+    GoogleCallbackController,
+    AuthGrpcController,
+    AuthRestController,
+  ],
   providers: [
     AuthService,
     AuthCodeService,

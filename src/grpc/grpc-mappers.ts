@@ -161,7 +161,8 @@ export function toProtoNfbCalibrationRecord(
     failReason: entity.failReason ?? '',
     individualFrequency: entity.individualFrequency,
     individualPeakFrequencyPower: entity.individualPeakFrequencyPower,
-    individualPeakFrequencySuppression: entity.individualPeakFrequencySuppression,
+    individualPeakFrequencySuppression:
+      entity.individualPeakFrequencySuppression,
     individualBandwidth: entity.individualBandwidth,
     individualNormalizedPower: entity.individualNormalizedPower,
     lowerFrequency: entity.lowerFrequency,

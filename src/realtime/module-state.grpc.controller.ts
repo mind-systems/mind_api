@@ -31,13 +31,28 @@ import { SessionEvents } from './events/session.events';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 
 function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
-  if (proto === ProtoActivityType.BREATH) {
-    return InternalActivityType.BREATH;
+  switch (proto) {
+    case ProtoActivityType.BREATH:
+      return InternalActivityType.BREATH;
+    case ProtoActivityType.MEDITATION:
+      return InternalActivityType.MEDITATION;
+    case ProtoActivityType.ACTIVITY_TYPE_UNSPECIFIED:
+    case ProtoActivityType.UNRECOGNIZED:
+      throw new RpcException({
+        code: GrpcStatus.INVALID_ARGUMENT,
+        message: `Unsupported activity type: ${proto as number}`,
+      });
+    default: {
+      // Compile-time exhaustiveness check: TypeScript errors here when a new
+      // proto variant is added without a corresponding case above.
+      const _exhaustive: never = proto;
+      void _exhaustive;
+      throw new RpcException({
+        code: GrpcStatus.INVALID_ARGUMENT,
+        message: `Unsupported activity type: ${proto as number}`,
+      });
+    }
   }
-  throw new RpcException({
-    code: GrpcStatus.INVALID_ARGUMENT,
-    message: `Unsupported activity type: ${proto}`,
-  });
 }
 
 @Controller()

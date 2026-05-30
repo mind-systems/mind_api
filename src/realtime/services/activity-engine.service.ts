@@ -189,7 +189,7 @@ export class ActivityEngine {
       userId,
       startedAt: saved.startedAt,
       endedAt: saved.endedAt,
-      activityType: saved.activityType as ActivityType,
+      activityType: saved.activityType,
       activityRefId: saved.activityRefId,
     });
   }

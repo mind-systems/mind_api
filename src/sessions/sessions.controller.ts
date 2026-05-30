@@ -1,4 +1,11 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../users/guards/jwt-auth.guard';
 import { CurrentUser } from '../users/decorators/current-user.decorator';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
@@ -12,10 +19,7 @@ export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
   @Get('runs')
-  listRuns(
-    @Query() query: ListRunsQueryDto,
-    @CurrentUser() user: JwtPayload,
-  ) {
+  listRuns(@Query() query: ListRunsQueryDto, @CurrentUser() user: JwtPayload) {
     return this.sessionsService.listRuns(user.sub, query.limit, query.offset);
   }
 
@@ -25,7 +29,12 @@ export class SessionsController {
     @Query() query: TimeRangeQueryDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.sessionsService.listBiometrics(user.sub, id, query.from, query.to);
+    return this.sessionsService.listBiometrics(
+      user.sub,
+      id,
+      query.from,
+      query.to,
+    );
   }
 
   @Get('runs/:id/instructions')
@@ -34,6 +43,11 @@ export class SessionsController {
     @Query() query: TimeRangeQueryDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.sessionsService.listInstructions(user.sub, id, query.from, query.to);
+    return this.sessionsService.listInstructions(
+      user.sub,
+      id,
+      query.from,
+      query.to,
+    );
   }
 }
