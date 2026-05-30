@@ -46,10 +46,11 @@ export class NfbCalibrationGrpcController {
         message: 'Missing user context',
       });
     }
-    const records = await this.nfbCalibrationService.list(
+    const [records] = await this.nfbCalibrationService.list(
       user.sub,
       request.deviceSerial,
       request.limit,
+      0,
     );
     return { records: records.map(toProtoNfbCalibrationRecord) };
   }

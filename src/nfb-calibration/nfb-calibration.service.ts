@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { NfbCalibrationRecord } from './entities/nfb-calibration-record.entity';
 import { RecordNfbCalibrationRequest } from '../../proto/generated/nfb_calibration';
 
@@ -29,11 +29,22 @@ export class NfbCalibrationService {
     return this.repo.save(entity);
   }
 
-  async list(userId: string, deviceSerial: string, limit: number): Promise<NfbCalibrationRecord[]> {
-    return this.repo.find({
-      where: { userId, deviceSerial },
+  async list(
+    userId: string,
+    deviceSerial?: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<[NfbCalibrationRecord[], number]> {
+    const where: FindOptionsWhere<NfbCalibrationRecord> = { userId };
+    if (deviceSerial && deviceSerial.length > 0) {
+      where.deviceSerial = deviceSerial;
+    }
+    const take = Math.min(limit && limit > 0 ? limit : 50, 200);
+    return this.repo.findAndCount({
+      where,
       order: { createdAt: 'DESC' },
-      take: limit || 50,
+      take,
+      skip: offset,
     });
   }
 }
