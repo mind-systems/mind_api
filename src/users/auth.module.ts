@@ -10,6 +10,7 @@ import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GoogleCallbackController } from './controller/google-callback.controller';
 import { AuthGrpcController } from './auth.grpc.controller';
+import { AuthRestController } from './controller/auth.rest.controller';
 import { AuthService } from './service/auth.service';
 import { SessionService } from './service/session.service';
 import { AuthCodeService } from './service/auth-code.service';
@@ -39,7 +40,7 @@ import { MailModule } from '../mail/mail.module';
       inject: [ConfigService],
     }),
   ],
-  controllers: [GoogleCallbackController, AuthGrpcController],
+  controllers: [GoogleCallbackController, AuthGrpcController, AuthRestController],
   providers: [
     AuthService,
     AuthCodeService,
@@ -51,6 +52,7 @@ import { MailModule } from '../mail/mail.module';
   ],
   exports: [
     AuthService,
+    AuthCodeService,
     JwtAuthGuard,
     OptionalJwtAuthGuard,
     SessionService,
