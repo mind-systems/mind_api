@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import {
   HttpException,
   HttpStatus,
@@ -8,12 +9,17 @@ import { AuthCode } from '../entities/auth-code.entity';
 import { User } from '../entities/user.entity';
 import { UserRole } from '../interfaces/user-role.enum';
 
+const hashOf = (c: string): string =>
+  crypto.createHash('sha256').update(c).digest('hex');
+
 const makeAuthCode = (overrides: Partial<AuthCode> = {}): AuthCode =>
   Object.assign(new AuthCode(), {
     id: 'code-uuid',
     email: 'test@example.com',
-    codeHash: 'hash',
+    codeHash: hashOf('123456'),
     used: false,
+    failedAttempts: 0,
+    lockedUntil: null,
     expiresAt: new Date(Date.now() + 60_000),
     createdAt: new Date(),
     ...overrides,
@@ -218,6 +224,7 @@ describe('AuthCodeService', () => {
       setLock: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
       getOne: jest.fn().mockResolvedValue(authCode),
     });
 
@@ -230,7 +237,7 @@ describe('AuthCodeService', () => {
     });
 
     it('marks the code as used and returns a token for an existing user', async () => {
-      const code = makeAuthCode({ used: false });
+      const code = makeAuthCode({ codeHash: hashOf('123456'), used: false });
       const user = makeUser();
       authCodeRepo.createQueryBuilder.mockReturnValue(makeQb(code));
       manager.save.mockResolvedValue({ ...code, used: true });
@@ -246,7 +253,10 @@ describe('AuthCodeService', () => {
     });
 
     it('creates a new user when the email is not registered yet', async () => {
-      const code = makeAuthCode({ email: 'new@example.com' });
+      const code = makeAuthCode({
+        email: 'new@example.com',
+        codeHash: hashOf('123456'),
+      });
       const newUser = makeUser({
         id: 'new-uuid',
         email: 'new@example.com',
@@ -266,7 +276,10 @@ describe('AuthCodeService', () => {
     });
 
     it('uses the part before @ as the new user name', async () => {
-      const code = makeAuthCode({ email: 'alice@domain.com' });
+      const code = makeAuthCode({
+        email: 'alice@domain.com',
+        codeHash: hashOf('123456'),
+      });
       authCodeRepo.createQueryBuilder.mockReturnValue(makeQb(code));
       manager.save.mockResolvedValue({ ...code, used: true });
       userRepo.findOne.mockResolvedValue(null);
@@ -284,6 +297,7 @@ describe('AuthCodeService', () => {
         setLock: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(null),
       };
       authCodeRepo.createQueryBuilder.mockReturnValue(qb);
@@ -292,13 +306,17 @@ describe('AuthCodeService', () => {
         service.verifyCode('TEST@EXAMPLE.COM', '000000'),
       ).rejects.toThrow(UnauthorizedException);
 
-      expect(qb.andWhere).toHaveBeenCalledWith('ac.email = :email', {
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        expect.stringContaining('codeHash'),
+        expect.anything(),
+      );
+      expect(qb.where).toHaveBeenCalledWith('ac.email = :email', {
         email: 'test@example.com',
       });
     });
 
     it('does not create a user if one already exists (no duplicate)', async () => {
-      const code = makeAuthCode();
+      const code = makeAuthCode({ codeHash: hashOf('123456') });
       const existingUser = makeUser();
       authCodeRepo.createQueryBuilder.mockReturnValue(makeQb(code));
       manager.save.mockResolvedValue({ ...code, used: true });
@@ -308,6 +326,67 @@ describe('AuthCodeService', () => {
 
       expect(userRepo.save).not.toHaveBeenCalled();
       expect(authService.generateToken).toHaveBeenCalledWith(existingUser);
+    });
+
+    it('throws UnauthorizedException on hash mismatch and increments failedAttempts', async () => {
+      const code = makeAuthCode({
+        codeHash: hashOf('999999'),
+        failedAttempts: 0,
+      });
+      authCodeRepo.createQueryBuilder.mockReturnValue(makeQb(code));
+      manager.save.mockResolvedValue(undefined);
+
+      await expect(
+        service.verifyCode('test@example.com', '123456'),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ failedAttempts: 1 }),
+      );
+    });
+
+    it('sets lockedUntil on the 5th failed attempt', async () => {
+      const code = makeAuthCode({
+        codeHash: hashOf('999999'),
+        failedAttempts: 4,
+      });
+      authCodeRepo.createQueryBuilder.mockReturnValue(makeQb(code));
+      manager.save.mockResolvedValue(undefined);
+
+      await expect(
+        service.verifyCode('test@example.com', '123456'),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          failedAttempts: 5,
+          lockedUntil: expect.any(Date),
+        }),
+      );
+
+      const savedArg = manager.save.mock.calls[0][0];
+      expect(savedArg.lockedUntil.getTime()).toBeGreaterThan(Date.now());
+    });
+
+    it('throws 429 and skips token generation when code is locked', async () => {
+      const code = makeAuthCode({
+        lockedUntil: new Date(Date.now() + 60_000),
+      });
+      authCodeRepo.createQueryBuilder.mockReturnValue(makeQb(code));
+
+      await expect(
+        service.verifyCode('test@example.com', '123456'),
+      ).rejects.toThrow(
+        new HttpException(
+          'Too many attempts, request a new code',
+          HttpStatus.TOO_MANY_REQUESTS,
+        ),
+      );
+
+      expect(authService.generateToken).not.toHaveBeenCalled();
+      expect(manager.save).not.toHaveBeenCalledWith(
+        expect.objectContaining({ used: true }),
+      );
     });
   });
 

@@ -23,6 +23,8 @@ export class AuthCodeService {
 
   private static readonly CODE_EXPIRY_MINUTES = 15;
   private static readonly COOLDOWN_SECONDS = 60;
+  private static readonly MAX_FAILED_ATTEMPTS = 5;
+  private static readonly LOCK_MINUTES = 15;
 
   constructor(
     @InjectRepository(AuthCode)
@@ -97,49 +99,90 @@ export class AuthCodeService {
     language?: string,
   ): Promise<AuthResponseDto> {
     const normalizedEmail = email.toLowerCase();
-    const codeHash = this.hashCode(code);
 
-    return this.dataSource.transaction(async (manager) => {
-      const authCode = await manager
-        .getRepository(AuthCode)
-        .createQueryBuilder('ac')
-        .setLock('pessimistic_write')
-        .where('ac.codeHash = :codeHash', { codeHash })
-        .andWhere('ac.email = :email', { email: normalizedEmail })
-        .andWhere('ac.used = false')
-        .andWhere('ac.expiresAt > :now', { now: new Date() })
-        .getOne();
+    type VerifyOutcome =
+      | { outcome: 'invalid' }
+      | { outcome: 'locked' }
+      | { outcome: 'ok'; auth: AuthResponseDto };
 
-      if (!authCode) {
-        this.logger.warn(`verifyCode: invalid or expired code`);
-        throw new UnauthorizedException('Invalid or expired code');
-      }
+    const result: VerifyOutcome = await this.dataSource.transaction(
+      async (manager) => {
+        const authCode = await manager
+          .getRepository(AuthCode)
+          .createQueryBuilder('ac')
+          .setLock('pessimistic_write')
+          .where('ac.email = :email', { email: normalizedEmail })
+          .andWhere('ac.used = false')
+          .andWhere('ac.expiresAt > :now', { now: new Date() })
+          .orderBy('ac.createdAt', 'DESC')
+          .getOne();
 
-      authCode.used = true;
-      await manager.save(authCode);
+        if (!authCode) {
+          return { outcome: 'invalid' as const };
+        }
 
-      const userRepo = manager.getRepository(User);
-      let user = await userRepo.findOne({
-        where: { email: authCode.email },
-      });
+        if (authCode.lockedUntil && authCode.lockedUntil > new Date()) {
+          return { outcome: 'locked' as const };
+        }
 
-      if (!user) {
-        const emailPrefix = authCode.email.split('@')[0];
-        const resolvedLanguage = resolveLocale(language);
-        user = new User({
-          email: authCode.email,
-          name: emailPrefix,
-          role: UserRole.USER,
-          language: resolvedLanguage,
+        const expectedHash = this.hashCode(code);
+        if (authCode.codeHash !== expectedHash) {
+          authCode.failedAttempts += 1;
+          if (
+            authCode.failedAttempts >= AuthCodeService.MAX_FAILED_ATTEMPTS
+          ) {
+            authCode.lockedUntil = new Date(
+              Date.now() + AuthCodeService.LOCK_MINUTES * 60 * 1000,
+            );
+          }
+          await manager.save(authCode);
+          this.logger.warn(
+            `verifyCode: wrong code, codeId=${authCode.id} attempts=${authCode.failedAttempts}`,
+          );
+          return { outcome: 'invalid' as const };
+        }
+
+        authCode.used = true;
+        await manager.save(authCode);
+
+        const userRepo = manager.getRepository(User);
+        let user = await userRepo.findOne({
+          where: { email: authCode.email },
         });
-        user = await userRepo.save(user);
-        this.logger.log(
-          `verifyCode: new user registered, userId=${user.id}, language=${resolvedLanguage}`,
-        );
-      }
 
-      return await this.authService.generateToken(user);
-    });
+        if (!user) {
+          const emailPrefix = authCode.email.split('@')[0];
+          const resolvedLanguage = resolveLocale(language);
+          user = new User({
+            email: authCode.email,
+            name: emailPrefix,
+            role: UserRole.USER,
+            language: resolvedLanguage,
+          });
+          user = await userRepo.save(user);
+          this.logger.log(
+            `verifyCode: new user registered, userId=${user.id}, language=${resolvedLanguage}`,
+          );
+        }
+
+        const auth = await this.authService.generateToken(user);
+        return { outcome: 'ok' as const, auth };
+      },
+    );
+
+    if (result.outcome === 'locked') {
+      throw new HttpException(
+        'Too many attempts, request a new code',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    if (result.outcome === 'invalid') {
+      this.logger.warn(`verifyCode: invalid or expired code`);
+      throw new UnauthorizedException('Invalid or expired code');
+    }
+
+    return result.auth;
   }
 
   private generateCode(): string {

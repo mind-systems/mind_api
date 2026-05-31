@@ -28,4 +28,10 @@ export class AuthCode {
 
   @Column({ default: false })
   used: boolean;
+
+  @Column({ type: 'smallint', default: 0 })
+  failedAttempts: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lockedUntil: Date | null;
 }
