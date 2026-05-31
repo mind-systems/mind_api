@@ -32,6 +32,7 @@ export class NfbCalibrationService {
       isValid: req.isValid,
       failReason: req.failReason || null,
       individualFrequency: req.individualFrequency,
+      individualPeakFrequency: req.individualPeakFrequency,
       individualPeakFrequencyPower: req.individualPeakFrequencyPower,
       individualPeakFrequencySuppression:
         req.individualPeakFrequencySuppression,

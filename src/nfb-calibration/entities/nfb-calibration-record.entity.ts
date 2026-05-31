@@ -30,6 +30,9 @@ export class NfbCalibrationRecord {
   @Column({ name: 'individual_frequency', type: 'double precision' })
   individualFrequency: number;
 
+  @Column({ name: 'individual_peak_frequency', type: 'double precision', nullable: true })
+  individualPeakFrequency: number | null;
+
   @Column({ name: 'individual_peak_frequency_power', type: 'double precision' })
   individualPeakFrequencyPower: number;
 

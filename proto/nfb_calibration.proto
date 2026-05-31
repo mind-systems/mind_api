@@ -23,6 +23,7 @@ message NfbCalibrationRecord {
   float lower_frequency = 11;
   float upper_frequency = 12;
   string created_at = 13;     // ISO-8601, server-assigned
+  float individual_peak_frequency = 14;
 }
 
 // ---------------------------------------------------------------------------
@@ -42,6 +43,7 @@ message RecordNfbCalibrationRequest {
   float individual_normalized_power = 9;
   float lower_frequency = 10;
   float upper_frequency = 11;
+  float individual_peak_frequency = 12;
 }
 
 // List — auth identity comes from metadata/interceptor, not the message.

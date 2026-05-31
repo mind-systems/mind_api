@@ -160,6 +160,7 @@ export function toProtoNfbCalibrationRecord(
     isValid: entity.isValid,
     failReason: entity.failReason ?? '',
     individualFrequency: entity.individualFrequency,
+    individualPeakFrequency: entity.individualPeakFrequency ?? 0,
     individualPeakFrequencyPower: entity.individualPeakFrequencyPower,
     individualPeakFrequencySuppression:
       entity.individualPeakFrequencySuppression,
