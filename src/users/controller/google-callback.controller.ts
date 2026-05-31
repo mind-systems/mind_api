@@ -29,6 +29,7 @@ export class GoogleCallbackController {
   async googleCallback(
     @Query('code') code: string | undefined,
     @Query('error') error: string | undefined,
+    @Query('state') state: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
     const baseUrl = this.configService.getOrThrow<string>('APP_BASE_URL');
@@ -37,18 +38,25 @@ export class GoogleCallbackController {
       this.logger.warn(
         `Google OAuth callback error: ${error ?? 'missing code'}`,
       );
-      return res.redirect(
-        `${baseUrl}${callbackPath}?googleError=${encodeURIComponent(error ?? 'missing_code')}`,
-      );
+      const params = new URLSearchParams({
+        googleError: error ?? 'missing_code',
+        ...(state ? { state } : {}),
+      });
+      return res.redirect(`${baseUrl}${callbackPath}?${params.toString()}`);
     }
     this.logger.log('Google OAuth callback: relaying code to app');
-    return res.redirect(
-      `${baseUrl}${callbackPath}?googleCode=${encodeURIComponent(code)}`,
-    );
+    const params = new URLSearchParams({
+      googleCode: code,
+      ...(state ? { state } : {}),
+    });
+    return res.redirect(`${baseUrl}${callbackPath}?${params.toString()}`);
   }
 
   @Get('google')
-  startGoogleOAuth(@Res() res: Response): void {
+  startGoogleOAuth(
+    @Query('state') state: string | undefined,
+    @Res() res: Response,
+  ): void {
     const clientId = this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID');
     const redirectUri =
       this.configService.getOrThrow<string>('WEB_REDIRECT_URI');
@@ -57,6 +65,7 @@ export class GoogleCallbackController {
       redirect_uri: redirectUri,
       response_type: 'code',
       scope: 'openid email profile',
+      ...(state ? { state } : {}),
     });
     const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
     res.redirect(302, url);

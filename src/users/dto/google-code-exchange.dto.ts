@@ -15,4 +15,8 @@ export class GoogleCodeExchangeDto {
   @IsString()
   @IsOptional()
   language?: string;
+
+  @IsString()
+  @IsOptional()
+  state?: string;
 }

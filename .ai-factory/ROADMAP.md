@@ -116,7 +116,7 @@ Web dashboard cannot distinguish breath from meditation sessions and cannot disp
 
 The Google relay flow carries no `state` → login-CSRF. The SPA owns `state`; the backend is a transparent relay. Backend half only — pairs with `mind_web/.ai-factory/notes/13-oauth-state-csrf-requirements.md`, ships together. Full spec: `.ai-factory/notes/19-spec-oauth-state-relay-backend.md`.
 
-- [ ] **Relay `state` through `GET /auth/google` + callback; accept it (unvalidated) on exchange** — Add `state` to `startGoogleOAuth` / `googleCallback` / `GoogleCodeExchangeDto`; backend does not validate it. Full spec: `.ai-factory/notes/19-spec-oauth-state-relay-backend.md`.
+- [x] **Relay `state` through `GET /auth/google` + callback; accept it (unvalidated) on exchange** — Add `state` to `startGoogleOAuth` / `googleCallback` / `GoogleCodeExchangeDto`; backend does not validate it. Full spec: `.ai-factory/notes/19-spec-oauth-state-relay-backend.md`. [4m 37s]
 
 ## Phase 27 — Fix: brute-force protection for OTP verify
 
