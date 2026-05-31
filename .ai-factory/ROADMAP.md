@@ -99,3 +99,41 @@ Mobile meditation module requires a new activity type so that module-sessions re
 Web dashboard cannot distinguish breath from meditation sessions and cannot display session name or difficulty because `GET /sessions/runs` returns only `{ id, startedAt, endedAt, durationSeconds }`. No new endpoint, no migration, no gRPC change — purely an additive projection change to the existing REST endpoint. Context: `.ai-factory/notes/12-sessions-runs-activity-type-and-meta.md`.
 
 - [x] **Add `activityType`, `description`, and `complexity` to `GET /sessions/runs` response** — `SessionsService.listRuns` in `src/sessions/sessions.service.ts` currently uses `findAndCount` over `ModuleSession`. Replace it with a `createQueryBuilder` query that left-joins `breath_sessions` to resolve the two breath-only fields in a single round-trip. Add `BreathSession` (from `src/breath-sessions/entities/breath-session.entity.ts`) to `SessionsModule`'s `TypeOrmModule.forFeature([...])` in `src/sessions/sessions.module.ts` so the repo is injectable — `@InjectRepository(BreathSession)` used only within `SessionsModule`. New query: `moduleSessionRepo.createQueryBuilder('ms')` with `.leftJoin('breath_sessions', 'bs', 'bs.id = ms."activityRefId" AND ms."activityType" = :breath AND bs."deletedAt" IS NULL', { breath: ActivityType.BREATH })`, filter `ms.userId = :userId AND ms.endedAt IS NOT NULL`, order `ms.startedAt DESC`, select `ms.id`, `ms.startedAt`, `ms.endedAt`, `ms.activityType`, and add `bs.description` / `bs.complexity` via `.addSelect`. Use `getRawAndEntities()` for the data fetch (keeps `entities` and `raw` index-aligned) and a preceding `getCount()` (without `take`/`skip`) for the total. Map each pair `(entities[i], raw[i])` to `{ id, startedAt, endedAt, durationSeconds, activityType, description: raw.bs_description ?? null, complexity: raw.bs_complexity != null ? Number(raw.bs_complexity) : null }` — Postgres returns numeric columns as strings in raw results, so coerce with `Number(...)`. The `activityType = 'breath'` guard in the join condition prevents a meditation session's `activityRefId` (which points at a pose config, not a breath row) from ever matching a breath row. Invariants to preserve: `userId` filter, `endedAt IS NOT NULL`, `startedAt DESC` order, `limit` capped at 200, `offset`, response shape `{ items, total }`. Do not add a per-row lookup — resolve everything in one query. [11m 58s]
+
+## Phase 24 — Fix: stream flush correctness
+
+`StreamEngine.flush` / `BiometricStreamEngine.flush` clear the buffer only after `await save`, so an overlapping periodic + terminal flush double-inserts a batch, and samples pushed during the await are discarded. Two coupled defects; must ship together. Full spec: `.ai-factory/notes/17-spec-stream-flush-correctness.md`.
+
+- [ ] **Serialize per-session flushes (chain, do NOT skip) and clear only the persisted prefix** — Per-session promise chain in both engines + `splice(0, count)` with `byteSize` recompute instead of zeroing; add a dup/loss regression test. Full spec: `.ai-factory/notes/17-spec-stream-flush-correctness.md`.
+
+## Phase 25 — Fix: validate `calibratedAt` in NFB calibration record
+
+`NfbCalibrationService.record` parses `new Date(req.calibratedAt)` with no validation, so a malformed/empty value hits the `NOT NULL timestamptz` insert as an opaque error. Full spec: `.ai-factory/notes/18-spec-nfb-calibratedat-validation.md`.
+
+- [ ] **Reject malformed `calibratedAt` with `INVALID_ARGUMENT`** — Guard `Number.isNaN(getTime())` at the top of `record` and throw `RpcException` INVALID_ARGUMENT before insert. Full spec: `.ai-factory/notes/18-spec-nfb-calibratedat-validation.md`.
+
+## Phase 26 — Fix: relay OAuth `state` through the Google sign-in flow (CSRF)
+
+The Google relay flow carries no `state` → login-CSRF. The SPA owns `state`; the backend is a transparent relay. Backend half only — pairs with `mind_web/.ai-factory/notes/13-oauth-state-csrf-requirements.md`, ships together. Full spec: `.ai-factory/notes/19-spec-oauth-state-relay-backend.md`.
+
+- [ ] **Relay `state` through `GET /auth/google` + callback; accept it (unvalidated) on exchange** — Add `state` to `startGoogleOAuth` / `googleCallback` / `GoogleCodeExchangeDto`; backend does not validate it. Full spec: `.ai-factory/notes/19-spec-oauth-state-relay-backend.md`.
+
+## Phase 27 — Fix: brute-force protection for OTP verify
+
+`verifyCode` has no failed-attempt lockout and the public REST auth routes have no throttle, so a known-email OTP is brute-forceable within the 15-min window. Full spec: `.ai-factory/notes/20-spec-otp-bruteforce-protection.md`.
+
+- [ ] **Per-email failed-attempt lockout on `AuthCode`** — New `failedAttempts`/`lockedUntil` columns + migration; rework `verifyCode` to load by email, lock after 5 misses (429-mapped), rewrite the spec tests. Shared by gRPC/REST — see mobile note 45. Full spec: `.ai-factory/notes/20-spec-otp-bruteforce-protection.md` §Task A.
+
+- [ ] **Throttle the public auth REST endpoints** — `@nestjs/throttler` per-route on `AuthRestController` only (NOT global `APP_GUARD` — gRPC/streaming must stay unthrottled). Full spec: `.ai-factory/notes/20-spec-otp-bruteforce-protection.md` §Task B.
+
+## Phase 28 — Fix: clear in-memory activity state on `stopActivity` failure
+
+`stopActivity` clears `activitySessionStore` only after `await save` succeeds, so a save failure leaks state and a fast reconnect can resurrect a phantom session within the grace window. Full spec: `.ai-factory/notes/21-spec-clear-activity-state-on-stop-failure.md`.
+
+- [ ] **Wrap the `stopActivity` body in `try/finally` to always clear state** — `finally { activitySessionStore.delete(userId) }`; happy path unchanged; do not add a `REVOKED` stats handler (by design). Full spec: `.ai-factory/notes/21-spec-clear-activity-state-on-stop-failure.md`.
+
+## Phase 29 — Fix: add `individual_peak_frequency` to NFB calibration contract
+
+neiry's `IndividualNfbData` has TWO distinct fields — `individualFrequency` and `individualPeakFrequency` (separate members in `CNFBCalibrator.h:37,41`) — but `proto/nfb_calibration.proto` + the entity carry only `individual_frequency` (plus `_power`/`_suppression`, different quantities). Mobile's `refreshFromServer` full-replaces the local cache with server data, so the locally-captured peak is lost on every BCI-screen open until the server stores it. Cross-project requirement from mind_mobile (note 53). Full spec: `.ai-factory/notes/22-nfb-calibration-peak-frequency-field.md`.
+
+- [ ] **Carry `individual_peak_frequency` through proto + entity + migration + mapping** — Append `float individual_peak_frequency` to `NfbCalibrationRecord` (field 14) and `RecordNfbCalibrationRequest` (field 12) in `proto/nfb_calibration.proto` (do not renumber), regenerate stubs; add a nullable/default `double precision` column to the entity + migration (mirror the existing numeric columns); wire it in `NfbCalibrationService.record` (read/persist) and `toProtoNfbCalibrationRecord` (return), exactly like `individual_frequency`. Backward-compat: existing rows have no peak; mobile defaults it from `individualFrequency` when absent. After it lands, mind_mobile copies the proto + regenerates (their note 53). Full spec: `.ai-factory/notes/22-nfb-calibration-peak-frequency-field.md`.
