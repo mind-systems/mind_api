@@ -8,15 +8,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   And,
   FindOptionsWhere,
-  IsNull,
   LessThan,
   MoreThanOrEqual,
-  Not,
   Repository,
 } from 'typeorm';
 import { ModuleSession } from '../realtime/entities/module-session.entity';
 import { BioSessionSample } from '../realtime/entities/bio-session-sample.entity';
 import { SessionStreamSample } from '../realtime/entities/session-stream-sample.entity';
+import { ActivityType } from '../realtime/enums/activity-type.enum';
 
 const ROW_CAP = 60_000;
 const FLAT_CAP = 50_000;
@@ -47,34 +46,51 @@ export class SessionsService {
       startedAt: Date;
       endedAt: Date;
       durationSeconds: number;
+      activityType: ActivityType;
+      description: string | null;
+      complexity: number | null;
     }[];
     total: number;
   }> {
     const take = Math.min(limit ?? 50, 200);
     const skip = offset ?? 0;
 
-    const [rows, total] = await this.moduleSessionRepo.findAndCount({
-      where: { userId, endedAt: Not(IsNull()) },
-      order: { startedAt: 'DESC' },
-      take,
-      skip,
-    });
+    const baseQuery = this.moduleSessionRepo
+      .createQueryBuilder('ms')
+      .leftJoin(
+        'breath_sessions',
+        'bs',
+        'bs.id = ms."activityRefId" AND ms."activityType" = :breath AND bs."deletedAt" IS NULL',
+        { breath: ActivityType.BREATH },
+      )
+      .addSelect('bs.description', 'bs_description')
+      .addSelect('bs.complexity', 'bs_complexity')
+      .where('ms.userId = :userId', { userId })
+      .andWhere('ms.endedAt IS NOT NULL')
+      .orderBy('ms.startedAt', 'DESC');
 
-    const items = rows.flatMap((row) => {
-      if (!row.endedAt) {
-        return [];
-      }
+    const total = await baseQuery.getCount();
+
+    const { entities, raw } = await baseQuery
+      .take(take)
+      .skip(skip)
+      .getRawAndEntities();
+
+    const items = entities.map((entity, i) => {
+      const r = raw[i];
       const durationSeconds = Math.round(
-        (row.endedAt.getTime() - row.startedAt.getTime()) / 1000,
+        (entity.endedAt!.getTime() - entity.startedAt.getTime()) / 1000,
       );
-      return [
-        {
-          id: row.id,
-          startedAt: row.startedAt,
-          endedAt: row.endedAt,
-          durationSeconds,
-        },
-      ];
+      return {
+        id: entity.id,
+        startedAt: entity.startedAt,
+        endedAt: entity.endedAt as Date,
+        durationSeconds,
+        activityType: entity.activityType,
+        description: (r.bs_description as string | null) ?? null,
+        complexity:
+          r.bs_complexity != null ? Number(r.bs_complexity) : null,
+      };
     });
 
     return { items, total };

@@ -9,6 +9,7 @@ import { AuthModule } from '../users/auth.module';
 import { ModuleSession } from '../realtime/entities/module-session.entity';
 import { BioSessionSample } from '../realtime/entities/bio-session-sample.entity';
 import { SessionStreamSample } from '../realtime/entities/session-stream-sample.entity';
+import { BreathSession } from '../breath-sessions/entities/breath-session.entity';
 import { SessionsController } from './sessions.controller';
 import { SessionsService } from './sessions.service';
 
@@ -18,6 +19,7 @@ import { SessionsService } from './sessions.service';
       ModuleSession,
       BioSessionSample,
       SessionStreamSample,
+      BreathSession,
     ]),
     AuthModule,
   ],
