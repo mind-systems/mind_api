@@ -110,7 +110,7 @@ Web dashboard cannot distinguish breath from meditation sessions and cannot disp
 
 `NfbCalibrationService.record` parses `new Date(req.calibratedAt)` with no validation, so a malformed/empty value hits the `NOT NULL timestamptz` insert as an opaque error. Full spec: `.ai-factory/notes/18-spec-nfb-calibratedat-validation.md`.
 
-- [ ] **Reject malformed `calibratedAt` with `INVALID_ARGUMENT`** — Guard `Number.isNaN(getTime())` at the top of `record` and throw `RpcException` INVALID_ARGUMENT before insert. Full spec: `.ai-factory/notes/18-spec-nfb-calibratedat-validation.md`.
+- [x] **Reject malformed `calibratedAt` with `INVALID_ARGUMENT`** — Guard `Number.isNaN(getTime())` at the top of `record` and throw `RpcException` INVALID_ARGUMENT before insert. Full spec: `.ai-factory/notes/18-spec-nfb-calibratedat-validation.md`. [3m 16s]
 
 ## Phase 26 — Fix: relay OAuth `state` through the Google sign-in flow (CSRF)
 
