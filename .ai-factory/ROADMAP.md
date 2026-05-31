@@ -130,7 +130,7 @@ The Google relay flow carries no `state` → login-CSRF. The SPA owns `state`; t
 
 `stopActivity` clears `activitySessionStore` only after `await save` succeeds, so a save failure leaks state and a fast reconnect can resurrect a phantom session within the grace window. Full spec: `.ai-factory/notes/21-spec-clear-activity-state-on-stop-failure.md`.
 
-- [ ] **Wrap the `stopActivity` body in `try/finally` to always clear state** — `finally { activitySessionStore.delete(userId) }`; happy path unchanged; do not add a `REVOKED` stats handler (by design). Full spec: `.ai-factory/notes/21-spec-clear-activity-state-on-stop-failure.md`.
+- [x] **Wrap the `stopActivity` body in `try/finally` to always clear state** — `finally { activitySessionStore.delete(userId) }`; happy path unchanged; do not add a `REVOKED` stats handler (by design). Full spec: `.ai-factory/notes/21-spec-clear-activity-state-on-stop-failure.md`. [3m 23s]
 
 ## Phase 29 — Fix: add `individual_peak_frequency` to NFB calibration contract
 

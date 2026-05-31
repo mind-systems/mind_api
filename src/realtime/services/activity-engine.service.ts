@@ -213,36 +213,39 @@ export class ActivityEngine {
       return null;
     }
 
-    session.status = SessionStatus.INTERRUPTED;
-    session.endedAt = now;
-    const saved = await this.repo.save(session);
+    try {
+      session.status = SessionStatus.INTERRUPTED;
+      session.endedAt = now;
+      const saved = await this.repo.save(session);
 
-    this.streamEngine.push(state.sessionId, {
-      timestamp: Date.now(),
-      data: {
-        dataType: StreamDataType.SESSION_EVENT,
-        event: StreamSessionEvent.INTERRUPTED,
-      },
-    });
+      this.streamEngine.push(state.sessionId, {
+        timestamp: Date.now(),
+        data: {
+          dataType: StreamDataType.SESSION_EVENT,
+          event: StreamSessionEvent.INTERRUPTED,
+        },
+      });
 
-    this.activitySessionStore.delete(userId);
-    const durationMs = saved.endedAt
-      ? saved.endedAt.getTime() - saved.startedAt.getTime()
-      : 0;
-    this.logger.log(
-      `Session interrupted: userId=${userId} sessionId=${saved.id} durationMs=${durationMs}`,
-    );
+      const durationMs = saved.endedAt
+        ? saved.endedAt.getTime() - saved.startedAt.getTime()
+        : 0;
+      this.logger.log(
+        `Session interrupted: userId=${userId} sessionId=${saved.id} durationMs=${durationMs}`,
+      );
 
-    this.eventEmitter.emit(SessionEvents.INTERRUPTED, {
-      sessionId: saved.id,
-      userId,
-      startedAt: saved.startedAt,
-      endedAt: saved.endedAt,
-      activityType: saved.activityType,
-      activityRefId: saved.activityRefId,
-    });
+      this.eventEmitter.emit(SessionEvents.INTERRUPTED, {
+        sessionId: saved.id,
+        userId,
+        startedAt: saved.startedAt,
+        endedAt: saved.endedAt,
+        activityType: saved.activityType,
+        activityRefId: saved.activityRefId,
+      });
 
-    return saved;
+      return saved;
+    } finally {
+      this.activitySessionStore.delete(userId);
+    }
   }
 
   pauseActivity(userId: string): ActivityState {
