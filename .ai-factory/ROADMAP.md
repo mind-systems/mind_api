@@ -104,7 +104,7 @@ Web dashboard cannot distinguish breath from meditation sessions and cannot disp
 
 `StreamEngine.flush` / `BiometricStreamEngine.flush` clear the buffer only after `await save`, so an overlapping periodic + terminal flush double-inserts a batch, and samples pushed during the await are discarded. Two coupled defects; must ship together. Full spec: `.ai-factory/notes/17-spec-stream-flush-correctness.md`.
 
-- [ ] **Serialize per-session flushes (chain, do NOT skip) and clear only the persisted prefix** — Per-session promise chain in both engines + `splice(0, count)` with `byteSize` recompute instead of zeroing; add a dup/loss regression test. Full spec: `.ai-factory/notes/17-spec-stream-flush-correctness.md`.
+- [x] **Serialize per-session flushes (chain, do NOT skip) and clear only the persisted prefix** — Per-session promise chain in both engines + `splice(0, count)` with `byteSize` recompute instead of zeroing; add a dup/loss regression test. Full spec: `.ai-factory/notes/17-spec-stream-flush-correctness.md`. [16m 11s]
 
 ## Phase 25 — Fix: validate `calibratedAt` in NFB calibration record
 

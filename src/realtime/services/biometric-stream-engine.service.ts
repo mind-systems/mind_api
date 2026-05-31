@@ -23,6 +23,7 @@ export class BiometricStreamEngine
 {
   private readonly logger = new Logger(BiometricStreamEngine.name);
   private readonly buffers = new Map<string, BioSessionBuffer>();
+  private readonly flushChains = new Map<string, Promise<void>>();
   private readonly maxBufferBytes: number;
   private readonly maxSessions: number;
   private readonly _maxSamplesPerSecond: number;
@@ -132,6 +133,21 @@ export class BiometricStreamEngine
   }
 
   async flush(sessionId: string): Promise<void> {
+    const prior = (this.flushChains.get(sessionId) ?? Promise.resolve()).catch(
+      () => undefined,
+    );
+    const run = prior.then(() => this.doFlush(sessionId));
+    this.flushChains.set(sessionId, run);
+    void run
+      .finally(() => {
+        if (this.flushChains.get(sessionId) === run)
+          this.flushChains.delete(sessionId);
+      })
+      .catch(() => undefined);
+    return run;
+  }
+
+  private async doFlush(sessionId: string): Promise<void> {
     const buffer = this.buffers.get(sessionId);
     if (!buffer || buffer.samples.length === 0) {
       this.logger.debug(
@@ -140,7 +156,8 @@ export class BiometricStreamEngine
       return;
     }
 
-    const samples = buffer.samples.slice();
+    const count = buffer.samples.length;
+    const samples = buffer.samples.slice(0, count);
     const now = new Date();
 
     await this.sampleRepo.save(
@@ -151,9 +168,12 @@ export class BiometricStreamEngine
       }),
     );
 
-    // Clear only after successful save — do not reset cumulative counters
-    buffer.samples = [];
-    buffer.byteSize = 0;
+    // Clear only the persisted prefix — do not reset cumulative counters
+    buffer.samples.splice(0, count);
+    buffer.byteSize = buffer.samples.reduce(
+      (n, s) => n + JSON.stringify(s).length,
+      0,
+    );
 
     this.logger.log(
       `Flushed ${samples.length} bio samples for sessionId=${sessionId}`,

@@ -88,8 +88,7 @@ export class SessionsService {
         durationSeconds,
         activityType: entity.activityType,
         description: (r.bs_description as string | null) ?? null,
-        complexity:
-          r.bs_complexity != null ? Number(r.bs_complexity) : null,
+        complexity: r.bs_complexity != null ? Number(r.bs_complexity) : null,
       };
     });
 
