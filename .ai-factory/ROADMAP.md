@@ -120,11 +120,11 @@ The Google relay flow carries no `state` → login-CSRF. The SPA owns `state`; t
 
 ## Phase 27 — Fix: brute-force protection for OTP verify
 
-`verifyCode` has no failed-attempt lockout and the public REST auth routes have no throttle, so a known-email OTP is brute-forceable within the 15-min window. Full spec: `.ai-factory/notes/20-spec-otp-bruteforce-protection.md`.
+`verifyCode` has no failed-attempt lockout and the public REST auth routes have no throttle, so a known-email OTP is brute-forceable within the 15-min window. Full spec: `.ai-factory/notes/20-spec-otp-bruteforce-protection.md`. The target behavior is documented as current state in `docs/auth/rate-limiting.md` — the implementation must conform to that doc, and to the IP-keying invariant in `ARCHITECTURE.md` §7 (key on `req.ip`, do NOT set `trust proxy`).
 
 - [x] **Per-email failed-attempt lockout on `AuthCode`** — New `failedAttempts`/`lockedUntil` columns + migration; rework `verifyCode` to load by email, lock after 5 misses (429-mapped), rewrite the spec tests. Shared by gRPC/REST — see mobile note 45. Full spec: `.ai-factory/notes/20-spec-otp-bruteforce-protection.md` §Task A. [15m 5s]
 
-- [ ] **Throttle the public auth REST endpoints** — `@nestjs/throttler` per-route on `AuthRestController` only (NOT global `APP_GUARD` — gRPC/streaming must stay unthrottled). Full spec: `.ai-factory/notes/20-spec-otp-bruteforce-protection.md` §Task B.
+- [x] **Throttle the public auth REST endpoints** — `@nestjs/throttler` per-route on `AuthRestController` only (NOT global `APP_GUARD` — gRPC/streaming must stay unthrottled). Full spec: `.ai-factory/notes/20-spec-otp-bruteforce-protection.md` §Task B. [28m 34s]
 
 ## Phase 28 — Fix: clear in-memory activity state on `stopActivity` failure
 

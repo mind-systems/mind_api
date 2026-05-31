@@ -95,9 +95,11 @@ export class BreathSessionsModule {}
 
 4. **Explicit migrations only.** Never set `synchronize: true`. All schema changes go through TypeORM migration files in `src/migrations/`. Run with `npm run migration:run`.
 
-5. **Guards are the access control boundary.** `JwtAuthGuard` protects all authenticated routes. Auth endpoints (`send-code`, `verify-code`) are public — no guard. Apply guards at the controller or route level — never inside services.
+5. **Guards are the access control boundary.** `JwtAuthGuard` protects all authenticated routes. Auth endpoints (`send-code`, `verify-code`) carry no `JwtAuthGuard` — they are public — but they are rate-limited by a controller-scoped throttle guard. Apply guards at the controller or route level — never inside services.
 
 6. **DTOs are the API contract.** Every controller method accepts a typed DTO. Use `class-validator` decorators on all DTOs.
+
+7. **Client IP comes from the TCP peer, never from `X-Forwarded-For`.** Production exposes the API HTTP port directly — there is no reverse proxy in front of it, and nothing in the stack sets or strips `X-Forwarded-For`. Express `trust proxy` is therefore deliberately left **off**, so `req.ip` resolves to the real connecting peer and any client-supplied `X-Forwarded-For` is ignored. All IP-derived logic (rate limiting, throttling, audit) must key on `req.ip`. Do **not** enable `trust proxy` on its own — with no XFF-stripping proxy in front, trusting the header would let a caller forge a fresh identity per request and defeat IP-based controls. It may be enabled **only** together with a real reverse proxy that overwrites client-supplied `X-Forwarded-For`, and only with the hop count set to match that proxy. (Operational caveat: Docker's default `userland-proxy` can present the bridge gateway as the source IP in some setups — durable per-identity controls must not rely on per-IP keying alone.)
 
 ## Code Examples
 

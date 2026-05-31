@@ -102,6 +102,7 @@ gRPC controllers handle request/response mapping and delegate all business logic
 | Document | Path | Description |
 |----------|------|-------------|
 | Email Auth | `docs/auth/email-auth.md` | Passwordless OTP flow — endpoints, DB, mail, token lifecycle |
+| Auth Rate Limiting | `docs/auth/rate-limiting.md` | Send cooldown, verify lockout, REST throttle, IP keying |
 | Google Auth | `docs/auth/google-auth.md` | Google Sign-In via server auth code flow |
 | Personal Access Tokens | `docs/auth/personal-access-tokens.md` | PAT endpoints, security, token format |
 | User Profile | `docs/auth/user-profile.md` | Profile update, language preference |

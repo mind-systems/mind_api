@@ -21,7 +21,7 @@ Mind Awake API is a NestJS-based gRPC backend for a mindfulness breathing applic
 - **Auth:** `@nestjs/jwt` + `passport-jwt` (passwordless OTP flow)
 - **Mail:** Resend SDK
 - **Validation:** `class-validator` + `class-transformer`
-- **HTTP Security:** Helmet
+- **HTTP Security:** Helmet, `@nestjs/throttler` v6 (rate limiting on public auth endpoints)
 - **gRPC:** `@nestjs/microservices` + `@grpc/grpc-js` + `@grpc/proto-loader` (runtime); `ts-proto` (codegen, devDependency)
 - **Events:** `@nestjs/event-emitter` (internal event bus)
 - **Scheduling:** `@nestjs/schedule` (Cron for expired sessions + auth codes cleanup)
