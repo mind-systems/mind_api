@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddAuthCodeAttemptTracking1780245770180
-  implements MigrationInterface
-{
+export class AddAuthCodeAttemptTracking1780245770180 implements MigrationInterface {
   name = 'AddAuthCodeAttemptTracking1780245770180';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

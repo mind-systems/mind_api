@@ -128,9 +128,7 @@ export class AuthCodeService {
         const expectedHash = this.hashCode(code);
         if (authCode.codeHash !== expectedHash) {
           authCode.failedAttempts += 1;
-          if (
-            authCode.failedAttempts >= AuthCodeService.MAX_FAILED_ATTEMPTS
-          ) {
+          if (authCode.failedAttempts >= AuthCodeService.MAX_FAILED_ATTEMPTS) {
             authCode.lockedUntil = new Date(
               Date.now() + AuthCodeService.LOCK_MINUTES * 60 * 1000,
             );
