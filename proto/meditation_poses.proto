@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package mind;
+
+import "google/protobuf/empty.proto";
+
+// ---------------------------------------------------------------------------
+// Shared types
+// ---------------------------------------------------------------------------
+
+// Maps to MeditationPose entity in src/meditation-poses/.
+// Auth identity comes from metadata/interceptor, not the message.
+// No timestamps or user identity fields — poses are a server-side catalogue.
+message MeditationPose {
+  string id = 1;
+  string slug = 2;
+  int32 display_order = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Per-RPC request / response messages
+// ---------------------------------------------------------------------------
+
+// ListPoses — auth identity comes from metadata/interceptor, not the message.
+message ListMeditationPosesResponse {
+  repeated MeditationPose poses = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Service definition
+//
+// ListPoses — unary RPC returning the full catalogue of meditation poses
+//             ordered by display_order, available to any authenticated user.
+// ---------------------------------------------------------------------------
+
+service MeditationPosesService {
+  rpc ListPoses(google.protobuf.Empty) returns (ListMeditationPosesResponse);
+}
