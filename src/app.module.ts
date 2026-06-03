@@ -16,6 +16,7 @@ import { ChangelogModule } from './changelog/changelog.module';
 import { SyncModule } from './sync/sync.module';
 import { BciModule } from './bci/bci.module';
 import { NfbCalibrationModule } from './nfb-calibration/nfb-calibration.module';
+import { MeditationNotesModule } from './meditation-notes/meditation-notes.module';
 import { SessionsModule } from './sessions/sessions.module';
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { SessionsModule } from './sessions/sessions.module';
     BreathSessionsModule,
     BciModule,
     NfbCalibrationModule,
+    MeditationNotesModule,
     DeviceModule,
     RealtimeModule,
     StatsModule,
