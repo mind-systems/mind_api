@@ -15,7 +15,7 @@ package mind;
 message MeditationNote {
   string id = 1;
   string session_id = 2;   // empty string if detached (session deleted)
-  string pose_name = 3;    // opaque client string, no FK, any value accepted
+  string pose_id = 3;      // pose UUID (or empty string), no FK, any value accepted
   string note_text = 4;
   string created_at = 5;   // ISO-8601
   string updated_at = 6;   // ISO-8601
@@ -28,12 +28,12 @@ message MeditationNote {
 // Create — auth identity comes from metadata/interceptor, not the message.
 message CreateNoteRequest {
   string session_id = 1;
-  string pose_name = 2;
+  string pose_id = 2;
   string note_text = 3;
 }
 
 // Update — auth identity comes from metadata/interceptor, not the message.
-// Only note_text is mutable; pose_name and session binding are immutable after creation.
+// Only note_text is mutable; pose_id and session binding are immutable after creation.
 message UpdateNoteRequest {
   string note_id = 1;
   string note_text = 2;

@@ -182,7 +182,7 @@ export function toProtoMeditationNote(
   return {
     id: entity.id,
     sessionId: entity.sessionId ?? '',
-    poseName: entity.poseName,
+    poseId: entity.poseId,
     noteText: entity.noteText,
     createdAt: entity.createdAt.toISOString(),
     updatedAt: entity.updatedAt.toISOString(),

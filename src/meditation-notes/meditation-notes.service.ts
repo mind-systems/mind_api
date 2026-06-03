@@ -15,10 +15,10 @@ export class MeditationNotesService {
   async create(
     userId: string,
     sessionId: string | null,
-    poseName: string,
+    poseId: string,
     noteText: string,
   ): Promise<MeditationNote> {
-    const note = this.repo.create({ userId, sessionId, poseName, noteText });
+    const note = this.repo.create({ userId, sessionId, poseId, noteText });
     try {
       return await this.repo.save(note);
     } catch (err) {

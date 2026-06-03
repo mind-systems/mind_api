@@ -37,7 +37,7 @@ export class MeditationNotesGrpcController {
     const note = await this.meditationNotesService.create(
       user.sub,
       req.sessionId || null,
-      req.poseName,
+      req.poseId,
       req.noteText,
     );
     return toProtoMeditationNote(note);

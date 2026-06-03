@@ -17,8 +17,8 @@ export class MeditationNote {
   @Column('uuid', { name: 'session_id', nullable: true })
   sessionId: string | null;
 
-  @Column({ name: 'pose_name' })
-  poseName: string;
+  @Column({ name: 'pose_id' })
+  poseId: string;
 
   @Column({ name: 'note_text', type: 'text' })
   noteText: string;
