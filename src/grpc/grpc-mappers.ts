@@ -4,6 +4,8 @@ import type { BciDevice as BciDeviceProto } from '../../proto/generated/bci_devi
 import type { BciDevice } from '../bci/entities/bci-device.entity';
 import type { NfbCalibrationRecord as NfbCalibrationRecordProto } from '../../proto/generated/nfb_calibration';
 import type { NfbCalibrationRecord } from '../nfb-calibration/entities/nfb-calibration-record.entity';
+import type { MeditationNote as MeditationNoteProto } from '../../proto/generated/meditation_notes';
+import type { MeditationNote } from '../meditation-notes/entities/meditation-note.entity';
 import { UserRole } from '../users/interfaces/user-role.enum';
 import {
   StepType,
@@ -169,5 +171,18 @@ export function toProtoNfbCalibrationRecord(
     lowerFrequency: entity.lowerFrequency,
     upperFrequency: entity.upperFrequency,
     createdAt: entity.createdAt.toISOString(),
+  };
+}
+
+export function toProtoMeditationNote(
+  entity: MeditationNote,
+): MeditationNoteProto {
+  return {
+    id: entity.id,
+    sessionId: entity.sessionId ?? '',
+    poseName: entity.poseName,
+    noteText: entity.noteText,
+    createdAt: entity.createdAt.toISOString(),
+    updatedAt: entity.updatedAt.toISOString(),
   };
 }
