@@ -29,7 +29,7 @@ export class MeditationPosesGrpcController {
         message: 'Missing user context',
       });
     }
-    const poses = await this.meditationPosesService.listPoses();
+    const poses = await this.meditationPosesService.listAll();
     return { poses: poses.map(toProtoMeditationPose) };
   }
 }

@@ -10,7 +10,7 @@ export class MeditationPosesService {
     private readonly repo: Repository<MeditationPose>,
   ) {}
 
-  listPoses(): Promise<MeditationPose[]> {
+  listAll(): Promise<MeditationPose[]> {
     return this.repo.find({ order: { displayOrder: 'ASC' } });
   }
 }
