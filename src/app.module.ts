@@ -17,6 +17,7 @@ import { SyncModule } from './sync/sync.module';
 import { BciModule } from './bci/bci.module';
 import { NfbCalibrationModule } from './nfb-calibration/nfb-calibration.module';
 import { MeditationNotesModule } from './meditation-notes/meditation-notes.module';
+import { MeditationPosesModule } from './meditation-poses/meditation-poses.module';
 import { SessionsModule } from './sessions/sessions.module';
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { SessionsModule } from './sessions/sessions.module';
     BciModule,
     NfbCalibrationModule,
     MeditationNotesModule,
+    MeditationPosesModule,
     DeviceModule,
     RealtimeModule,
     StatsModule,

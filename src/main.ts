@@ -70,6 +70,7 @@ async function bootstrap() {
         join(process.cwd(), 'proto', 'module_biometric_stream.proto'),
         join(process.cwd(), 'proto', 'nfb_calibration.proto'),
         join(process.cwd(), 'proto', 'meditation_notes.proto'),
+        join(process.cwd(), 'proto', 'meditation_poses.proto'),
       ],
     },
   });

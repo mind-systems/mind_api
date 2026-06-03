@@ -6,6 +6,8 @@ import type { NfbCalibrationRecord as NfbCalibrationRecordProto } from '../../pr
 import type { NfbCalibrationRecord } from '../nfb-calibration/entities/nfb-calibration-record.entity';
 import type { MeditationNote as MeditationNoteProto } from '../../proto/generated/meditation_notes';
 import type { MeditationNote } from '../meditation-notes/entities/meditation-note.entity';
+import type { MeditationPose as MeditationPoseProto } from '../../proto/generated/meditation_poses';
+import type { MeditationPose } from '../meditation-poses/entities/meditation-pose.entity';
 import { UserRole } from '../users/interfaces/user-role.enum';
 import {
   StepType,
@@ -184,5 +186,15 @@ export function toProtoMeditationNote(
     noteText: entity.noteText,
     createdAt: entity.createdAt.toISOString(),
     updatedAt: entity.updatedAt.toISOString(),
+  };
+}
+
+export function toProtoMeditationPose(
+  entity: MeditationPose,
+): MeditationPoseProto {
+  return {
+    id: entity.id,
+    slug: entity.slug,
+    displayOrder: entity.displayOrder,
   };
 }
