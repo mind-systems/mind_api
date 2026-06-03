@@ -134,7 +134,7 @@ export class ModuleBiometricStreamGrpcController {
       const batchSessionId = batch.samples[0].sessionId;
 
       const mapped: BioSampleInternal[] = batch.samples.map((s) => ({
-        timestamp: s.timestamp,
+        timestamp: Number(s.timestamp),
         sampleType: s.sampleType,
         data: s.data,
       }));

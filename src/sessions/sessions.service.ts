@@ -19,6 +19,7 @@ import { ActivityType } from '../realtime/enums/activity-type.enum';
 
 const ROW_CAP = 60_000;
 const FLAT_CAP = 50_000;
+
 // Padded upper bound for the coarse flushedAt filter. A batch flushed up to 2 minutes after
 // `to` can still contain samples whose per-sample timestamp falls inside [from, to). Applying
 // a padded LessThan prevents the ROW_CAP from firing on legitimate narrow windows in long
@@ -157,8 +158,7 @@ export class SessionsService {
       );
     }
 
-    // `timestamp` is client unix-ms (verified write-path shape: { timestamp, sampleType, data }).
-    // flushedAt is only a coarse filter; per-sample timestamp is authoritative for [from, to).
+    // Verified write-path shape: { timestamp: number, sampleType, data }.
     const flat: Record<string, unknown>[] = [];
     for (const row of rows) {
       for (const sample of row.samples ?? []) {
@@ -181,7 +181,7 @@ export class SessionsService {
       }
     }
 
-    flat.sort((a, b) => Number(a['timestamp']) - Number(b['timestamp']));
+    flat.sort((a, b) => (a['timestamp'] as number) - (b['timestamp'] as number));
 
     return flat;
   }
