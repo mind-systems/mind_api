@@ -68,6 +68,21 @@ message BreathSessionWithStarredDto {
   optional bool is_starred = 2;
 }
 
+// Section grouping for ListSessions items. A session may legitimately appear
+// in more than one section (e.g. starred AND mine) — duplication is intentional
+// so the client can render each section independently.
+enum SessionSection {
+  STARRED = 0;
+  MINE = 1;
+  SHARED = 2;
+}
+
+// Wraps a session with its section so the client can render grouped lists.
+message SessionListItem {
+  BreathSessionWithStarredDto session = 1;
+  SessionSection section = 2;
+}
+
 // ---------------------------------------------------------------------------
 // Per-RPC request / response messages
 // ---------------------------------------------------------------------------
@@ -124,20 +139,18 @@ message DeleteSessionResponse {
   string message = 1;
 }
 
-// ListSessions — maps to ListQueryDto in src/breath-sessions/dto/breath-session.dto.ts.
+// ListSessions — cursor-based pagination.
 // Auth is optional: anonymous users see shared sessions only; authenticated users
-// receive is_starred on each item and the full own/starred/shared grouping.
+// receive is_starred on each item and the full STARRED/MINE/SHARED grouping.
 message ListSessionsRequest {
-  int32 page = 1;
+  optional string cursor = 1;  // opaque cursor; replaces former `page` (tag 1 reuse — lockstep, confirmed safe)
   int32 page_size = 2;
 }
 
-// Maps to BreathSessionListResponseDto in src/breath-sessions/dto/breath-session.dto.ts
 message ListSessionsResponse {
-  repeated BreathSessionWithStarredDto data = 1;
-  int32 total = 2;
-  int32 page = 3;
-  int32 page_size = 4;
+  repeated SessionListItem items = 1;
+  optional string next_cursor = 2;
+  // removed: data, total, page, page_size
 }
 
 // GetSession — auth optional: authenticated users receive is_starred in the response.
