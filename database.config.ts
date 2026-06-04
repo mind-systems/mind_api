@@ -16,4 +16,7 @@ export const getDatabaseConfig = (
   synchronize: false,
   logging: ['error', 'warn', 'migration'],
   ssl: false,
+  extra: {
+    options: '-c timezone=UTC',
+  },
 });

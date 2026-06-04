@@ -73,15 +73,14 @@ export class BreathSessionsGrpcController implements BreathSessionServiceControl
   ): Promise<ListSessionsResponse> {
     const result = await this.breathSessionsService.findList(
       user?.sub ?? null,
-      request.page,
+      request.cursor ?? null,
       request.pageSize,
     );
-    return {
-      data: result.data.map(toProtoBreathSessionWithStarredDto),
-      total: result.total,
-      page: result.page,
-      pageSize: result.pageSize,
-    };
+    const items = result.items.map((i) => ({
+      session: toProtoBreathSessionWithStarredDto(i),
+      section: i.section,
+    }));
+    return { items, nextCursor: result.nextCursor ?? undefined };
   }
 
   async getSuggestions(

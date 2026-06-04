@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, Repository } from 'typeorm';
@@ -24,6 +25,42 @@ import {
   ChangeEventPayload,
 } from 'src/changelog/changelog.events';
 import { ChangeAction, ChangeEntity } from 'src/changelog/changelog.enums';
+import { SessionSection } from '../../proto/generated/breath_sessions';
+
+interface CursorPayload {
+  section: SessionSection;
+  createdAt: string;
+  id: string;
+}
+
+function encodeCursor(payload: CursorPayload): string {
+  return Buffer.from(JSON.stringify(payload)).toString('base64url');
+}
+
+function decodeCursor(raw: string): CursorPayload {
+  try {
+    const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString()) as CursorPayload;
+    if (
+      parsed.section !== SessionSection.STARRED &&
+      parsed.section !== SessionSection.MINE &&
+      parsed.section !== SessionSection.SHARED
+    ) {
+      throw new Error('invalid section');
+    }
+    const date = new Date(parsed.createdAt);
+    if (isNaN(date.getTime())) {
+      throw new Error('invalid createdAt');
+    }
+    if (!parsed.id || typeof parsed.id !== 'string') {
+      throw new Error('invalid id');
+    }
+    return parsed;
+  } catch {
+    throw new BadRequestException('Invalid cursor');
+  }
+}
+
+const SECTION_ORDER = [SessionSection.STARRED, SessionSection.MINE, SessionSection.SHARED];
 
 const SUGGESTIONS_COMPLEXITY_THRESHOLD = 'SUGGESTIONS_COMPLEXITY_THRESHOLD';
 const SUGGESTIONS_BEGINNER_BASELINE = 'SUGGESTIONS_BEGINNER_BASELINE';
@@ -49,6 +86,48 @@ export class BreathSessionsService {
     this.suggestionsBeginnerBaseline = Number(
       this.configService.get(SUGGESTIONS_BEGINNER_BASELINE, 40),
     );
+  }
+
+  private async querySection(
+    section: SessionSection,
+    userId: string | null,
+    keyset: { createdAt: string; id: string } | null,
+    take: number,
+  ): Promise<BreathSession[]> {
+    const qb = this.breathSessionRepository.createQueryBuilder('session');
+
+    if (section === SessionSection.STARRED) {
+      qb.innerJoin(
+        'breath_session_settings',
+        'settings',
+        'settings."sessionId" = session.id AND settings."userId" = :userId AND settings.starred = true',
+        { userId },
+      );
+    } else if (section === SessionSection.MINE) {
+      qb.where('session."userId" = :userId', { userId });
+    } else {
+      // SHARED
+      if (userId) {
+        qb.where('session."userId" != :userId AND session.shared = true', { userId });
+      } else {
+        qb.where('session.shared = true');
+      }
+    }
+
+    if (keyset) {
+      qb.andWhere(
+        '(date_trunc(\'milliseconds\', session."createdAt"), session.id) < (:cursorCreatedAt, :cursorId)',
+        { cursorCreatedAt: keyset.createdAt, cursorId: keyset.id },
+      );
+    }
+
+    // date_trunc('milliseconds') keeps ordering consistent with the ms-truncated cursor values
+    // that JS Date.toISOString() produces when decoding a TypeORM-returned timestamp.
+    qb.orderBy('date_trunc(\'milliseconds\', session."createdAt")', 'DESC')
+      .addOrderBy('session.id', 'DESC')
+      .take(take);
+
+    return qb.getMany();
   }
 
   async create(
@@ -82,61 +161,100 @@ export class BreathSessionsService {
     return saved;
   }
 
-  async findList(userId: string | null, page: number, pageSize: number) {
-    const skip = (page - 1) * pageSize;
-
-    if (!userId) {
-      const [data, total] = await this.breathSessionRepository.findAndCount({
-        where: { shared: true },
-        order: { createdAt: 'DESC' },
-        skip,
-        take: pageSize,
-      });
-      return { data, total, page, pageSize };
+  async findList(
+    userId: string | null,
+    cursor: string | null,
+    pageSize: number,
+  ): Promise<{
+    items: Array<BreathSession & { isStarred?: boolean; section: SessionSection }>;
+    nextCursor: string | null;
+  }> {
+    if (pageSize < 1) {
+      throw new BadRequestException('pageSize must be at least 1');
     }
 
-    // Single query with 3-group priority:
-    // 1) isMine=true (own sessions, any starred/shared status)
-    // 2) isMine=false, starred=true (others' starred)
-    // 3) isMine=false, starred=false, shared=true (others' shared)
-    const qb = this.breathSessionRepository
-      .createQueryBuilder('session')
-      .leftJoin(
-        'breath_session_settings',
-        'settings',
-        'settings."sessionId" = session.id AND settings."userId" = :userId',
-        { userId },
-      )
-      .where(
-        '(session."userId" = :userId OR (settings.starred = true AND session."userId" != :userId) OR (session.shared = true AND session."userId" != :userId))',
-        { userId },
-      )
-      .addSelect(
-        `CASE
-          WHEN session."userId" = :userId THEN 0
-          WHEN settings.starred = true THEN 1
-          ELSE 2
-        END`,
-        'group_priority',
-      )
-      .orderBy('group_priority', 'ASC')
-      .addOrderBy('session.createdAt', 'DESC')
-      .skip(skip)
-      .take(pageSize);
+    // Anonymous path: only SHARED section
+    if (!userId) {
+      let keyset: { createdAt: string; id: string } | null = null;
+      if (cursor) {
+        const decoded = decodeCursor(cursor);
+        if (decoded.section !== SessionSection.SHARED) {
+          throw new BadRequestException('Invalid cursor');
+        }
+        keyset = { createdAt: decoded.createdAt, id: decoded.id };
+      }
 
-    const [sessions, total] = await qb.getManyAndCount();
+      const rows = await this.querySection(SessionSection.SHARED, null, keyset, pageSize);
+      const items = rows.map((r) => ({ ...r, section: SessionSection.SHARED }));
 
-    const settingsMap = await this.settingsService.findByUserAndSessions(
-      userId,
-      sessions.map((s) => s.id),
-    );
+      const nextCursor =
+        items.length < pageSize
+          ? null
+          : encodeCursor({
+              section: SessionSection.SHARED,
+              createdAt: rows[rows.length - 1].createdAt.toISOString(),
+              id: rows[rows.length - 1].id,
+            });
 
-    const data = sessions.map((session) => ({
-      ...session,
-      isStarred: settingsMap.get(session.id)?.starred ?? false,
+      return { items, nextCursor };
+    }
+
+    // Authenticated path: boundary-spill loop over STARRED → MINE → SHARED
+    let startSection = SessionSection.STARRED;
+    let keyset: { createdAt: string; id: string } | null = null;
+
+    if (cursor) {
+      const decoded = decodeCursor(cursor);
+      startSection = decoded.section;
+      keyset = { createdAt: decoded.createdAt, id: decoded.id };
+    }
+
+    const collected: Array<BreathSession & { section: SessionSection }> = [];
+    const startIdx = SECTION_ORDER.indexOf(startSection);
+
+    for (let i = startIdx; i < SECTION_ORDER.length; i++) {
+      const section = SECTION_ORDER[i];
+      const remaining = pageSize - collected.length;
+      if (remaining === 0) break;
+
+      const rows = await this.querySection(section, userId, keyset, remaining);
+      for (const row of rows) {
+        collected.push({ ...row, section });
+      }
+
+      // Only the starting section uses the decoded keyset; subsequent sections start unbounded
+      keyset = null;
+    }
+
+    // Attach isStarred
+    const ids = collected.map((r) => r.id);
+    const settingsMap =
+      ids.length > 0
+        ? await this.settingsService.findByUserAndSessions(userId, ids)
+        : new Map();
+
+    const items = collected.map((row) => ({
+      ...row,
+      isStarred:
+        row.section === SessionSection.STARRED
+          ? true
+          : (settingsMap.get(row.id)?.starred ?? false),
     }));
 
-    return { data, total, page, pageSize };
+    // Compute next cursor
+    const nextCursor =
+      collected.length < pageSize
+        ? null
+        : (() => {
+            const last = collected[collected.length - 1];
+            return encodeCursor({
+              section: last.section,
+              createdAt: last.createdAt.toISOString(),
+              id: last.id,
+            });
+          })();
+
+    return { items, nextCursor };
   }
 
   async findBatch(
