@@ -125,7 +125,7 @@ export class BreathSessionsService {
     // that JS Date.toISOString() produces when decoding a TypeORM-returned timestamp.
     qb.orderBy('date_trunc(\'milliseconds\', session."createdAt")', 'DESC')
       .addOrderBy('session.id', 'DESC')
-      .take(take);
+      .limit(take);
 
     return qb.getMany();
   }
