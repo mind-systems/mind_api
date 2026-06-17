@@ -117,3 +117,4 @@ gRPC controllers handle request/response mapping and delegate all business logic
 | Realtime Config | `docs/realtime/configuration.md` | WS_* and WS_BIO_* environment variables |
 | User Stats | `docs/stats/stats.md` | GET /users/me/stats endpoint, streak rules, min-duration filter |
 | Sync | `docs/sync/sync.md` | Change events journal, GET /sync/changes, WebSocket sync:changed push, TTL |
+| Log Destinations | `docs/observability/log-destinations.md` | LOG_DESTINATION modes (file/grafana/both), OTLP_ENDPOINT, real-env requirement |
