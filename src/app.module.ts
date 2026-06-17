@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -21,6 +21,7 @@ import { MeditationNotesModule } from './meditation-notes/meditation-notes.modul
 import { MeditationPosesModule } from './meditation-poses/meditation-poses.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { GrpcTraceContextInterceptor } from './grpc/grpc-trace-context.interceptor';
+import { TraceContextMiddleware } from './common/middleware/trace-context.middleware';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -55,4 +56,8 @@ import { GrpcTraceContextInterceptor } from './grpc/grpc-trace-context.intercept
     { provide: APP_INTERCEPTOR, useClass: GrpcTraceContextInterceptor },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(TraceContextMiddleware).forRoutes('*');
+  }
+}
