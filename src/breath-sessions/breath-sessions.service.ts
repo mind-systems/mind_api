@@ -39,7 +39,9 @@ function encodeCursor(payload: CursorPayload): string {
 
 function decodeCursor(raw: string): CursorPayload {
   try {
-    const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString()) as CursorPayload;
+    const parsed = JSON.parse(
+      Buffer.from(raw, 'base64url').toString(),
+    ) as CursorPayload;
     if (
       parsed.section !== SessionSection.STARRED &&
       parsed.section !== SessionSection.MINE &&
@@ -60,7 +62,11 @@ function decodeCursor(raw: string): CursorPayload {
   }
 }
 
-const SECTION_ORDER = [SessionSection.STARRED, SessionSection.MINE, SessionSection.SHARED];
+const SECTION_ORDER = [
+  SessionSection.STARRED,
+  SessionSection.MINE,
+  SessionSection.SHARED,
+];
 
 const SUGGESTIONS_COMPLEXITY_THRESHOLD = 'SUGGESTIONS_COMPLEXITY_THRESHOLD';
 const SUGGESTIONS_BEGINNER_BASELINE = 'SUGGESTIONS_BEGINNER_BASELINE';
@@ -108,7 +114,9 @@ export class BreathSessionsService {
     } else {
       // SHARED
       if (userId) {
-        qb.where('session."userId" != :userId AND session.shared = true', { userId });
+        qb.where('session."userId" != :userId AND session.shared = true', {
+          userId,
+        });
       } else {
         qb.where('session.shared = true');
       }
@@ -166,7 +174,9 @@ export class BreathSessionsService {
     cursor: string | null,
     pageSize: number,
   ): Promise<{
-    items: Array<BreathSession & { isStarred?: boolean; section: SessionSection }>;
+    items: Array<
+      BreathSession & { isStarred?: boolean; section: SessionSection }
+    >;
     nextCursor: string | null;
   }> {
     if (pageSize < 1) {
@@ -184,7 +194,12 @@ export class BreathSessionsService {
         keyset = { createdAt: decoded.createdAt, id: decoded.id };
       }
 
-      const rows = await this.querySection(SessionSection.SHARED, null, keyset, pageSize);
+      const rows = await this.querySection(
+        SessionSection.SHARED,
+        null,
+        keyset,
+        pageSize,
+      );
       const items = rows.map((r) => ({ ...r, section: SessionSection.SHARED }));
 
       const nextCursor =

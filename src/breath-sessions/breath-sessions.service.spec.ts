@@ -192,8 +192,14 @@ describe('BreathSessionsService', () => {
     };
 
     // Encode a cursor the same way the service does (base64url JSON)
-    const encodeCursor = (section: SessionSection, createdAt: string, id: string) =>
-      Buffer.from(JSON.stringify({ section, createdAt, id })).toString('base64url');
+    const encodeCursor = (
+      section: SessionSection,
+      createdAt: string,
+      id: string,
+    ) =>
+      Buffer.from(JSON.stringify({ section, createdAt, id })).toString(
+        'base64url',
+      );
 
     beforeEach(() => {
       settingsService = {
@@ -206,7 +212,9 @@ describe('BreathSessionsService', () => {
 
       const mockStatsService = {} as any;
       const mockConfigService = { get: jest.fn().mockReturnValue(50) } as any;
-      const mockChangeLogService = { log: jest.fn().mockResolvedValue(1) } as any;
+      const mockChangeLogService = {
+        log: jest.fn().mockResolvedValue(1),
+      } as any;
       const mockEventEmitter = { emit: jest.fn() } as any;
 
       service = new BreathSessionsService(
@@ -220,15 +228,28 @@ describe('BreathSessionsService', () => {
     });
 
     it('first page (no cursor): returns items tagged with their section, nextCursor encodes last row', async () => {
-      const starred = makeSession({ id: 's1', userId: 'other', createdAt: new Date('2026-03-01T00:00:00Z') });
-      const mine = makeSession({ id: 'm1', userId: 'user-uuid', createdAt: new Date('2026-02-01T00:00:00Z') });
-      const shared = makeSession({ id: 'sh1', userId: 'other', shared: true, createdAt: new Date('2026-01-01T00:00:00Z') });
+      const starred = makeSession({
+        id: 's1',
+        userId: 'other',
+        createdAt: new Date('2026-03-01T00:00:00Z'),
+      });
+      const mine = makeSession({
+        id: 'm1',
+        userId: 'user-uuid',
+        createdAt: new Date('2026-02-01T00:00:00Z'),
+      });
+      const shared = makeSession({
+        id: 'sh1',
+        userId: 'other',
+        shared: true,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
 
       // With pageSize=3 and 1 row per section, the loop fills all three sections
       repository.createQueryBuilder
-        .mockReturnValueOnce(makeQb([starred]))  // STARRED section
-        .mockReturnValueOnce(makeQb([mine]))     // MINE section
-        .mockReturnValueOnce(makeQb([shared]));  // SHARED section
+        .mockReturnValueOnce(makeQb([starred])) // STARRED section
+        .mockReturnValueOnce(makeQb([mine])) // MINE section
+        .mockReturnValueOnce(makeQb([shared])); // SHARED section
 
       const result = await service.findList('user-uuid', null, 3);
 
@@ -241,20 +262,35 @@ describe('BreathSessionsService', () => {
       expect(result.items[2].section).toBe(SessionSection.SHARED);
       // Full page of 3 → nextCursor encodes the last row (SHARED, sh1)
       expect(result.nextCursor).not.toBeNull();
-      const decoded = JSON.parse(Buffer.from(result.nextCursor!, 'base64url').toString());
+      const decoded = JSON.parse(
+        Buffer.from(result.nextCursor!, 'base64url').toString(),
+      );
       expect(decoded.section).toBe(SessionSection.SHARED);
       expect(decoded.id).toBe('sh1');
     });
 
     it('second page: cursor applies keyset to starting section only, continues disjointly', async () => {
-      const mine2 = makeSession({ id: 'm2', userId: 'user-uuid', createdAt: new Date('2026-01-15T00:00:00Z') });
-      const shared2 = makeSession({ id: 'sh2', userId: 'other', shared: true, createdAt: new Date('2026-01-10T00:00:00Z') });
+      const mine2 = makeSession({
+        id: 'm2',
+        userId: 'user-uuid',
+        createdAt: new Date('2026-01-15T00:00:00Z'),
+      });
+      const shared2 = makeSession({
+        id: 'sh2',
+        userId: 'other',
+        shared: true,
+        createdAt: new Date('2026-01-10T00:00:00Z'),
+      });
 
       // Cursor points to end of MINE section
-      const cursor = encodeCursor(SessionSection.MINE, '2026-02-01T00:00:00.000Z', 'm1');
+      const cursor = encodeCursor(
+        SessionSection.MINE,
+        '2026-02-01T00:00:00.000Z',
+        'm1',
+      );
 
       repository.createQueryBuilder
-        .mockReturnValueOnce(makeQb([mine2]))   // MINE with keyset applied
+        .mockReturnValueOnce(makeQb([mine2])) // MINE with keyset applied
         .mockReturnValueOnce(makeQb([shared2])); // SHARED unbounded
 
       const result = await service.findList('user-uuid', cursor, 2);
@@ -271,7 +307,10 @@ describe('BreathSessionsService', () => {
         expect.stringContaining('date_trunc'),
         expect.objectContaining({ cursorId: 'm1' }),
       );
-      expect(mineQb.orderBy).toHaveBeenCalledWith(expect.stringContaining('date_trunc'), 'DESC');
+      expect(mineQb.orderBy).toHaveBeenCalledWith(
+        expect.stringContaining('date_trunc'),
+        'DESC',
+      );
 
       // The SHARED query builder should NOT have received andWhere (unbounded)
       const sharedQb = repository.createQueryBuilder.mock.results[1].value;
@@ -279,14 +318,26 @@ describe('BreathSessionsService', () => {
     });
 
     it('section boundary spill: STARRED yields fewer than pageSize, remainder filled from MINE', async () => {
-      const starred1 = makeSession({ id: 's1', userId: 'other', createdAt: new Date('2026-03-01T00:00:00Z') });
-      const mine1 = makeSession({ id: 'm1', userId: 'user-uuid', createdAt: new Date('2026-02-01T00:00:00Z') });
-      const mine2 = makeSession({ id: 'm2', userId: 'user-uuid', createdAt: new Date('2026-01-01T00:00:00Z') });
+      const starred1 = makeSession({
+        id: 's1',
+        userId: 'other',
+        createdAt: new Date('2026-03-01T00:00:00Z'),
+      });
+      const mine1 = makeSession({
+        id: 'm1',
+        userId: 'user-uuid',
+        createdAt: new Date('2026-02-01T00:00:00Z'),
+      });
+      const mine2 = makeSession({
+        id: 'm2',
+        userId: 'user-uuid',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
 
       // pageSize=3, STARRED returns 1, MINE fills remaining 2, SHARED not reached
       repository.createQueryBuilder
-        .mockReturnValueOnce(makeQb([starred1]))       // STARRED → 1 row
-        .mockReturnValueOnce(makeQb([mine1, mine2]));  // MINE → 2 rows (remaining)
+        .mockReturnValueOnce(makeQb([starred1])) // STARRED → 1 row
+        .mockReturnValueOnce(makeQb([mine1, mine2])); // MINE → 2 rows (remaining)
 
       const result = await service.findList('user-uuid', null, 3);
 
@@ -299,7 +350,12 @@ describe('BreathSessionsService', () => {
     });
 
     it('anonymous caller: only SHARED rows returned, no isStarred, cursor honored', async () => {
-      const shared = makeSession({ id: 'sh1', userId: 'other', shared: true, createdAt: new Date('2026-01-01T00:00:00Z') });
+      const shared = makeSession({
+        id: 'sh1',
+        userId: 'other',
+        shared: true,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
 
       repository.createQueryBuilder.mockReturnValueOnce(makeQb([shared]));
 
@@ -315,7 +371,11 @@ describe('BreathSessionsService', () => {
     });
 
     it('anonymous with cursor: applies keyset to SHARED query', async () => {
-      const cursor = encodeCursor(SessionSection.SHARED, '2026-01-01T00:00:00.000Z', 'sh0');
+      const cursor = encodeCursor(
+        SessionSection.SHARED,
+        '2026-01-01T00:00:00.000Z',
+        'sh0',
+      );
       repository.createQueryBuilder.mockReturnValueOnce(makeQb([]));
 
       await service.findList(null, cursor, 5);
@@ -328,8 +388,14 @@ describe('BreathSessionsService', () => {
     });
 
     it('anonymous with STARRED cursor: throws BadRequestException', async () => {
-      const badCursor = encodeCursor(SessionSection.STARRED, '2026-01-01T00:00:00.000Z', 'sid');
-      await expect(service.findList(null, badCursor, 5)).rejects.toBeInstanceOf(BadRequestException);
+      const badCursor = encodeCursor(
+        SessionSection.STARRED,
+        '2026-01-01T00:00:00.000Z',
+        'sid',
+      );
+      await expect(service.findList(null, badCursor, 5)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('empty result: items is empty, nextCursor is null', async () => {
@@ -345,12 +411,16 @@ describe('BreathSessionsService', () => {
     });
 
     it('isStarred: STARRED-section rows are true by definition', async () => {
-      const session = makeSession({ id: 's1', userId: 'other', createdAt: new Date('2026-01-01T00:00:00Z') });
+      const session = makeSession({
+        id: 's1',
+        userId: 'other',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
 
       repository.createQueryBuilder
-        .mockReturnValueOnce(makeQb([session]))  // STARRED → 1 row fills page
-        .mockReturnValueOnce(makeQb([]))         // MINE (not reached due to full page)
-        .mockReturnValueOnce(makeQb([]));        // SHARED (not reached)
+        .mockReturnValueOnce(makeQb([session])) // STARRED → 1 row fills page
+        .mockReturnValueOnce(makeQb([])) // MINE (not reached due to full page)
+        .mockReturnValueOnce(makeQb([])); // SHARED (not reached)
 
       // settingsService returns starred=false for this id (should be overridden)
       settingsService.findByUserAndSessions.mockResolvedValue(
@@ -363,10 +433,14 @@ describe('BreathSessionsService', () => {
     });
 
     it('isStarred: MINE/SHARED rows reflect settingsService result', async () => {
-      const session = makeSession({ id: 'm1', userId: 'user-uuid', createdAt: new Date('2026-01-01T00:00:00Z') });
+      const session = makeSession({
+        id: 'm1',
+        userId: 'user-uuid',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
 
       repository.createQueryBuilder
-        .mockReturnValueOnce(makeQb([]))         // STARRED → empty
+        .mockReturnValueOnce(makeQb([])) // STARRED → empty
         .mockReturnValueOnce(makeQb([session])); // MINE → 1 row fills page
 
       settingsService.findByUserAndSessions.mockResolvedValue(
@@ -379,7 +453,11 @@ describe('BreathSessionsService', () => {
     });
 
     it('isStarred: defaults to false when settingsService has no entry', async () => {
-      const session = makeSession({ id: 'm1', userId: 'user-uuid', createdAt: new Date('2026-01-01T00:00:00Z') });
+      const session = makeSession({
+        id: 'm1',
+        userId: 'user-uuid',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
 
       repository.createQueryBuilder
         .mockReturnValueOnce(makeQb([]))
@@ -393,20 +471,34 @@ describe('BreathSessionsService', () => {
     });
 
     it('malformed cursor: throws BadRequestException', async () => {
-      await expect(service.findList('user-uuid', 'not-valid-base64url!!', 10)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.findList('user-uuid', 'not-valid-base64url!!', 10),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('cursor with invalid section value: throws BadRequestException', async () => {
-      const badCursor = Buffer.from(JSON.stringify({ section: 99, createdAt: '2026-01-01T00:00:00Z', id: 'sid' })).toString('base64url');
-      await expect(service.findList('user-uuid', badCursor, 10)).rejects.toBeInstanceOf(BadRequestException);
+      const badCursor = Buffer.from(
+        JSON.stringify({
+          section: 99,
+          createdAt: '2026-01-01T00:00:00Z',
+          id: 'sid',
+        }),
+      ).toString('base64url');
+      await expect(
+        service.findList('user-uuid', badCursor, 10),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('pageSize=0: throws BadRequestException for authenticated caller', async () => {
-      await expect(service.findList('user-uuid', null, 0)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.findList('user-uuid', null, 0),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('pageSize=0: throws BadRequestException for anonymous caller', async () => {
-      await expect(service.findList(null, null, 0)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.findList(null, null, 0)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 });

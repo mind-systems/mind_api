@@ -181,7 +181,9 @@ export class SessionsService {
       }
     }
 
-    flat.sort((a, b) => (a['timestamp'] as number) - (b['timestamp'] as number));
+    flat.sort(
+      (a, b) => (a['timestamp'] as number) - (b['timestamp'] as number),
+    );
 
     return flat;
   }

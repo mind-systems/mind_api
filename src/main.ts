@@ -19,7 +19,8 @@ async function bootstrap() {
   // Real env only — createLogger runs before ConfigModule parses .env.
   const logDestination = process.env.LOG_DESTINATION ?? 'file'; // file | grafana | both
   const logToFile = logDestination !== 'grafana';
-  const logToGrafana = logDestination === 'grafana' || logDestination === 'both';
+  const logToGrafana =
+    logDestination === 'grafana' || logDestination === 'both';
   const otlpEndpoint =
     process.env.OTLP_ENDPOINT ?? 'http://localhost:3100/otlp/v1/logs';
 

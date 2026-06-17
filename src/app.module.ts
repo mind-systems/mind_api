@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { getDatabaseConfig } from '../database.config';
 import { AuthModule } from './users/auth.module';
 import { UserModule } from './users/user.module';
@@ -19,6 +20,7 @@ import { NfbCalibrationModule } from './nfb-calibration/nfb-calibration.module';
 import { MeditationNotesModule } from './meditation-notes/meditation-notes.module';
 import { MeditationPosesModule } from './meditation-poses/meditation-poses.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { GrpcTraceContextInterceptor } from './grpc/grpc-trace-context.interceptor';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -49,5 +51,8 @@ import { SessionsModule } from './sessions/sessions.module';
     SessionsModule,
   ],
   controllers: [HealthController],
+  providers: [
+    { provide: APP_INTERCEPTOR, useClass: GrpcTraceContextInterceptor },
+  ],
 })
 export class AppModule {}

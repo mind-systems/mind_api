@@ -1,9 +1,7 @@
 import { Controller, UseFilters, UseInterceptors } from '@nestjs/common';
 import { GrpcMethod, Payload, RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
-import {
-  ListMeditationPosesResponse,
-} from '../../proto/generated/meditation_poses';
+import { ListMeditationPosesResponse } from '../../proto/generated/meditation_poses';
 import { Empty } from '../../proto/generated/google/protobuf/empty';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
@@ -16,7 +14,9 @@ import { MeditationPosesService } from './meditation-poses.service';
 @UseFilters(GrpcExceptionFilter)
 @UseInterceptors(GrpcAuthInterceptor)
 export class MeditationPosesGrpcController {
-  constructor(private readonly meditationPosesService: MeditationPosesService) {}
+  constructor(
+    private readonly meditationPosesService: MeditationPosesService,
+  ) {}
 
   @GrpcMethod('MeditationPosesService', 'listPoses')
   async listPoses(
