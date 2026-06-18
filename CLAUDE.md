@@ -44,6 +44,10 @@ make build-prod && make up-prod
 - After any proto change, consumers (`mind_mcp`, `mind_mobile`) copy the updated files and regenerate their stubs.
 - Change order: update `proto/` → implement gRPC controller in `mind_api` → notify consumers to copy and regenerate.
 
+## Logging
+
+Write all logs through NestJS's **`Logger`** from `@nestjs/common` — instantiate per class as `new Logger(ClassName.name)`. Never log via `console.*` or any other logger.
+
 ## Architecture
 
 **Pattern:** Modular Monolith. Each domain (auth, breath-sessions, mail) is a self-contained NestJS feature module. Modules communicate only through their exported providers — never by importing internals from another module's files.
