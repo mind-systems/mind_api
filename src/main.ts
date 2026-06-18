@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
@@ -16,7 +17,8 @@ import helmet from 'helmet';
 async function bootstrap() {
   const isProd = process.env.NODE_ENV === 'production';
 
-  // Real env only — createLogger runs before ConfigModule parses .env.
+  // Read from .env (loaded by the dotenv preload at the top of this file):
+  // createLogger runs before ConfigModule, so the values must already be in process.env.
   const logDestination = process.env.LOG_DESTINATION ?? 'file'; // file | grafana | both
   const logToFile = logDestination !== 'grafana';
   const logToGrafana =
