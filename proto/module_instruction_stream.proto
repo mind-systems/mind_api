@@ -47,6 +47,17 @@ message StreamAck {
 // Streaming message wrappers
 // ---------------------------------------------------------------------------
 
+// StreamReady is the server's first outbound frame, emitted the instant the
+// controller subscribes — before any client sample is read. It signals the
+// client that the server is listening and may start sending.
+// max_samples_per_second mirrors StreamAck so the client learns the rate
+// limit before its first send.
+// timestamp is int64 Unix millis when the ready frame was produced.
+message StreamReady {
+  int32 max_samples_per_second = 1;
+  int64 timestamp = 2;
+}
+
 // StreamResponse is the server-to-client stream envelope.
 // Each message carries exactly one event via the oneof.
 // StateErrorEvent is imported from module_state.proto and reused for error reporting.
@@ -54,6 +65,7 @@ message StreamResponse {
   oneof event {
     StreamAck ack = 1;
     StateErrorEvent error = 2;
+    StreamReady ready = 3;
   }
 }
 

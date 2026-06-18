@@ -58,6 +58,14 @@ message BioStreamAck {
 // Streaming message wrappers
 // ---------------------------------------------------------------------------
 
+// BioStreamReady is the server's first outbound frame, emitted the instant the
+// controller subscribes — before any client batch is read. Mirrors StreamReady
+// from module_instruction_stream.proto.
+message BioStreamReady {
+  int32 max_samples_per_second = 1;
+  int64 timestamp = 2;
+}
+
 // BioStreamResponse is the server-to-client stream envelope.
 // Each message carries exactly one event via the oneof.
 // StateErrorEvent is imported from module_state.proto and reused for error reporting.
@@ -65,6 +73,7 @@ message BioStreamResponse {
   oneof event {
     BioStreamAck ack = 1;
     StateErrorEvent error = 2;
+    BioStreamReady ready = 3;
   }
 }
 

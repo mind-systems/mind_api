@@ -55,9 +55,17 @@ export class ModuleBiometricStreamGrpcController {
 
       this.activeStreamRegistry.register(userId, subscriber);
 
+      subscriber.next({
+        ready: {
+          maxSamplesPerSecond: this.streamEngine.maxSamplesPerSecond,
+          timestamp: Date.now(),
+        },
+      });
+
       const sub = request.subscribe({
-        next: (batch: BioSampleBatch) =>
-          this.handleBatch(userId, batch, subscriber),
+        next: (batch: BioSampleBatch) => {
+          this.handleBatch(userId, batch, subscriber);
+        },
         error: (err: unknown) => subscriber.error(err),
         complete: () => subscriber.complete(),
       });

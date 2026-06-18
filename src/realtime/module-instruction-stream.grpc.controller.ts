@@ -55,6 +55,13 @@ export class ModuleInstructionStreamGrpcController {
 
       this.activeStreamRegistry.register(userId, subscriber);
 
+      subscriber.next({
+        ready: {
+          maxSamplesPerSecond: this.streamEngine.maxSamplesPerSecond,
+          timestamp: Date.now(),
+        },
+      });
+
       const sub = request.subscribe({
         next: (msg: StreamSample) => {
           try {
