@@ -18,7 +18,6 @@ import { ActiveStreamRegistry } from './services/active-stream-registry.service'
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
-import { StreamDataType } from './constants/stream-data-types';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 
 @Controller()
@@ -94,20 +93,6 @@ export class ModuleInstructionStreamGrpcController {
                 error: {
                   code: 'SESSION_MISMATCH',
                   message: 'Session ID does not match active session',
-                  timestamp: Date.now(),
-                },
-              });
-              return;
-            }
-
-            if (
-              session.isPaused &&
-              msg.instructionType === StreamDataType.BREATH_PHASE
-            ) {
-              subscriber.next({
-                error: {
-                  code: 'SESSION_PAUSED',
-                  message: 'Cannot accept breath_phase samples while paused',
                   timestamp: Date.now(),
                 },
               });

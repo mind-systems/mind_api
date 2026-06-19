@@ -129,15 +129,6 @@ export class ModuleBiometricStreamGrpcController {
         return;
       }
 
-      // Step 7: session is paused — drop entire batch (all bio samples are user-produced data)
-      if (session.isPaused === true) {
-        emitError(
-          'SESSION_PAUSED',
-          'Cannot accept biometric samples while paused',
-        );
-        return;
-      }
-
       // Happy path
       const batchSessionId = batch.samples[0].sessionId;
 
