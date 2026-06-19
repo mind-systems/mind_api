@@ -3460,16 +3460,20 @@
           {
             "type": "inhale",
             "duration": 15
+          },
+          {
+            "type": "exhale",
+            "duration": 30
           }
         ],
-        "restDuration": 30,
+        "restDuration": 0,
         "repeatCount": 3
       }
     ],
     "shared": true,
     "createdAt": "2026-02-22T07:21:18.822Z",
     "updatedAt": "2026-02-22T10:50:02.804Z",
-    "complexity": 0,
+    "complexity": 375,
     "timeOfDay": "morning"
   },
   {
