@@ -135,8 +135,8 @@ function fromProtoStepType(type: StepType): 'inhale' | 'exhale' | 'hold' {
 export function fromProtoExercises(
   exercises: ExerciseDtoProto[],
 ): BreathExercise[] {
-  return exercises.map((e) => ({
-    steps: e.steps.map((s) => ({
+  return (exercises ?? []).map((e) => ({
+    steps: (e.steps ?? []).map((s) => ({
       type: fromProtoStepType(s.type),
       duration: s.duration,
     })),
