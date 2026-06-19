@@ -16,7 +16,6 @@ import {
   GetSuggestionsResponse,
   ListSessionsRequest,
   ListSessionsResponse,
-  ReplaceSessionRequest,
   UpdateSessionRequest,
   UpdateSessionSettingsRequest,
   UpdateSessionSettingsResponse,
@@ -163,32 +162,6 @@ export class BreathSessionsGrpcController implements BreathSessionServiceControl
       request.id,
       user.sub,
       dto,
-    );
-    return toProtoBreathSessionDto(session);
-  }
-
-  async replaceSession(
-    @Payload() request: ReplaceSessionRequest,
-    @GrpcCurrentUser() user?: JwtPayload,
-  ): Promise<BreathSessionDto> {
-    if (!user) {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Authentication required',
-      });
-    }
-    const session = await this.breathSessionsService.replace(
-      request.id,
-      user.sub,
-      {
-        description: request.description,
-        exercises: fromProtoExercises(request.exercises),
-        shared: request.shared,
-        timeOfDay:
-          request.timeOfDay !== undefined
-            ? fromProtoTimeOfDay(request.timeOfDay)
-            : undefined,
-      },
     );
     return toProtoBreathSessionDto(session);
   }

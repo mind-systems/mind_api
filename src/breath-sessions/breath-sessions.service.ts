@@ -14,7 +14,6 @@ import { BreathSessionSettingsService } from './breath-session-settings.service'
 import {
   CreateBreathSessionDto,
   UpdateBreathSessionDto,
-  ReplaceBreathSessionDto,
 } from './dto/breath-session.dto';
 import { calculateComplexity } from './complexity/breath-session-complexity.calculator';
 import { TimeOfDay } from './enums/time-of-day.enum';
@@ -361,51 +360,6 @@ export class BreathSessionsService {
     this.eventEmitter.emit(CHANGE_EVENT_LOGGED, payload);
 
     return updated;
-  }
-
-  async replace(
-    id: string,
-    userId: string,
-    dto: ReplaceBreathSessionDto,
-  ): Promise<BreathSession> {
-    const session = await this.breathSessionRepository.findOne({
-      where: { id },
-    });
-
-    if (!session) {
-      throw new NotFoundException('Breath session not found');
-    }
-
-    if (session.userId !== userId) {
-      throw new ForbiddenException(
-        'You can only update your own breath sessions',
-      );
-    }
-
-    session.description = dto.description;
-    session.exercises = dto.exercises;
-    session.shared = dto.shared;
-    session.timeOfDay = dto.timeOfDay ?? null;
-    session.complexity = calculateComplexity(dto.exercises);
-
-    const replaced = await this.breathSessionRepository.save(session);
-
-    const eventId = await this.changeLogService.log(
-      ChangeEntity.BREATH_SESSION,
-      replaced.id,
-      ChangeAction.UPDATED,
-      userId,
-    );
-    const payload: ChangeEventPayload = {
-      id: eventId,
-      entity: ChangeEntity.BREATH_SESSION,
-      refId: replaced.id,
-      action: ChangeAction.UPDATED,
-      userId,
-    };
-    this.eventEmitter.emit(CHANGE_EVENT_LOGGED, payload);
-
-    return replaced;
   }
 
   async findSuggestions(

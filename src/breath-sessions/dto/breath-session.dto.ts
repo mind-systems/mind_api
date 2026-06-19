@@ -80,24 +80,6 @@ export class UpdateBreathSessionDto {
   timeOfDay?: TimeOfDay;
 }
 
-export class ReplaceBreathSessionDto {
-  @IsString()
-  @IsNotEmpty()
-  description: string;
-
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => BreathExerciseDto)
-  exercises: BreathExerciseDto[];
-
-  @IsBoolean()
-  shared: boolean;
-
-  @IsEnum(TimeOfDay)
-  @IsOptional()
-  timeOfDay?: TimeOfDay | null;
-}
-
 export class ListQueryDto {
   @IsNumber()
   @Min(1)

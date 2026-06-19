@@ -3,6 +3,7 @@ import { BreathSessionsService } from './breath-sessions.service';
 import { BreathSession } from './entities/breath-session.entity';
 import { BreathSessionSettingsService } from './breath-session-settings.service';
 import { SessionSection } from '../../proto/generated/breath_sessions';
+import { TimeOfDay } from './enums/time-of-day.enum';
 
 const makeSession = (overrides: Partial<BreathSession> = {}): BreathSession =>
   Object.assign(new BreathSession(), {
@@ -122,45 +123,16 @@ describe('BreathSessionsService', () => {
 
       expect(result.complexity).toBe(42);
     });
-  });
 
-  describe('replace', () => {
-    let service: BreathSessionsService;
-    let repository: jest.Mocked<any>;
-
-    beforeEach(() => {
-      repository = {
-        findOne: jest.fn(),
-        save: jest.fn((entity: any) => Promise.resolve(entity)),
-      };
-      const mockStatsService = {} as any;
-      const mockConfigService = { get: jest.fn().mockReturnValue(50) } as any;
-      const mockChangeLogService = {
-        log: jest.fn().mockResolvedValue(1),
-      } as any;
-      const mockEventEmitter = { emit: jest.fn() } as any;
-      service = new BreathSessionsService(
-        repository,
-        {} as any,
-        mockStatsService,
-        mockConfigService,
-        mockChangeLogService,
-        mockEventEmitter,
-      );
-    });
-
-    it('computes complexity from the new exercises', async () => {
-      const existing = makeSession({ complexity: 0 });
+    it('preserves timeOfDay when update omits it', async () => {
+      const existing = makeSession({ timeOfDay: TimeOfDay.MORNING });
       repository.findOne.mockResolvedValue(existing);
 
-      const dto = {
-        description: 'Replaced',
-        exercises: sampleExercises,
-        shared: true,
-      };
-      const result = await service.replace('session-uuid', 'user-uuid', dto);
+      const result = await service.update('session-uuid', 'user-uuid', {
+        description: 'New desc',
+      });
 
-      expect(result.complexity).toBe(24);
+      expect(result.timeOfDay).toBe(TimeOfDay.MORNING);
     });
   });
 
