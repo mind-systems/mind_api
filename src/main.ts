@@ -14,6 +14,12 @@ import { ObserveTransport } from 'observe-js/winston';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 
+const numEnv = (v: string | undefined, def: number): number => {
+  if (v == null || v === '') return def;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : def;
+};
+
 async function bootstrap() {
   const isProd = process.env.NODE_ENV === 'production';
 
@@ -79,11 +85,9 @@ async function bootstrap() {
   });
 
   const grpcUrl = process.env.GRPC_URL ?? '0.0.0.0:50051';
-  const keepaliveTimeMs = Number(process.env.GRPC_KEEPALIVE_TIME_MS) || 30_000;
-  const keepaliveTimeoutMs =
-    Number(process.env.GRPC_KEEPALIVE_TIMEOUT_MS) || 10_000;
-  const keepalivePermitWithoutCalls =
-    Number(process.env.GRPC_KEEPALIVE_PERMIT_WITHOUT_CALLS) || 1;
+  const keepaliveTimeMs = numEnv(process.env.GRPC_KEEPALIVE_TIME_MS, 30_000);
+  const keepaliveTimeoutMs = numEnv(process.env.GRPC_KEEPALIVE_TIMEOUT_MS, 10_000);
+  const keepalivePermitWithoutCalls = numEnv(process.env.GRPC_KEEPALIVE_PERMIT_WITHOUT_CALLS, 1);
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.GRPC,
