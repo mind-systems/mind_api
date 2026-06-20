@@ -79,11 +79,26 @@ async function bootstrap() {
   });
 
   const grpcUrl = process.env.GRPC_URL ?? '0.0.0.0:50051';
+  const keepaliveTimeMs =
+    Number(process.env.GRPC_KEEPALIVE_TIME_MS) || 30_000;
+  const keepaliveTimeoutMs =
+    Number(process.env.GRPC_KEEPALIVE_TIMEOUT_MS) || 10_000;
+  const keepalivePermitWithoutCalls =
+    Number(process.env.GRPC_KEEPALIVE_PERMIT_WITHOUT_CALLS) || 1;
+
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.GRPC,
     options: {
       url: grpcUrl,
       package: 'mind',
+      keepalive: {
+        keepaliveTimeMs,
+        keepaliveTimeoutMs,
+        keepalivePermitWithoutCalls,
+      },
+      channelOptions: {
+        'grpc.http2.min_ping_interval_without_data_ms': 25_000,
+      },
       protoPath: [
         join(process.cwd(), 'proto', 'auth.proto'),
         join(process.cwd(), 'proto', 'breath_sessions.proto'),
