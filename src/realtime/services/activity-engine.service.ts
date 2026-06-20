@@ -7,7 +7,6 @@ import { ActivitySessionStore } from './activity-session-store.service';
 import { ActivityState } from '../interfaces/activity-state.interface';
 import { ActivityStartDto } from '../dto/activity-start.dto';
 import { SessionStatus } from '../enums/session-status.enum';
-import { ActivityType } from '../enums/activity-type.enum';
 import { StreamEngine } from './stream-engine.service';
 import {
   MODULE_SESSION_PAUSED,
@@ -182,6 +181,51 @@ export class ActivityEngine {
     this.activitySessionStore.delete(userId);
     this.logger.log(
       `Session abandoned: userId=${userId} sessionId=${saved.id} durationMs=${saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0}`,
+    );
+
+    this.eventEmitter.emit(SessionEvents.ABANDONED, {
+      sessionId: saved.id,
+      userId,
+      startedAt: saved.startedAt,
+      endedAt: saved.endedAt,
+      activityType: saved.activityType,
+      activityRefId: saved.activityRefId,
+    });
+  }
+
+  async abandonStale(userId: string, sessionId: string): Promise<void> {
+    const session = await this.repo.findOne({ where: { id: sessionId } });
+    if (!session) {
+      this.activitySessionStore.delete(userId);
+      return;
+    }
+
+    const finalStatuses: SessionStatus[] = [
+      SessionStatus.COMPLETED,
+      SessionStatus.INTERRUPTED,
+      SessionStatus.ABANDONED,
+    ];
+    if (finalStatuses.includes(session.status)) {
+      this.activitySessionStore.delete(userId);
+      return;
+    }
+
+    const now = new Date();
+    session.status = SessionStatus.ABANDONED;
+    session.endedAt = now;
+    const saved = await this.repo.save(session);
+
+    this.streamEngine.push(sessionId, {
+      timestamp: Date.now(),
+      data: {
+        dataType: StreamDataType.SESSION_EVENT,
+        event: StreamSessionEvent.ABANDONED,
+      },
+    });
+
+    this.activitySessionStore.delete(userId);
+    this.logger.log(
+      `Session abandoned (stale): userId=${userId} sessionId=${saved.id} durationMs=${saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0}`,
     );
 
     this.eventEmitter.emit(SessionEvents.ABANDONED, {

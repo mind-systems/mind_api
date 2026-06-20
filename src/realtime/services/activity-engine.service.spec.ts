@@ -5,6 +5,10 @@ import { SessionStatus } from '../enums/session-status.enum';
 import { ActivityStartDto } from '../dto/activity-start.dto';
 import { ModuleSession } from '../entities/module-session.entity';
 import { SessionEvents } from '../events/session.events';
+import {
+  StreamDataType,
+  StreamSessionEvent,
+} from '../constants/stream-data-types';
 
 function makeRepo() {
   return {
@@ -203,6 +207,111 @@ describe('ActivityEngine', () => {
       repo.findOne.mockResolvedValue(session);
 
       await engine.abandonActivity('user-1');
+
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(emitter.emit).not.toHaveBeenCalled();
+      expect(activitySessionStore.has('user-1')).toBe(false);
+    });
+  });
+
+  describe('abandonStale', () => {
+    it('(a) stale ACTIVE row → abandoned + emitted + store cleared', async () => {
+      const session = makeSession({ status: SessionStatus.ACTIVE });
+      activitySessionStore.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        startedAt: session.startedAt,
+        lastActivityAt: session.lastActivityAt,
+        isPaused: false,
+      });
+      repo.findOne.mockResolvedValue(session);
+      const savedSession = {
+        ...session,
+        status: SessionStatus.ABANDONED,
+        endedAt: new Date(),
+      };
+      repo.save.mockResolvedValue(savedSession);
+
+      await engine.abandonStale('user-1', 'session-1');
+
+      expect(session.status).toBe(SessionStatus.ABANDONED);
+      expect(session.endedAt).toBeDefined();
+      expect(activitySessionStore.has('user-1')).toBe(false);
+      expect(streamEngine.push).toHaveBeenCalledWith(
+        'session-1',
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: expect.objectContaining({
+            dataType: StreamDataType.SESSION_EVENT,
+            event: StreamSessionEvent.ABANDONED,
+          }),
+        }),
+      );
+      expect(emitter.emit).toHaveBeenCalledWith(
+        SessionEvents.ABANDONED,
+        expect.objectContaining({ sessionId: 'session-1', userId: 'user-1' }),
+      );
+    });
+
+    it('(b) already-COMPLETED row → no-op, no event, store cleared', async () => {
+      const session = makeSession({ status: SessionStatus.COMPLETED });
+      activitySessionStore.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        startedAt: session.startedAt,
+        lastActivityAt: session.lastActivityAt,
+        isPaused: false,
+      });
+      repo.findOne.mockResolvedValue(session);
+
+      await engine.abandonStale('user-1', 'session-1');
+
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(emitter.emit).not.toHaveBeenCalled();
+      expect(activitySessionStore.has('user-1')).toBe(false);
+    });
+
+    it('(c) DB-only row not in store → row updated + emitted', async () => {
+      const session = makeSession({ status: SessionStatus.ACTIVE });
+      // No store entry for user-1
+      repo.findOne.mockResolvedValue(session);
+      const savedSession = {
+        ...session,
+        status: SessionStatus.ABANDONED,
+        endedAt: new Date(),
+      };
+      repo.save.mockResolvedValue(savedSession);
+
+      await engine.abandonStale('user-1', 'session-1');
+
+      expect(repo.save).toHaveBeenCalled();
+      expect(streamEngine.push).toHaveBeenCalledWith(
+        'session-1',
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: expect.objectContaining({
+            dataType: StreamDataType.SESSION_EVENT,
+            event: StreamSessionEvent.ABANDONED,
+          }),
+        }),
+      );
+      expect(emitter.emit).toHaveBeenCalledWith(
+        SessionEvents.ABANDONED,
+        expect.objectContaining({ sessionId: 'session-1', userId: 'user-1' }),
+      );
+    });
+
+    it('(d) row not found in DB → store cleared, no save, no event', async () => {
+      activitySessionStore.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+        isPaused: false,
+      });
+      repo.findOne.mockResolvedValue(null);
+
+      await engine.abandonStale('user-1', 'session-1');
 
       expect(repo.save).not.toHaveBeenCalled();
       expect(emitter.emit).not.toHaveBeenCalled();
