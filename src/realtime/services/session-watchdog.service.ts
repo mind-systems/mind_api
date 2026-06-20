@@ -80,6 +80,7 @@ export class SessionWatchdogService
           `Watchdog reaping stale session: sessionId=${row.id} userId=${row.userId} idleMs=${idleMs}`,
         );
         await this.activityEngine.abandonStale(row.userId, row.id);
+        this.activeStreamRegistry.closeAll(row.userId);
         reaped++;
       } catch (err: unknown) {
         this.logger.error(`Watchdog failed to reap sessionId=${row.id}`, err);
