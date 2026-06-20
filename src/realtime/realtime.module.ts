@@ -18,6 +18,7 @@ import { ActiveStreamRegistry } from './services/active-stream-registry.service'
 import { ModuleStateGrpcController } from './module-state.grpc.controller';
 import { ModuleInstructionStreamGrpcController } from './module-instruction-stream.grpc.controller';
 import { ModuleBiometricStreamGrpcController } from './module-biometric-stream.grpc.controller';
+import { SessionWatchdogService } from './services/session-watchdog.service';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ModuleBiometricStreamGrpcController } from './module-biometric-stream.g
     ObservabilityService,
     SyncStreamService,
     ActiveStreamRegistry,
+    SessionWatchdogService,
   ],
   exports: [StateStore, ActivitySessionStore],
 })

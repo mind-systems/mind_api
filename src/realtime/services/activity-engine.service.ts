@@ -196,7 +196,10 @@ export class ActivityEngine {
   async abandonStale(userId: string, sessionId: string): Promise<void> {
     const session = await this.repo.findOne({ where: { id: sessionId } });
     if (!session) {
-      this.activitySessionStore.delete(userId);
+      const storedState = this.activitySessionStore.get(userId);
+      if (storedState?.sessionId === sessionId) {
+        this.activitySessionStore.delete(userId);
+      }
       return;
     }
 
@@ -206,7 +209,10 @@ export class ActivityEngine {
       SessionStatus.ABANDONED,
     ];
     if (finalStatuses.includes(session.status)) {
-      this.activitySessionStore.delete(userId);
+      const storedState = this.activitySessionStore.get(userId);
+      if (storedState?.sessionId === sessionId) {
+        this.activitySessionStore.delete(userId);
+      }
       return;
     }
 
@@ -223,7 +229,10 @@ export class ActivityEngine {
       },
     });
 
-    this.activitySessionStore.delete(userId);
+    const storedState = this.activitySessionStore.get(userId);
+    if (storedState?.sessionId === sessionId) {
+      this.activitySessionStore.delete(userId);
+    }
     this.logger.log(
       `Session abandoned (stale): userId=${userId} sessionId=${saved.id} durationMs=${saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0}`,
     );
