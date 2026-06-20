@@ -79,8 +79,7 @@ async function bootstrap() {
   });
 
   const grpcUrl = process.env.GRPC_URL ?? '0.0.0.0:50051';
-  const keepaliveTimeMs =
-    Number(process.env.GRPC_KEEPALIVE_TIME_MS) || 30_000;
+  const keepaliveTimeMs = Number(process.env.GRPC_KEEPALIVE_TIME_MS) || 30_000;
   const keepaliveTimeoutMs =
     Number(process.env.GRPC_KEEPALIVE_TIMEOUT_MS) || 10_000;
   const keepalivePermitWithoutCalls =

@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Metadata, status as GrpcStatus } from '@grpc/grpc-js';
 import { Observable } from 'rxjs';
 import { SessionService } from '../users/service/session.service';
+import { PersonalAccessTokenService } from '../users/service/personal-access-token.service';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 import {
   GRPC_OPTIONAL_AUTH_KEY,
@@ -23,6 +24,7 @@ export class GrpcAuthInterceptor implements NestInterceptor {
     private readonly jwtService: JwtService,
     private readonly sessionService: SessionService,
     private readonly reflector: Reflector,
+    private readonly patService: PersonalAccessTokenService,
   ) {}
 
   async intercept(
@@ -53,21 +55,33 @@ export class GrpcAuthInterceptor implements NestInterceptor {
     }
 
     let payload: JwtPayload;
-    try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-    } catch {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Invalid authorization token',
-      });
-    }
 
-    const isValid = await this.sessionService.isValid(token);
-    if (!isValid) {
-      throw new RpcException({
-        code: GrpcStatus.UNAUTHENTICATED,
-        message: 'Session not found or revoked',
-      });
+    if (token.startsWith('pat_')) {
+      const patPayload = await this.patService.validateToken(token);
+      if (patPayload === null) {
+        throw new RpcException({
+          code: GrpcStatus.UNAUTHENTICATED,
+          message: 'Invalid authorization token',
+        });
+      }
+      payload = patPayload;
+    } else {
+      try {
+        payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+      } catch {
+        throw new RpcException({
+          code: GrpcStatus.UNAUTHENTICATED,
+          message: 'Invalid authorization token',
+        });
+      }
+
+      const isValid = await this.sessionService.isValid(token);
+      if (!isValid) {
+        throw new RpcException({
+          code: GrpcStatus.UNAUTHENTICATED,
+          message: 'Session not found or revoked',
+        });
+      }
     }
 
     // Symbol keys: invisible to Metadata iteration, won't collide with string keys
