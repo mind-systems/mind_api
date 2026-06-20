@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { ModuleSession } from '../entities/module-session.entity';
 import { SessionStatus } from '../enums/session-status.enum';
 import { ActivityEngine } from './activity-engine.service';
+import { ActiveStreamRegistry } from './active-stream-registry.service';
 import { RealtimeConfig } from '../constants/realtime-config';
 
 @Injectable()
@@ -25,6 +26,7 @@ export class SessionWatchdogService
     @InjectRepository(ModuleSession)
     private readonly repo: Repository<ModuleSession>,
     private readonly activityEngine: ActivityEngine,
+    private readonly activeStreamRegistry: ActiveStreamRegistry,
     private readonly configService: ConfigService,
   ) {
     this.maxIdleMs = this.configService.get<number>(
@@ -66,6 +68,12 @@ export class SessionWatchdogService
 
     let reaped = 0;
     for (const row of staleSessions) {
+      if (this.activeStreamRegistry.hasLiveSubscriber(row.userId)) {
+        this.logger.verbose(
+          `Watchdog skipping sessionId=${row.id} userId=${row.userId} — live subscriber present`,
+        );
+        continue;
+      }
       const idleMs = Date.now() - row.lastActivityAt.getTime();
       try {
         this.logger.warn(

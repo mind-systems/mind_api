@@ -31,6 +31,10 @@ export class ActiveStreamRegistry implements OnModuleDestroy {
     }
   }
 
+  hasLiveSubscriber(userId: string): boolean {
+    return (this.streams.get(userId)?.size ?? 0) > 0;
+  }
+
   closeAll(userId: string): void {
     const set = this.streams.get(userId);
     if (!set) return;
