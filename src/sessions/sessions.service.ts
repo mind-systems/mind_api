@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -105,7 +106,7 @@ export class SessionsService {
   private async assertSessionOwnership(
     userId: string,
     sessionId: string,
-  ): Promise<void> {
+  ): Promise<ModuleSession> {
     const session = await this.moduleSessionRepo.findOne({
       where: { id: sessionId },
     });
@@ -115,10 +116,14 @@ export class SessionsService {
     if (session.userId !== userId) {
       throw new ForbiddenException('Access denied');
     }
+    return session;
   }
 
   async deleteRun(userId: string, sessionId: string): Promise<void> {
-    await this.assertSessionOwnership(userId, sessionId);
+    const session = await this.assertSessionOwnership(userId, sessionId);
+    if (session.endedAt == null) {
+      throw new ConflictException('Cannot delete a session that is still active');
+    }
     await this.moduleSessionRepo.delete({ id: sessionId });
     this.logger.log(`Deleted module session ${sessionId} for user ${userId}`);
   }

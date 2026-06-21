@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { ModuleSession } from '../realtime/entities/module-session.entity';
 import { ActivityType } from '../realtime/enums/activity-type.enum';
@@ -42,7 +42,7 @@ describe('SessionsService.deleteRun', () => {
 
   describe('owned session → delete + cascade', () => {
     it('calls delete with the session id and resolves', async () => {
-      const session = makeSession({ id: 'session-uuid', userId: 'user-uuid' });
+      const session = makeSession({ id: 'session-uuid', userId: 'user-uuid', endedAt: new Date() });
       moduleSessionRepo.findOne.mockResolvedValue(session);
       moduleSessionRepo.delete.mockResolvedValue({ affected: 1 });
 
@@ -57,7 +57,7 @@ describe('SessionsService.deleteRun', () => {
 
     it('does NOT call delete on bio or stream repos (cascade is DB-level)', async () => {
       // user_stats is also never referenced — stats are untouched by design
-      const session = makeSession({ id: 'session-uuid', userId: 'user-uuid' });
+      const session = makeSession({ id: 'session-uuid', userId: 'user-uuid', endedAt: new Date() });
       moduleSessionRepo.findOne.mockResolvedValue(session);
       moduleSessionRepo.delete.mockResolvedValue({ affected: 1 });
 
@@ -91,6 +91,24 @@ describe('SessionsService.deleteRun', () => {
       await expect(
         service.deleteRun('user-uuid', 'nonexistent-uuid'),
       ).rejects.toThrow(NotFoundException);
+
+      expect(moduleSessionRepo.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('live session → 409', () => {
+    it('throws ConflictException and never calls delete when endedAt is null', async () => {
+      const session = makeSession({
+        id: 'session-uuid',
+        userId: 'user-uuid',
+        endedAt: null as any,
+        status: SessionStatus.ACTIVE,
+      });
+      moduleSessionRepo.findOne.mockResolvedValue(session);
+
+      await expect(
+        service.deleteRun('user-uuid', 'session-uuid'),
+      ).rejects.toThrow(ConflictException);
 
       expect(moduleSessionRepo.delete).not.toHaveBeenCalled();
     });
