@@ -70,6 +70,7 @@ function makeRepo(existingRow: Record<string, unknown> | null = null) {
 describe('StatsService', () => {
   beforeEach(() => {
     process.env.WS_MIN_SESSION_DURATION_S = '10';
+    process.env.WS_MAX_SESSION_DURATION_S = '14400';
     jest.useFakeTimers();
     jest.setSystemTime(NOW);
   });
@@ -77,14 +78,24 @@ describe('StatsService', () => {
   afterEach(() => {
     jest.useRealTimers();
     delete process.env.WS_MIN_SESSION_DURATION_S;
+    delete process.env.WS_MAX_SESSION_DURATION_S;
   });
 
-  function makeService(existingRow: Record<string, unknown> | null = null): {
+  function makeService(
+    existingRow: Record<string, unknown> | null = null,
+    maxDurationS = 14_400,
+  ): {
     service: StatsService;
     repo: ReturnType<typeof makeRepo>;
   } {
     const repo = makeRepo(existingRow);
-    const configService = { get: jest.fn().mockReturnValue(10) };
+    const configService = {
+      get: jest.fn().mockImplementation((key: string, def: number) => {
+        if (key === 'WS_MIN_SESSION_DURATION_S') return 10;
+        if (key === 'WS_MAX_SESSION_DURATION_S') return maxDurationS;
+        return def;
+      }),
+    };
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const svc = new StatsService(repo as any, configService as any);
     return { service: svc, repo };
@@ -97,6 +108,33 @@ describe('StatsService', () => {
       const end = new Date(NOW.getTime() + 5_000); // 5s < 10s
       await svc.finalise(makeEvent(start, end));
       expect(repo.manager.transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('finalise — absurd duration skipped (client-timestamp abuse guard)', () => {
+    it('skips session with durationSeconds above WS_MAX_SESSION_DURATION_S', async () => {
+      const { service: svc, repo } = makeService(null, 14_400);
+      // startedAt far in the past (epoch) → duration >> 4h
+      const start = new Date(1); // 1970-01-01T00:00:00.001Z
+      const end = new Date(NOW.getTime());
+      await svc.finalise(makeEvent(start, end));
+      expect(repo.manager.transaction).not.toHaveBeenCalled();
+    });
+
+    it('accepts a session just at the max boundary', async () => {
+      const existingRow = {
+        userId: 'user-1',
+        totalSessions: 0,
+        totalDurationSeconds: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        lastSessionDate: null,
+      };
+      const { service: svc, repo } = makeService(existingRow, 14_400);
+      const start = new Date(NOW.getTime() - 14_400_000); // exactly 4h ago
+      const end = new Date(NOW.getTime());
+      await svc.finalise(makeEvent(start, end));
+      expect(repo.manager.transaction).toHaveBeenCalled();
     });
   });
 

@@ -89,6 +89,83 @@ describe('ActivityEngine', () => {
       expect(state!.sessionId).toBe('session-1');
       expect(state!.activityType).toBe(ActivityType.BREATH);
     });
+
+    it('uses client timestamp as startedAt when provided', async () => {
+      const clientTs = Date.now() - 5000;
+      const dto: ActivityStartDto = {
+        activityType: ActivityType.BREATH,
+        clientTimestampMs: clientTs,
+      };
+      let capturedCreate: Partial<ModuleSession> | undefined;
+      repo.create.mockImplementation((data: Partial<ModuleSession>) => {
+        capturedCreate = data;
+        return { ...makeSession(), ...data };
+      });
+      repo.save.mockImplementation((s: ModuleSession) =>
+        Promise.resolve({ ...s }),
+      );
+
+      await engine.startActivity('user-1', dto);
+
+      expect(capturedCreate?.startedAt).toEqual(new Date(clientTs));
+    });
+
+    it('uses server now() as startedAt when clientTimestampMs is absent', async () => {
+      const before = Date.now();
+      const dto: ActivityStartDto = { activityType: ActivityType.BREATH };
+      let capturedCreate: Partial<ModuleSession> | undefined;
+      repo.create.mockImplementation((data: Partial<ModuleSession>) => {
+        capturedCreate = data;
+        return { ...makeSession(), ...data };
+      });
+      repo.save.mockImplementation((s: ModuleSession) =>
+        Promise.resolve({ ...s }),
+      );
+
+      await engine.startActivity('user-1', dto);
+      const after = Date.now();
+
+      expect(capturedCreate?.startedAt).toEqual(expect.any(Date));
+      expect(capturedCreate!.startedAt!.getTime()).toBeGreaterThanOrEqual(
+        before,
+      );
+      expect(capturedCreate!.startedAt!.getTime()).toBeLessThanOrEqual(after);
+    });
+
+    it('lastActivityAt is always server-clocked, not the client timestamp (critical guard)', async () => {
+      const pastClientTs = Date.now() - 60_000; // 60s in the past
+      const dto: ActivityStartDto = {
+        activityType: ActivityType.BREATH,
+        clientTimestampMs: pastClientTs,
+      };
+      let capturedCreate: Partial<ModuleSession> | undefined;
+      repo.create.mockImplementation((data: Partial<ModuleSession>) => {
+        capturedCreate = data;
+        return {
+          ...makeSession(),
+          startedAt: data.startedAt ?? new Date(),
+          lastActivityAt: data.lastActivityAt ?? new Date(),
+        };
+      });
+      repo.save.mockImplementation((s: ModuleSession) =>
+        Promise.resolve({ ...s }),
+      );
+
+      const before = Date.now();
+      await engine.startActivity('user-1', dto);
+      const after = Date.now();
+
+      // startedAt should be the past client value
+      expect(capturedCreate!.startedAt!.getTime()).toBe(pastClientTs);
+      // lastActivityAt must be server now(), not the client value
+      expect(capturedCreate!.lastActivityAt!.getTime()).toBeGreaterThanOrEqual(
+        before,
+      );
+      expect(capturedCreate!.lastActivityAt!.getTime()).toBeLessThanOrEqual(
+        after,
+      );
+      expect(capturedCreate!.lastActivityAt!.getTime()).not.toBe(pastClientTs);
+    });
   });
 
   describe('endActivity', () => {
@@ -129,6 +206,84 @@ describe('ActivityEngine', () => {
 
       expect(result).toBeNull();
       expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('uses client end timestamp as endedAt when valid and >= startedAt', async () => {
+      const startedAt = new Date(Date.now() - 10_000);
+      const session = makeSession({ startedAt });
+      activitySessionStore.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        startedAt: session.startedAt,
+        lastActivityAt: session.lastActivityAt,
+        isPaused: false,
+      });
+      repo.findOne.mockResolvedValue(session);
+      repo.save.mockImplementation((s: ModuleSession) =>
+        Promise.resolve({ ...s }),
+      );
+
+      const clientEndTs = startedAt.getTime() + 8_000;
+      await engine.endActivity('user-1', clientEndTs);
+
+      expect(session.endedAt).toEqual(new Date(clientEndTs));
+      expect(session.endedAt!.getTime() - session.startedAt.getTime()).toBe(
+        8_000,
+      );
+    });
+
+    it('falls back to server now() when client end timestamp is before startedAt', async () => {
+      const startedAt = new Date(Date.now() - 5_000);
+      const session = makeSession({ startedAt });
+      activitySessionStore.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        startedAt: session.startedAt,
+        lastActivityAt: session.lastActivityAt,
+        isPaused: false,
+      });
+      repo.findOne.mockResolvedValue(session);
+      repo.save.mockImplementation((s: ModuleSession) =>
+        Promise.resolve({ ...s }),
+      );
+
+      // client end is 2s before startedAt — invalid
+      const clientEndTs = startedAt.getTime() - 2_000;
+      const before = Date.now();
+      await engine.endActivity('user-1', clientEndTs);
+      const after = Date.now();
+
+      expect(session.endedAt).toEqual(expect.any(Date));
+      // endedAt must be >= startedAt (no negative duration)
+      expect(session.endedAt!.getTime()).toBeGreaterThanOrEqual(
+        session.startedAt.getTime(),
+      );
+      // and should be server-clocked
+      expect(session.endedAt!.getTime()).toBeGreaterThanOrEqual(before);
+      expect(session.endedAt!.getTime()).toBeLessThanOrEqual(after);
+    });
+
+    it('falls back to server now() when client end timestamp is zero/NaN', async () => {
+      const startedAt = new Date(Date.now() - 3_000);
+      const session = makeSession({ startedAt });
+      activitySessionStore.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        startedAt: session.startedAt,
+        lastActivityAt: session.lastActivityAt,
+        isPaused: false,
+      });
+      repo.findOne.mockResolvedValue(session);
+      repo.save.mockImplementation((s: ModuleSession) =>
+        Promise.resolve({ ...s }),
+      );
+
+      const before = Date.now();
+      await engine.endActivity('user-1', 0);
+      const after = Date.now();
+
+      expect(session.endedAt!.getTime()).toBeGreaterThanOrEqual(before);
+      expect(session.endedAt!.getTime()).toBeLessThanOrEqual(after);
     });
   });
 

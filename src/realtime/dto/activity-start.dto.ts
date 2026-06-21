@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { ActivityType } from '../enums/activity-type.enum';
 
 export class ActivityStartDto {
@@ -8,4 +8,8 @@ export class ActivityStartDto {
   @IsString()
   @IsOptional()
   activityRefId?: string;
+
+  @IsNumber()
+  @IsOptional()
+  clientTimestampMs?: number;
 }

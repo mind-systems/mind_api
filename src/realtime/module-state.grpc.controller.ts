@@ -206,7 +206,11 @@ export class ModuleStateGrpcController {
       if (msg.activityStart !== undefined) {
         await this.handleActivityStart(userId, msg.activityStart, subscriber);
       } else if (msg.activityEnd !== undefined) {
-        await this.handleActivityEnd(userId, subscriber);
+        await this.handleActivityEnd(
+          userId,
+          msg.activityEnd.clientTimestampMs,
+          subscriber,
+        );
       } else if (msg.activityStop !== undefined) {
         await this.handleActivityStop(userId, subscriber);
       } else if (msg.activityPause !== undefined) {
@@ -286,6 +290,7 @@ export class ModuleStateGrpcController {
     const session = await this.activityEngine.startActivity(userId, {
       activityType,
       activityRefId: cmd.refId,
+      clientTimestampMs: cmd.clientTimestampMs,
     });
     subscriber.next({
       sessionState: {
@@ -300,9 +305,13 @@ export class ModuleStateGrpcController {
 
   private async handleActivityEnd(
     userId: string,
+    clientTimestampMs: number | undefined,
     subscriber: Subscriber<StateResponse>,
   ): Promise<void> {
-    const session = await this.activityEngine.endActivity(userId);
+    const session = await this.activityEngine.endActivity(
+      userId,
+      clientTimestampMs,
+    );
     if (!session) return;
     subscriber.next({
       sessionState: {

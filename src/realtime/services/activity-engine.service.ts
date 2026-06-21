@@ -31,17 +31,41 @@ export class ActivityEngine {
     private readonly streamEngine: StreamEngine,
   ) {}
 
+  /**
+   * Coerce a client-supplied timestamp (may be number, Long, or string from
+   * ts-proto int64 fields) into a Date.  Returns null when the value is absent,
+   * zero, NaN, or non-finite — callers fall back to server now().
+   */
+  private coerceClientTs(
+    clientTimestampMs?: number | { toNumber?: () => number } | string,
+  ): Date | null {
+    if (clientTimestampMs === undefined || clientTimestampMs === null) {
+      return null;
+    }
+    const ms =
+      typeof clientTimestampMs === 'object' &&
+      typeof (clientTimestampMs as { toNumber?: () => number }).toNumber ===
+        'function'
+        ? (clientTimestampMs as { toNumber: () => number }).toNumber()
+        : Number(clientTimestampMs);
+    if (!ms || !isFinite(ms)) {
+      return null;
+    }
+    return new Date(ms);
+  }
+
   async startActivity(
     userId: string,
     dto: ActivityStartDto,
   ): Promise<ModuleSession> {
     const now = new Date();
+    const startedAt = this.coerceClientTs(dto.clientTimestampMs) ?? now;
     const session = this.repo.create({
       userId,
       activityType: dto.activityType,
       activityRefId: dto.activityRefId,
       status: SessionStatus.ACTIVE,
-      startedAt: now,
+      startedAt,
       lastActivityAt: now,
     });
     const saved = await this.repo.save(session);
@@ -71,7 +95,10 @@ export class ActivityEngine {
     return saved;
   }
 
-  async endActivity(userId: string): Promise<ModuleSession | null> {
+  async endActivity(
+    userId: string,
+    clientTimestampMs?: number,
+  ): Promise<ModuleSession | null> {
     const state = this.activitySessionStore.get(userId);
     if (!state) {
       this.logger.warn(
@@ -98,8 +125,14 @@ export class ActivityEngine {
       `endActivity: DB session status=${session.status} startedAt=${session.startedAt.toISOString()}`,
     );
 
+    const clientEnd = this.coerceClientTs(clientTimestampMs);
+    const endedAt =
+      clientEnd && clientEnd.getTime() >= session.startedAt.getTime()
+        ? clientEnd
+        : now;
+
     session.status = SessionStatus.COMPLETED;
-    session.endedAt = now;
+    session.endedAt = endedAt;
     const saved = await this.repo.save(session);
 
     this.streamEngine.push(state.sessionId, {

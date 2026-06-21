@@ -39,10 +39,17 @@ message ActivityStartCmd {
   ActivityType activity_type = 1;
   optional string ref_id = 2;
   reserved 3;
+  // Client wall-clock instant (Unix millis) that drives startedAt.
+  // Optional for backward compatibility — absent means server now().
+  optional int64 client_timestamp_ms = 4;
 }
 
 // Maps to ActivityEndDto in src/realtime/dto/activity-end.dto.ts.
-message ActivityEndCmd {}
+message ActivityEndCmd {
+  // Client wall-clock instant (Unix millis) that drives endedAt.
+  // Optional for backward compatibility — absent means server now().
+  optional int64 client_timestamp_ms = 1;
+}
 
 // Stop is handled inline in the gateway; no existing DTO.
 message ActivityStopCmd {}
