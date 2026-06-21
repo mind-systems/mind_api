@@ -86,8 +86,14 @@ async function bootstrap() {
 
   const grpcUrl = process.env.GRPC_URL ?? '0.0.0.0:50051';
   const keepaliveTimeMs = numEnv(process.env.GRPC_KEEPALIVE_TIME_MS, 30_000);
-  const keepaliveTimeoutMs = numEnv(process.env.GRPC_KEEPALIVE_TIMEOUT_MS, 10_000);
-  const keepalivePermitWithoutCalls = numEnv(process.env.GRPC_KEEPALIVE_PERMIT_WITHOUT_CALLS, 1);
+  const keepaliveTimeoutMs = numEnv(
+    process.env.GRPC_KEEPALIVE_TIMEOUT_MS,
+    10_000,
+  );
+  const keepalivePermitWithoutCalls = numEnv(
+    process.env.GRPC_KEEPALIVE_PERMIT_WITHOUT_CALLS,
+    1,
+  );
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.GRPC,

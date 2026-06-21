@@ -45,6 +45,7 @@ export class SessionsController {
       id,
       query.from,
       query.to,
+      query.bucketSec,
     );
   }
 

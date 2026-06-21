@@ -1,4 +1,8 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { ModuleSession } from '../realtime/entities/module-session.entity';
 import { ActivityType } from '../realtime/enums/activity-type.enum';
@@ -42,7 +46,11 @@ describe('SessionsService.deleteRun', () => {
 
   describe('owned session → delete + cascade', () => {
     it('calls delete with the session id and resolves', async () => {
-      const session = makeSession({ id: 'session-uuid', userId: 'user-uuid', endedAt: new Date() });
+      const session = makeSession({
+        id: 'session-uuid',
+        userId: 'user-uuid',
+        endedAt: new Date(),
+      });
       moduleSessionRepo.findOne.mockResolvedValue(session);
       moduleSessionRepo.delete.mockResolvedValue({ affected: 1 });
 
@@ -57,7 +65,11 @@ describe('SessionsService.deleteRun', () => {
 
     it('does NOT call delete on bio or stream repos (cascade is DB-level)', async () => {
       // user_stats is also never referenced — stats are untouched by design
-      const session = makeSession({ id: 'session-uuid', userId: 'user-uuid', endedAt: new Date() });
+      const session = makeSession({
+        id: 'session-uuid',
+        userId: 'user-uuid',
+        endedAt: new Date(),
+      });
       moduleSessionRepo.findOne.mockResolvedValue(session);
       moduleSessionRepo.delete.mockResolvedValue({ affected: 1 });
 

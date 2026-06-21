@@ -79,9 +79,7 @@ describe('StatsService', () => {
     delete process.env.WS_MIN_SESSION_DURATION_S;
   });
 
-  function makeService(
-    existingRow: Record<string, unknown> | null = null,
-  ): {
+  function makeService(existingRow: Record<string, unknown> | null = null): {
     service: StatsService;
     repo: ReturnType<typeof makeRepo>;
   } {

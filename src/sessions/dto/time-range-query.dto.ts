@@ -1,4 +1,5 @@
-import { IsISO8601, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsISO8601, IsInt, IsOptional, Min } from 'class-validator';
 
 export class TimeRangeQueryDto {
   @IsOptional()
@@ -8,4 +9,10 @@ export class TimeRangeQueryDto {
   @IsOptional()
   @IsISO8601()
   to?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  bucketSec?: number;
 }
