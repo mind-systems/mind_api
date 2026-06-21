@@ -20,7 +20,6 @@ export class StatsService {
   private readonly logger = new Logger(StatsService.name);
 
   private readonly minSessionDurationS: number;
-  private readonly maxSessionDurationS: number;
   private readonly EASE_IN_FACTOR = 0.3;
 
   constructor(
@@ -31,10 +30,6 @@ export class StatsService {
     this.minSessionDurationS = this.configService.get<number>(
       'WS_MIN_SESSION_DURATION_S',
       10,
-    );
-    this.maxSessionDurationS = this.configService.get<number>(
-      'WS_MAX_SESSION_DURATION_S',
-      14_400, // 4 hours
     );
   }
 
@@ -50,13 +45,6 @@ export class StatsService {
     if (durationSeconds < this.minSessionDurationS) {
       this.logger.log(
         `Stats skipped: userId=${event.userId} sessionId=${event.sessionId} durationSeconds=${durationSeconds} (below min ${this.minSessionDurationS}s)`,
-      );
-      return;
-    }
-
-    if (durationSeconds > this.maxSessionDurationS) {
-      this.logger.log(
-        `Stats skipped: userId=${event.userId} sessionId=${event.sessionId} durationSeconds=${durationSeconds} (above max ${this.maxSessionDurationS}s)`,
       );
       return;
     }

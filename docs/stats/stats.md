@@ -49,11 +49,11 @@ maxCompletedComplexity += (sessionComplexity − maxCompletedComplexity) × 0.3
 
 ```
 durationSeconds = (endedAt - startedAt) / 1000
-засчитывается = WS_MIN_SESSION_DURATION_S <= durationSeconds <= WS_MAX_SESSION_DURATION_S
-                (по умолчанию: 10 .. 14400)
+засчитывается = durationSeconds >= WS_MIN_SESSION_DURATION_S
+                (по умолчанию: 10)
 ```
 
-Сессии короче нижнего порога игнорируются — они не влияют ни на счётчики, ни на серию. Сессии длиннее верхнего порога (4 часа) также игнорируются: `startedAt`/`endedAt` приходят с клиентских часов, и верхний порог защищает `totalDurationSeconds` от завышения при некорректном клиентском времени.
+Сессии короче порога игнорируются — они не влияют ни на счётчики, ни на серию. `startedAt`/`endedAt` приходят с клиентских часов; сервер принимает любую длительность, удовлетворяющую минимуму.
 
 Обрабатываются три события: `session.completed`, `session.abandoned` и `session.interrupted`. Брошенная или прерванная сессия засчитывается, если её длительность превышает порог.
 
@@ -83,7 +83,6 @@ longestStreak = max(currentStreak, longestStreak)
 | Переменная | По умолчанию | Описание |
 |------------|-------------|----------|
 | `WS_MIN_SESSION_DURATION_S` | `10` | Минимальная длительность сессии (секунды) для учёта в статистике |
-| `WS_MAX_SESSION_DURATION_S` | `14400` | Максимальная длительность сессии (секунды, 4 часа) для учёта в статистике. Защита от завышения `totalDurationSeconds` при некорректном клиентском `startedAt` |
 
 ---
 
