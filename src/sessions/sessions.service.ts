@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
@@ -28,6 +29,8 @@ const FLUSHED_AT_PAD_MS = 120_000;
 
 @Injectable()
 export class SessionsService {
+  private readonly logger = new Logger(SessionsService.name);
+
   constructor(
     @InjectRepository(ModuleSession)
     private readonly moduleSessionRepo: Repository<ModuleSession>,
@@ -112,6 +115,12 @@ export class SessionsService {
     if (session.userId !== userId) {
       throw new ForbiddenException('Access denied');
     }
+  }
+
+  async deleteRun(userId: string, sessionId: string): Promise<void> {
+    await this.assertSessionOwnership(userId, sessionId);
+    await this.moduleSessionRepo.delete({ id: sessionId });
+    this.logger.log(`Deleted module session ${sessionId} for user ${userId}`);
   }
 
   async listBiometrics(

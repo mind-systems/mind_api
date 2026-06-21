@@ -1,6 +1,8 @@
 import {
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Query,
@@ -21,6 +23,15 @@ export class SessionsController {
   @Get('runs')
   listRuns(@Query() query: ListRunsQueryDto, @CurrentUser() user: JwtPayload) {
     return this.sessionsService.listRuns(user.sub, query.limit, query.offset);
+  }
+
+  @Delete('runs/:id')
+  @HttpCode(204)
+  deleteRun(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.sessionsService.deleteRun(user.sub, id);
   }
 
   @Get('runs/:id/biometrics')
