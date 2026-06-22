@@ -18,6 +18,7 @@ import { ModuleSession } from '../realtime/entities/module-session.entity';
 import { BioSessionSample } from '../realtime/entities/bio-session-sample.entity';
 import { SessionStreamSample } from '../realtime/entities/session-stream-sample.entity';
 import { ActivityType } from '../realtime/enums/activity-type.enum';
+import { reshapeAggregateRows } from './biometric-aggregation.util';
 
 const ROW_CAP = 60_000;
 const FLAT_CAP = 50_000;
@@ -283,6 +284,13 @@ export class SessionsService {
       conditions.push(`(elem->>'timestamp')::numeric < ${p(toMs)}`);
     }
 
+    // The SQL bucket expression `floor(ts / bucketMs)` must stay in lockstep with
+    // bucketIndexForMs() in biometric-aggregation.util.ts. Both use epoch 0 as origin.
+    // Because the unit test is DB-less, this equivalence is guarded by this comment/contract,
+    // not by automated verification (see e2e integration test for SQL↔helper equivalence).
+    //
+    // ORDER BY is redundant once reshapeAggregateRows applies a total (timestamp, sampleType)
+    // sort, but it clarifies intent and makes EXPLAIN output easier to read in production.
     const sql = `
       SELECT
         elem->>'sampleType' AS "sampleType",
@@ -295,16 +303,29 @@ export class SessionsService {
         jsonb_each(elem->'data') AS kv
       WHERE ${conditions.join('\n        AND ')}
       GROUP BY "sampleType", bucket, field
+      ORDER BY "sampleType", bucket, field
     `;
 
     return this.bioSampleRepo.query(sql, params);
   }
 
   // Reshapes flat (sampleType, bucket, field, min, max) rows returned by aggregateBiometrics
-  // into BioSampleDto-shaped synthetic min/max envelope samples. Each bucket emits exactly 2
-  // samples: one at bucketStart carrying per-field min values, one at bucketStart+bucketSec*500
-  // carrying per-field max values. Distinct timestamps ensure the web's envelope polyline never
-  // degenerates to vertical segments.
+  // into BioSampleDto-shaped synthetic min/max envelope samples. Delegates to the shared pure
+  // helper reshapeAggregateRows which guarantees deterministic (timestamp, sampleType) ordering
+  // and sorted data field keys — so any two requests covering the same bucket set are byte-equal.
+  //
+  // Bucket origin is epoch 0 — independent of request `from` and globally stable.
+  // Window filter is half-open [from, to).
+  //
+  // Tiling contract: callers (e.g. mind_web's quantizeWindow) MUST align window edges to
+  // bucketSec multiples so every bucket falls fully inside exactly one window. Under that
+  // contract N adjacent windowed requests return the identical bucket set as one full-session
+  // request, in identical order.
+  //
+  // flushedAt caveat: the coarse flushedAt pre-filter (above, aggregateBiometrics) means the
+  // tiling guarantee assumes flushedAt >= timestamp for all batches. Clock-skewed samples whose
+  // batch flushed before an interior window's `from` could appear in the full-session result but
+  // be dropped from that interior window. This skew case is out of scope for this milestone.
   private reshapeAggregatedBiometrics(
     rows: {
       sampleType: string;
@@ -315,49 +336,7 @@ export class SessionsService {
     }[],
     bucketSec: number,
   ): Record<string, unknown>[] {
-    const grouped = new Map<
-      string,
-      {
-        sampleType: string;
-        bucket: number;
-        minData: Record<string, number>;
-        maxData: Record<string, number>;
-      }
-    >();
-
-    for (const row of rows) {
-      const bucket = Number(row.bucket);
-      const key = `${row.sampleType}|${bucket}`;
-      let group = grouped.get(key);
-      if (!group) {
-        group = {
-          sampleType: row.sampleType,
-          bucket,
-          minData: {},
-          maxData: {},
-        };
-        grouped.set(key, group);
-      }
-      group.minData[row.field] = Number(row.min);
-      group.maxData[row.field] = Number(row.max);
-    }
-
-    const result: Record<string, unknown>[] = [];
-    for (const { sampleType, bucket, minData, maxData } of grouped.values()) {
-      const bucketStart = bucket * bucketSec * 1000;
-      result.push({ timestamp: bucketStart, sampleType, data: minData });
-      result.push({
-        timestamp: bucketStart + bucketSec * 500,
-        sampleType,
-        data: maxData,
-      });
-    }
-
-    result.sort(
-      (a, b) => (a['timestamp'] as number) - (b['timestamp'] as number),
-    );
-
-    return result;
+    return reshapeAggregateRows(rows, bucketSec);
   }
 
   async listInstructions(
