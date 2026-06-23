@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsISO8601, IsInt, IsOptional, Min } from 'class-validator';
+import { IsIn, IsISO8601, IsInt, IsOptional, Min } from 'class-validator';
 
 export class TimeRangeQueryDto {
   @IsOptional()
@@ -15,4 +15,8 @@ export class TimeRangeQueryDto {
   @IsInt()
   @Min(1)
   bucketSec?: number;
+
+  @IsOptional()
+  @IsIn(['minmax', 'avg'])
+  agg?: string;
 }

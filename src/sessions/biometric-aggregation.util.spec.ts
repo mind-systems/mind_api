@@ -16,7 +16,7 @@ function makeSample(
 
 /**
  * Aggregate then reshape the given raw samples for a specific [fromMs, toMs) window.
- * This is the same two-step path production uses (aggregateBiometrics → reshapeAggregatedBiometrics).
+ * Mirrors the production path: aggregateBiometrics rows → AGG_REGISTRY[mode].reshape.
  */
 function process(
   samples: Record<string, unknown>[],

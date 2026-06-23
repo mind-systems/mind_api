@@ -18,6 +18,15 @@
  * case is out of scope for this milestone.
  */
 
+/** Aggregation mode for bucketed biometric queries. */
+export type AggMode = 'minmax' | 'avg';
+
+/**
+ * Numeric-leaf SQL cast reused by every strategy's selectColumns fragment.
+ * Reads the scalar value from a JSONB kv pair returned by jsonb_each.
+ */
+const NUMERIC_LEAF = "(kv.value #>> '{}')::numeric";
+
 /** Row shape returned by the SQL aggregation query (mirrored by aggregateRawSamples). */
 export interface AggregateRow {
   sampleType: string;
@@ -50,12 +59,22 @@ export function bucketStartMs(bucketIndex: number, bucketSec: number): number {
 }
 
 /**
+ * Returns the offset (ms) from bucketStart to the bucket midpoint.
+ * Used by both the min/max envelope (max sample placement) and the avg reducer
+ * (single synthetic sample placement). Centralises the one source of truth.
+ */
+export function bucketMidpointOffsetMs(bucketSec: number): number {
+  return bucketSec * 500;
+}
+
+/**
  * Returns the offset (ms) from bucketStart at which the max-sample is placed.
- * Using the bucket midpoint (bucketSec * 500 ms) ensures distinct timestamps for
- * min and max samples, preventing envelope polyline degeneration to vertical segments.
+ * Delegates to bucketMidpointOffsetMs — the max sample sits at the bucket midpoint,
+ * ensuring distinct timestamps for min and max samples and preventing envelope
+ * polyline degeneration to vertical segments.
  */
 export function bucketMaxOffsetMs(bucketSec: number): number {
-  return bucketSec * 500;
+  return bucketMidpointOffsetMs(bucketSec);
 }
 
 /**
@@ -138,6 +157,113 @@ export function reshapeAggregateRows(
 
   return result;
 }
+
+/** Row shape returned by the avg SQL aggregation query. */
+export interface AvgRow {
+  sampleType: string;
+  /** String-encoded integer bucket index as returned by Postgres. */
+  bucket: string;
+  field: string;
+  /** String-encoded numeric average as returned by Postgres. */
+  avg: string;
+}
+
+/**
+ * Pure, deterministic reshape of SQL avg-aggregate rows into one synthetic sample per
+ * (sampleType, bucket) pair.
+ *
+ * Each group emits exactly one record:
+ *   { timestamp: bucketStart + bucketMidpointOffsetMs, sampleType, data: <sorted-key object> }
+ *
+ * Determinism guarantees mirror reshapeAggregateRows:
+ *   1. Each `data` object's keys are iterated in sorted order.
+ *   2. The result is sorted by (timestamp, sampleType) — a total order independent of SQL
+ *      row return order and Map insertion order.
+ *
+ * Empty buckets are skipped implicitly (no rows → no group). Garbage timestamps are already
+ * excluded upstream by the SQL garbage-bound filter — no zero-fill here.
+ */
+export function reshapeAvgRows(
+  rows: AvgRow[],
+  bucketSec: number,
+): Record<string, unknown>[] {
+  const grouped = new Map<
+    string,
+    { sampleType: string; bucket: number; data: Record<string, number> }
+  >();
+
+  for (const row of rows) {
+    const bucket = Number(row.bucket);
+    const key = `${row.sampleType}|${bucket}`;
+    let group = grouped.get(key);
+    if (!group) {
+      group = { sampleType: row.sampleType, bucket, data: {} };
+      grouped.set(key, group);
+    }
+    group.data[row.field] = Number(row.avg);
+  }
+
+  const midOffset = bucketMidpointOffsetMs(bucketSec);
+  const result: Record<string, unknown>[] = [];
+
+  for (const { sampleType, bucket, data } of grouped.values()) {
+    const start = bucketStartMs(bucket, bucketSec);
+
+    // Sort field keys for deterministic data object key ordering.
+    const sortedFields = Object.keys(data).sort();
+    const dataSorted: Record<string, number> = {};
+    for (const field of sortedFields) {
+      dataSorted[field] = data[field];
+    }
+
+    result.push({ timestamp: start + midOffset, sampleType, data: dataSorted });
+  }
+
+  // Total sort by (timestamp, sampleType) — eliminates row-order and insertion-order dependence.
+  result.sort((a, b) => {
+    const tDiff = (a['timestamp'] as number) - (b['timestamp'] as number);
+    if (tDiff !== 0) return tDiff;
+    const sa = a['sampleType'] as string;
+    const sb = b['sampleType'] as string;
+    return sa < sb ? -1 : sa > sb ? 1 : 0;
+  });
+
+  return result;
+}
+
+/**
+ * Reducer-strategy registry keyed by AggMode.
+ *
+ * Each entry provides:
+ *   - `selectColumns`: SQL fragment to drop into the SELECT clause (replacing the
+ *     hardcoded min/max columns). Uses `NUMERIC_LEAF` for the numeric cast.
+ *   - `reshape`: pure function that converts raw Postgres rows into the final
+ *     BioSampleDto-shaped array.
+ *
+ * Adding a new strategy (e.g. `median`, `lttb`) requires only a new entry here
+ * plus a corresponding reshape function — no changes to the service SQL plumbing.
+ */
+export const AGG_REGISTRY: Record<
+  AggMode,
+  {
+    selectColumns: string;
+    reshape: (
+      rows: Record<string, unknown>[],
+      bucketSec: number,
+    ) => Record<string, unknown>[];
+  }
+> = {
+  minmax: {
+    selectColumns: `min(${NUMERIC_LEAF}) AS min, max(${NUMERIC_LEAF}) AS max`,
+    reshape: (rows, bucketSec) =>
+      reshapeAggregateRows(rows as unknown as AggregateRow[], bucketSec),
+  },
+  avg: {
+    selectColumns: `avg(${NUMERIC_LEAF}) AS avg`,
+    reshape: (rows, bucketSec) =>
+      reshapeAvgRows(rows as unknown as AvgRow[], bucketSec),
+  },
+};
 
 /**
  * Pure in-memory reference aggregator that mirrors the SQL aggregation query used on the

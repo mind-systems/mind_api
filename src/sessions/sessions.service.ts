@@ -18,7 +18,7 @@ import { ModuleSession } from '../realtime/entities/module-session.entity';
 import { BioSessionSample } from '../realtime/entities/bio-session-sample.entity';
 import { SessionStreamSample } from '../realtime/entities/session-stream-sample.entity';
 import { ActivityType } from '../realtime/enums/activity-type.enum';
-import { reshapeAggregateRows } from './biometric-aggregation.util';
+import { AGG_REGISTRY, AggMode } from './biometric-aggregation.util';
 
 const ROW_CAP = 60_000;
 const FLAT_CAP = 50_000;
@@ -142,14 +142,21 @@ export class SessionsService {
     from?: string,
     to?: string,
     bucketSec?: number,
+    agg?: string,
   ): Promise<Record<string, unknown>[]> {
     const session = await this.assertSessionOwnership(userId, sessionId);
 
     if (bucketSec !== undefined) {
-      return this.reshapeAggregatedBiometrics(
-        await this.aggregateBiometrics(session, bucketSec, from, to),
+      const mode: AggMode = (agg ?? 'minmax') as AggMode;
+      const strategy = AGG_REGISTRY[mode];
+      const rows = await this.aggregateBiometrics(
+        session,
         bucketSec,
+        mode,
+        from,
+        to,
       );
+      return strategy.reshape(rows, bucketSec);
     }
 
     const fromDate = from ? new Date(from) : undefined;
@@ -219,27 +226,23 @@ export class SessionsService {
   }
 
   // Executes a single parameterized SQL query that unnests each bio sample's data fields,
-  // casts numeric leaf values, and returns per-bucket min/max aggregates grouped by sampleType
-  // and field. The heavy unnest runs entirely in Postgres; only the small aggregated rowset
-  // returns to Node — so no ROW_CAP/FLAT_CAP/413 guard is needed on this path.
+  // casts numeric leaf values, and returns per-bucket aggregates grouped by sampleType and field.
+  // The aggregate function (min/max or avg) is determined by the strategy looked up from
+  // AGG_REGISTRY[agg]. The heavy unnest runs entirely in Postgres; only the small aggregated
+  // rowset returns to Node — so no ROW_CAP/FLAT_CAP/413 guard is needed on this path.
   private async aggregateBiometrics(
     session: ModuleSession,
     bucketSec: number,
+    agg: AggMode,
     from?: string,
     to?: string,
-  ): Promise<
-    {
-      sampleType: string;
-      bucket: string;
-      field: string;
-      min: string;
-      max: string;
-    }[]
-  > {
+  ): Promise<Record<string, unknown>[]> {
     const fromDate = from ? new Date(from) : undefined;
     const toDate = to ? new Date(to) : undefined;
     const fromMs = fromDate?.getTime();
     const toMs = toDate?.getTime();
+
+    const strategy = AGG_REGISTRY[agg];
 
     const params: unknown[] = [];
     let n = 0;
@@ -289,15 +292,14 @@ export class SessionsService {
     // Because the unit test is DB-less, this equivalence is guarded by this comment/contract,
     // not by automated verification (see e2e integration test for SQL↔helper equivalence).
     //
-    // ORDER BY is redundant once reshapeAggregateRows applies a total (timestamp, sampleType)
+    // ORDER BY is redundant once the reshape function applies a total (timestamp, sampleType)
     // sort, but it clarifies intent and makes EXPLAIN output easier to read in production.
     const sql = `
       SELECT
         elem->>'sampleType' AS "sampleType",
         floor((elem->>'timestamp')::numeric / ${bucketMsParam}) AS bucket,
         kv.key AS field,
-        min((kv.value #>> '{}')::numeric) AS min,
-        max((kv.value #>> '{}')::numeric) AS max
+        ${strategy.selectColumns}
       FROM bio_session_samples b,
         jsonb_array_elements(b.samples) AS elem,
         jsonb_each(elem->'data') AS kv
@@ -307,36 +309,6 @@ export class SessionsService {
     `;
 
     return this.bioSampleRepo.query(sql, params);
-  }
-
-  // Reshapes flat (sampleType, bucket, field, min, max) rows returned by aggregateBiometrics
-  // into BioSampleDto-shaped synthetic min/max envelope samples. Delegates to the shared pure
-  // helper reshapeAggregateRows which guarantees deterministic (timestamp, sampleType) ordering
-  // and sorted data field keys — so any two requests covering the same bucket set are byte-equal.
-  //
-  // Bucket origin is epoch 0 — independent of request `from` and globally stable.
-  // Window filter is half-open [from, to).
-  //
-  // Tiling contract: callers (e.g. mind_web's quantizeWindow) MUST align window edges to
-  // bucketSec multiples so every bucket falls fully inside exactly one window. Under that
-  // contract N adjacent windowed requests return the identical bucket set as one full-session
-  // request, in identical order.
-  //
-  // flushedAt caveat: the coarse flushedAt pre-filter (above, aggregateBiometrics) means the
-  // tiling guarantee assumes flushedAt >= timestamp for all batches. Clock-skewed samples whose
-  // batch flushed before an interior window's `from` could appear in the full-session result but
-  // be dropped from that interior window. This skew case is out of scope for this milestone.
-  private reshapeAggregatedBiometrics(
-    rows: {
-      sampleType: string;
-      bucket: string;
-      field: string;
-      min: string;
-      max: string;
-    }[],
-    bucketSec: number,
-  ): Record<string, unknown>[] {
-    return reshapeAggregateRows(rows, bucketSec);
   }
 
   async listInstructions(

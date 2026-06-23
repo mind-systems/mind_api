@@ -46,6 +46,7 @@ export class SessionsController {
       query.from,
       query.to,
       query.bucketSec,
+      query.agg,
     );
   }
 
