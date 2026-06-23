@@ -428,10 +428,26 @@ export class ActivityEngine {
     return saved;
   }
 
-  async handleReconnect(userId: string): Promise<ModuleSession | null> {
-    if (!this.activitySessionStore.has(userId)) return null;
-    this.activitySessionStore.cancelGraceTimer(userId);
-    return this.resumeActivity(userId);
+  async handleReconnect(
+    userId: string,
+    clientSessionId?: string,
+  ): Promise<ModuleSession | { abandoned: true } | null> {
+    if (this.activitySessionStore.has(userId)) {
+      this.activitySessionStore.cancelGraceTimer(userId);
+      return this.resumeActivity(userId);
+    }
+    if (clientSessionId) {
+      const row = await this.repo.findOne({
+        where: { id: clientSessionId, userId },
+      });
+      if (row?.status === SessionStatus.ABANDONED) {
+        this.logger.log(
+          `Session abandonment confirmed on reconnect: userId=${userId} sessionId=${clientSessionId}`,
+        );
+        return { abandoned: true };
+      }
+    }
+    return null;
   }
 
   async handleTransportDisconnect(userId: string): Promise<void> {

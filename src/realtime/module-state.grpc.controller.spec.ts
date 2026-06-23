@@ -143,6 +143,7 @@ describe('ModuleStateGrpcController', () => {
   // ── Task 3: Reconnect path ────────────────────────────────────────────────
 
   describe('trackActivity — reconnect path', () => {
+    // (a) RESUMED path — unchanged from before
     it('should emit StateResponse.sessionState with status RESUMED and isPaused false when handleReconnect returns a session', async () => {
       activityEngine.handleReconnect.mockResolvedValue(
         makeSession({ id: 'resumed-session' }),
@@ -261,6 +262,87 @@ describe('ModuleStateGrpcController', () => {
       await flushMicrotasks();
 
       expect(values).toHaveLength(0);
+    });
+
+    // (b) Abandoned path — single ABANDONED emit with clientSessionId
+    it('(b) should emit exactly one sessionState ABANDONED with the provided clientSessionId when handleReconnect returns { abandoned: true }', async () => {
+      activityEngine.handleReconnect.mockResolvedValue({ abandoned: true });
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller
+        .trackActivity(request$, user, 'client-session-id')
+        .subscribe({
+          next: (v) => values.push(v),
+          error: () => {},
+        });
+
+      await flushMicrotasks();
+
+      expect(values).toHaveLength(1);
+      expect(values[0].sessionState).toMatchObject({
+        status: ActivityStatus.ABANDONED,
+        moduleSessionId: 'client-session-id',
+      });
+
+      sub.unsubscribe();
+    });
+
+    // (c) Idle / no id → no emit
+    it('(c) should not emit any StateResponse when handleReconnect returns null and no clientSessionId is provided', async () => {
+      activityEngine.handleReconnect.mockResolvedValue(null);
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller.trackActivity(request$, user).subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+
+      expect(values).toHaveLength(0);
+
+      sub.unsubscribe();
+    });
+
+    // (d) Stream stays open after abandoned emit — subsequent activity:start produces ACTIVE
+    it('(d) stream stays open after abandoned emit — subsequent activityStart routes to ACTIVE', async () => {
+      activityEngine.handleReconnect.mockResolvedValue({ abandoned: true });
+      const startedSession = makeSession({ id: 'new-session' });
+      activityEngine.startActivity.mockResolvedValue(startedSession);
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller
+        .trackActivity(request$, user, 'client-session-id')
+        .subscribe({
+          next: (v) => values.push(v),
+          error: () => {},
+          complete: () => {},
+        });
+
+      await flushMicrotasks();
+
+      // First value: ABANDONED
+      expect(values).toHaveLength(1);
+      expect(values[0].sessionState?.status).toBe(ActivityStatus.ABANDONED);
+
+      // Stream must still be open (complete() was not called)
+      expect(sub.closed).toBe(false);
+
+      // Send activityStart — should produce ACTIVE
+      request$.next({ activityStart: { activityType: ActivityType.BREATH } });
+      await flushMicrotasks();
+
+      expect(values).toHaveLength(2);
+      expect(values[1].sessionState?.status).toBe(ActivityStatus.ACTIVE);
+      expect(values[1].sessionState?.moduleSessionId).toBe('new-session');
+
+      sub.unsubscribe();
     });
   });
 
@@ -698,7 +780,7 @@ describe('ModuleStateGrpcController', () => {
         request$.next({ activityEnd: {} });
         await flushMicrotasks();
 
-        expect(activityEngine.endActivity).toHaveBeenCalledWith('user-1');
+        expect(activityEngine.endActivity).toHaveBeenCalledWith('user-1', undefined);
       });
 
       it('should emit sessionState COMPLETED with moduleSessionId from the returned session', async () => {

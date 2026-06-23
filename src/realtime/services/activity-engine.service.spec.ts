@@ -493,6 +493,75 @@ describe('ActivityEngine', () => {
     });
   });
 
+  describe('handleReconnect', () => {
+    it('(a) store hit → cancels grace timer and returns resumed ModuleSession', async () => {
+      const session = makeSession({ status: SessionStatus.DISCONNECTED });
+      activitySessionStore.set('user-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        startedAt: session.startedAt,
+        lastActivityAt: session.lastActivityAt,
+        isPaused: false,
+      });
+      repo.findOne.mockResolvedValue(session);
+      const savedSession = {
+        ...session,
+        status: SessionStatus.ACTIVE,
+        disconnectedAt: null,
+      };
+      repo.save.mockResolvedValue(savedSession);
+
+      const result = await engine.handleReconnect('user-1', 'client-session-id');
+
+      // returns the resumed ModuleSession (has an `id` field, not { abandoned: true })
+      expect(result).toBe(savedSession);
+      // findOne was called by resumeActivity with the store session id, not the clientSessionId
+      expect(repo.findOne).toHaveBeenCalledWith({ where: { id: 'session-1' } });
+    });
+
+    it('(b) no store entry + ABANDONED DB row → resolves { abandoned: true }', async () => {
+      const row = makeSession({ status: SessionStatus.ABANDONED });
+      repo.findOne.mockResolvedValue(row);
+
+      const result = await engine.handleReconnect('user-1', 'client-session-id');
+
+      expect(result).toEqual({ abandoned: true });
+      expect(repo.findOne).toHaveBeenCalledWith({
+        where: { id: 'client-session-id', userId: 'user-1' },
+      });
+    });
+
+    it('(c) no store entry + COMPLETED DB row → null', async () => {
+      const row = makeSession({ status: SessionStatus.COMPLETED });
+      repo.findOne.mockResolvedValue(row);
+
+      const result = await engine.handleReconnect('user-1', 'client-session-id');
+
+      expect(result).toBeNull();
+      expect(repo.findOne).toHaveBeenCalledWith({
+        where: { id: 'client-session-id', userId: 'user-1' },
+      });
+    });
+
+    it('(d) no store entry + missing DB row (findOne → null) → null', async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      const result = await engine.handleReconnect('user-1', 'client-session-id');
+
+      expect(result).toBeNull();
+      expect(repo.findOne).toHaveBeenCalledWith({
+        where: { id: 'client-session-id', userId: 'user-1' },
+      });
+    });
+
+    it('(e) no clientSessionId → null, findOne not called', async () => {
+      const result = await engine.handleReconnect('user-1');
+
+      expect(result).toBeNull();
+      expect(repo.findOne).not.toHaveBeenCalled();
+    });
+  });
+
   describe('resumeActivity', () => {
     it('happy path: sets status=ACTIVE, clears disconnectedAt, updates lastActivityAt, returns session', async () => {
       const session = makeSession({ status: SessionStatus.DISCONNECTED });

@@ -24,6 +24,8 @@ import { ActiveStreamRegistry } from './services/active-stream-registry.service'
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
+import { GrpcMetadataValue } from '../grpc/decorators/grpc-metadata-value.decorator';
+import { GRPC_MODULE_SESSION_ID_KEY } from '../grpc/grpc-auth.constants';
 import { RealtimeConfig } from './constants/realtime-config';
 import { AuthEvents } from '../users/events/auth.events';
 import type { SessionRevokedPayload } from '../users/events/auth.events';
@@ -85,6 +87,7 @@ export class ModuleStateGrpcController {
   trackActivity(
     @Payload() request: Observable<StateRequest>,
     @GrpcCurrentUser() user: JwtPayload | null,
+    @GrpcMetadataValue(GRPC_MODULE_SESSION_ID_KEY) clientSessionId?: string,
   ): Observable<StateResponse> {
     return new Observable<StateResponse>((subscriber) => {
       if (!user) {
@@ -104,20 +107,33 @@ export class ModuleStateGrpcController {
       let connectedAt = 0;
 
       const setup = async (): Promise<void> => {
-        const session = await this.activityEngine.handleReconnect(userId);
+        const result = await this.activityEngine.handleReconnect(
+          userId,
+          clientSessionId,
+        );
         if (subscriber.closed) return;
 
-        if (session) {
-          subscriber.next({
-            sessionState: {
-              moduleSessionId: session.id,
-              status: ActivityStatus.RESUMED,
-              isPaused: false,
-            },
-          });
-          this.logger.log(
-            `Session resumed on reconnect: userId=${userId} sessionId=${session.id}`,
-          );
+        if (result !== null) {
+          if ('abandoned' in result) {
+            if (!clientSessionId) return;
+            subscriber.next({
+              sessionState: {
+                moduleSessionId: clientSessionId,
+                status: ActivityStatus.ABANDONED,
+              },
+            });
+          } else {
+            subscriber.next({
+              sessionState: {
+                moduleSessionId: result.id,
+                status: ActivityStatus.RESUMED,
+                isPaused: false,
+              },
+            });
+            this.logger.log(
+              `Session resumed on reconnect: userId=${userId} sessionId=${result.id}`,
+            );
+          }
         }
 
         connectedAt = Date.now();
