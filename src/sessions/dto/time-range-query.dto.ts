@@ -17,6 +17,6 @@ export class TimeRangeQueryDto {
   bucketSec?: number;
 
   @IsOptional()
-  @IsIn(['minmax', 'avg'])
+  @IsIn(['minmax', 'avg', 'lttb'])
   agg?: string;
 }

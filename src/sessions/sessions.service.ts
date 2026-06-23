@@ -23,6 +23,15 @@ import { AGG_REGISTRY, AggMode } from './biometric-aggregation.util';
 const ROW_CAP = 60_000;
 const FLAT_CAP = 50_000;
 
+// Maximum number of raw per-point rows the LTTB points query may return.
+// Unlike the grouped path (which returns one row per (sampleType, bucket, field)),
+// the 'points' path returns one row per (sample element, numeric field) — on the order
+// of 1–2 M rows for the 389 k-motion reference session. This is a conservative
+// placeholder pending a real Task 6 measurement against that session; once the observed
+// row count is known, lower this to measured-max + headroom to keep pathological
+// synchronous reshapes bounded.
+const LTTB_POINTS_ROW_CAP = 3_000_000;
+
 // Padded upper bound for the coarse flushedAt filter. A batch flushed up to 2 minutes after
 // `to` can still contain samples whose per-sample timestamp falls inside [from, to). Applying
 // a padded LessThan prevents the ROW_CAP from firing on legitimate narrow windows in long
@@ -225,11 +234,15 @@ export class SessionsService {
     return flat;
   }
 
-  // Executes a single parameterized SQL query that unnests each bio sample's data fields,
-  // casts numeric leaf values, and returns per-bucket aggregates grouped by sampleType and field.
-  // The aggregate function (min/max or avg) is determined by the strategy looked up from
-  // AGG_REGISTRY[agg]. The heavy unnest runs entirely in Postgres; only the small aggregated
-  // rowset returns to Node — so no ROW_CAP/FLAT_CAP/413 guard is needed on this path.
+  // Executes a parameterized SQL query that unnests each bio sample's data fields,
+  // casts numeric leaf values, and returns either:
+  //   - 'grouped' strategies (minmax, avg): per-bucket aggregates grouped by sampleType and
+  //     field. The heavy unnest runs entirely in Postgres; only the small aggregated rowset
+  //     returns to Node — so no ROW_CAP/413 guard is needed on the grouped path.
+  //   - 'points' strategies (lttb): raw per-point rows (one per sample element per numeric
+  //     field, no GROUP BY). The rowset can be large — LTTB_POINTS_ROW_CAP caps it with a
+  //     LIMIT and a 413 guard after the query.
+  // The strategy is determined by AGG_REGISTRY[agg].
   private async aggregateBiometrics(
     session: ModuleSession,
     bucketSec: number,
@@ -257,6 +270,8 @@ export class SessionsService {
     );
     const bucketMsParam = p(bucketSec * 1000);
 
+    // Shared WHERE conditions — identical for grouped and points paths.
+    // This guarantees that 'lttb' filters the same samples as 'avg'/'minmax'.
     const conditions: string[] = [
       `b."moduleSessionId" = ${sessionParam}`,
       `jsonb_typeof(elem->'timestamp') = 'number'`,
@@ -291,10 +306,8 @@ export class SessionsService {
     // bucketIndexForMs() in biometric-aggregation.util.ts. Both use epoch 0 as origin.
     // Because the unit test is DB-less, this equivalence is guarded by this comment/contract,
     // not by automated verification (see e2e integration test for SQL↔helper equivalence).
-    //
-    // ORDER BY is redundant once the reshape function applies a total (timestamp, sampleType)
-    // sort, but it clarifies intent and makes EXPLAIN output easier to read in production.
-    const sql = `
+    const whereClause = conditions.join('\n        AND ');
+    const selectHeader = `
       SELECT
         elem->>'sampleType' AS "sampleType",
         floor((elem->>'timestamp')::numeric / ${bucketMsParam}) AS bucket,
@@ -303,12 +316,37 @@ export class SessionsService {
       FROM bio_session_samples b,
         jsonb_array_elements(b.samples) AS elem,
         jsonb_each(elem->'data') AS kv
-      WHERE ${conditions.join('\n        AND ')}
+      WHERE ${whereClause}`;
+
+    let sql: string;
+    if (strategy.kind === 'points') {
+      // No GROUP BY, no ORDER BY — reshapeLttbRows re-sorts each group in JS,
+      // so an SQL sort over the full (large) raw rowset is wasted work.
+      // LIMIT enforces the resource guard; the post-query check below throws 413.
+      sql = `${selectHeader}
+      LIMIT ${LTTB_POINTS_ROW_CAP + 1}
+    `;
+    } else {
+      // ORDER BY is redundant once reshape applies a total (timestamp, sampleType) sort,
+      // but it clarifies intent and makes EXPLAIN output easier to read in production.
+      sql = `${selectHeader}
       GROUP BY "sampleType", bucket, field
       ORDER BY "sampleType", bucket, field
     `;
+    }
 
-    return this.bioSampleRepo.query(sql, params);
+    const rows: Record<string, unknown>[] = await this.bioSampleRepo.query(
+      sql,
+      params,
+    );
+
+    if (strategy.kind === 'points' && rows.length > LTTB_POINTS_ROW_CAP) {
+      throw new PayloadTooLargeException(
+        'Result set too large; narrow the time window',
+      );
+    }
+
+    return rows;
   }
 
   async listInstructions(

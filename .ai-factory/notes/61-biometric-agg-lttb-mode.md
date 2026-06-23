@@ -27,5 +27,6 @@
 
 ## Open Questions
 - Exact LTTB-within-fixed-buckets variant (triangle vs next-centroid choice).
+  **Resolved (2026-06-23):** The shipped variant is **bucket-local** — the triangle is formed against the bucket's own first and last point (the chord), not the previously-selected point and the next bucket's centroid. This keeps each bucket's selection fully self-contained, which preserves the byte-equal tiling gate (windowed requests tile exactly like a full-session request). The artifact label and the web radio still read "LTTB". See the plan file `78-c2-agg-lttb-mode-shape-preserving-non-lagging.md` Key Design Decision section for the full rationale.
 - Per-field independent selection emits field-misaligned real x — resolved by stamping all fields at a shared bucket-midpoint `timestamp` (envelope semantics); confirm this reads acceptably vs keeping each field's real selected x.
 </content>

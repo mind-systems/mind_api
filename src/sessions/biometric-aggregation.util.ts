@@ -19,7 +19,7 @@
  */
 
 /** Aggregation mode for bucketed biometric queries. */
-export type AggMode = 'minmax' | 'avg';
+export type AggMode = 'minmax' | 'avg' | 'lttb';
 
 /**
  * Numeric-leaf SQL cast reused by every strategy's selectColumns fragment.
@@ -231,21 +231,251 @@ export function reshapeAvgRows(
   return result;
 }
 
+/** Row shape returned by the LTTB points query (one row per sample element field). */
+export interface LttbRow {
+  sampleType: string;
+  /** String-encoded integer bucket index as returned by Postgres. */
+  bucket: string;
+  field: string;
+  /** String-encoded numeric timestamp of the raw sample point as returned by Postgres. */
+  ts: string;
+  /** String-encoded numeric field value as returned by Postgres. */
+  value: string;
+}
+
+/**
+ * Selects one representative value from a non-empty, pre-sorted `(ts, value)` point list
+ * using the bucket-local LTTB triangle criterion.
+ *
+ * Internal helper — not exported; used only by reshapeLttbRows.
+ *
+ * Selection rule (pinned — do not change without updating tests and plan):
+ * - 1 point → that point's value.
+ * - ≥2 points → A = first, C = last; for each candidate P compute
+ *   area = |(C.ts − A.ts)·(P.value − A.value) − (P.ts − A.ts)·(C.value − A.value)|.
+ *   Pick the max-area point. If all areas are 0 (collinear or two-point bucket),
+ *   fall back to max |value − bucketMean|.
+ *   Tie-break throughout: sort order wins (earliest ts, then smallest value).
+ */
+function selectLttbPoint(points: { ts: number; value: number }[]): number {
+  const first = points[0];
+  if (first === undefined) return 0; // guard: caller guarantees non-empty
+
+  if (points.length === 1) return first.value;
+
+  const a = first;
+  const last = points[points.length - 1];
+  if (last === undefined) return a.value; // guard for TS; points.length >= 2 makes this unreachable
+  const c = last;
+
+  // Triangle area without the /2 factor — monotonic, doesn't affect argmax.
+  let maxArea = 0;
+  let selected = a;
+
+  for (const p of points) {
+    const area = Math.abs(
+      (c.ts - a.ts) * (p.value - a.value) - (p.ts - a.ts) * (c.value - a.value),
+    );
+    if (area > maxArea) {
+      maxArea = area;
+      selected = p;
+    }
+    // Ties: keep first occurrence — sort order guarantees earliest ts / smallest value wins.
+  }
+
+  if (maxArea === 0) {
+    // All areas zero — collinear or exactly 2 points. Fallback: max |value − bucketMean|.
+    const mean = points.reduce((s, p) => s + p.value, 0) / points.length;
+    let maxDev = -1;
+    selected = first; // reset; first in sort order wins ties
+    for (const p of points) {
+      const dev = Math.abs(p.value - mean);
+      if (dev > maxDev) {
+        maxDev = dev;
+        selected = p;
+      }
+    }
+  }
+
+  return selected.value;
+}
+
+/**
+ * Pure, deterministic reshape of LTTB points-query rows into one synthetic sample per
+ * (sampleType, bucket) pair, using bucket-local triangle selection per field.
+ *
+ * For each (sampleType, bucket, field) group:
+ *   - Sort points by (ts, value).
+ *   - Pick the representative value with selectLttbPoint (triangle area vs the bucket's own
+ *     first/last chord; see the plan's Key Design Decision for the rationale).
+ *
+ * Each group emits exactly one record:
+ *   { timestamp: bucketStart + bucketMidpointOffsetMs, sampleType, data: <sorted-key object> }
+ *
+ * Determinism guarantees mirror reshapeAvgRows:
+ *   1. Each `data` object's keys are in sorted order.
+ *   2. The result is sorted by (timestamp, sampleType).
+ *
+ * Accepted limitation (do not "fix"): a spike that is the bucket's first or last point sits on
+ * the chord (area 0) and is not selected by the triangle criterion unless every area in the
+ * bucket is 0. A near-monotonic bucket whose extreme is on an edge maps to a less-extreme
+ * interior point. Acceptable for a comparison testbed; recorded here so QA does not file it
+ * as a bug.
+ */
+export function reshapeLttbRows(
+  rows: LttbRow[],
+  bucketSec: number,
+): Record<string, unknown>[] {
+  // Group per (sampleType, bucket, field) → collect raw points.
+  const fieldGroups = new Map<
+    string,
+    { sampleType: string; bucket: number; field: string; points: { ts: number; value: number }[] }
+  >();
+
+  for (const row of rows) {
+    const bucket = Number(row.bucket);
+    const key = `${row.sampleType}|${bucket}|${row.field}`;
+    let group = fieldGroups.get(key);
+    if (!group) {
+      group = { sampleType: row.sampleType, bucket, field: row.field, points: [] };
+      fieldGroups.set(key, group);
+    }
+    group.points.push({ ts: Number(row.ts), value: Number(row.value) });
+  }
+
+  // For each (sampleType, bucket), collect the per-field selected values.
+  const bucketGroups = new Map<
+    string,
+    { sampleType: string; bucket: number; data: Record<string, number> }
+  >();
+
+  for (const { sampleType, bucket, field, points } of fieldGroups.values()) {
+    if (points.length === 0) continue;
+
+    // Sort by (ts, value) for deterministic tie-breaking in selectLttbPoint.
+    points.sort((a, b) => (a.ts !== b.ts ? a.ts - b.ts : a.value - b.value));
+
+    const selectedValue = selectLttbPoint(points);
+
+    const bucketKey = `${sampleType}|${bucket}`;
+    let bucketGroup = bucketGroups.get(bucketKey);
+    if (!bucketGroup) {
+      bucketGroup = { sampleType, bucket, data: {} };
+      bucketGroups.set(bucketKey, bucketGroup);
+    }
+    bucketGroup.data[field] = selectedValue;
+  }
+
+  const midOffset = bucketMidpointOffsetMs(bucketSec);
+  const result: Record<string, unknown>[] = [];
+
+  for (const { sampleType, bucket, data } of bucketGroups.values()) {
+    const start = bucketStartMs(bucket, bucketSec);
+
+    // Sort field keys for deterministic data object key ordering.
+    const sortedFields = Object.keys(data).sort();
+    const dataSorted: Record<string, number> = {};
+    for (const f of sortedFields) {
+      dataSorted[f] = data[f] as number;
+    }
+
+    result.push({ timestamp: start + midOffset, sampleType, data: dataSorted });
+  }
+
+  // Total sort by (timestamp, sampleType) — eliminates row-order and insertion-order dependence.
+  result.sort((a, b) => {
+    const tDiff = (a['timestamp'] as number) - (b['timestamp'] as number);
+    if (tDiff !== 0) return tDiff;
+    const sa = a['sampleType'] as string;
+    const sb = b['sampleType'] as string;
+    return sa < sb ? -1 : sa > sb ? 1 : 0;
+  });
+
+  return result;
+}
+
+/**
+ * Pure in-memory reference point collector that mirrors the LTTB points SQL query.
+ * Applies the same half-open [fromMs, toMs) window filter and garbage timestamp filter,
+ * then emits one LttbRow per (sampleType, bucket, field, ts, value) — no aggregation.
+ *
+ * Used by unit tests only — never called on the production code path.
+ * Mirrors collectRawPoints the same way aggregateRawSamples mirrors the grouped SQL.
+ *
+ * @param samples         Raw sample records from bio_session_samples.
+ * @param bucketSec       Bucket width in seconds.
+ * @param fromMs          Lower bound, inclusive (half-open [fromMs, toMs)); omit for no bound.
+ * @param toMs            Upper bound, exclusive; omit for no bound.
+ * @param garbageBoundMs  Samples with timestamp <= garbageBoundMs are dropped.
+ */
+export function collectRawPoints(
+  samples: Record<string, unknown>[],
+  bucketSec: number,
+  fromMs?: number,
+  toMs?: number,
+  garbageBoundMs?: number,
+): LttbRow[] {
+  const result: LttbRow[] = [];
+
+  for (const sample of samples) {
+    const ts =
+      typeof sample['timestamp'] === 'number' ? sample['timestamp'] : undefined;
+    if (ts === undefined) continue;
+
+    // Garbage filter: mirrors SQL `(elem->>'timestamp')::numeric > garbageBoundParam`
+    if (garbageBoundMs !== undefined && ts <= garbageBoundMs) continue;
+
+    // Half-open [fromMs, toMs) window filter
+    if (fromMs !== undefined && ts < fromMs) continue;
+    if (toMs !== undefined && ts >= toMs) continue;
+
+    const sampleType =
+      typeof sample['sampleType'] === 'string' ? sample['sampleType'] : undefined;
+    if (sampleType === undefined) continue;
+
+    const data = sample['data'];
+    if (data === null || typeof data !== 'object' || Array.isArray(data)) continue;
+
+    const bucket = bucketIndexForMs(ts, bucketSec);
+
+    for (const [field, value] of Object.entries(data as Record<string, unknown>)) {
+      if (typeof value !== 'number') continue; // only numeric leaves
+
+      result.push({
+        sampleType,
+        bucket: String(bucket),
+        field,
+        ts: String(ts),
+        value: String(value),
+      });
+    }
+  }
+
+  return result;
+}
+
 /**
  * Reducer-strategy registry keyed by AggMode.
  *
  * Each entry provides:
- *   - `selectColumns`: SQL fragment to drop into the SELECT clause (replacing the
- *     hardcoded min/max columns). Uses `NUMERIC_LEAF` for the numeric cast.
+ *   - `kind`: `'grouped'` entries use GROUP BY + aggregate functions and return a compact
+ *     rowset (one row per (sampleType, bucket, field)). `'points'` entries return one raw
+ *     row per (sampleType, bucket, field, sample point) — a potentially large rowset that
+ *     requires a dedicated LTTB_POINTS_ROW_CAP guard in the service.
+ *   - `selectColumns`: SQL fragment appended to the shared SELECT header. For `'grouped'`
+ *     entries this is an aggregate function; for `'points'` entries it adds per-point columns
+ *     (ts, value) that the reshape function consumes.
  *   - `reshape`: pure function that converts raw Postgres rows into the final
  *     BioSampleDto-shaped array.
  *
- * Adding a new strategy (e.g. `median`, `lttb`) requires only a new entry here
- * plus a corresponding reshape function — no changes to the service SQL plumbing.
+ * Adding a new strategy requires only a new entry here plus a corresponding reshape
+ * function. If `kind === 'points'`, the service omits GROUP BY/ORDER BY and applies the
+ * LTTB_POINTS_ROW_CAP guard — no other service changes needed.
  */
 export const AGG_REGISTRY: Record<
   AggMode,
   {
+    kind: 'grouped' | 'points';
     selectColumns: string;
     reshape: (
       rows: Record<string, unknown>[],
@@ -254,14 +484,22 @@ export const AGG_REGISTRY: Record<
   }
 > = {
   minmax: {
+    kind: 'grouped',
     selectColumns: `min(${NUMERIC_LEAF}) AS min, max(${NUMERIC_LEAF}) AS max`,
     reshape: (rows, bucketSec) =>
       reshapeAggregateRows(rows as unknown as AggregateRow[], bucketSec),
   },
   avg: {
+    kind: 'grouped',
     selectColumns: `avg(${NUMERIC_LEAF}) AS avg`,
     reshape: (rows, bucketSec) =>
       reshapeAvgRows(rows as unknown as AvgRow[], bucketSec),
+  },
+  lttb: {
+    kind: 'points',
+    selectColumns: `(elem->>'timestamp')::numeric AS ts, ${NUMERIC_LEAF} AS value`,
+    reshape: (rows, bucketSec) =>
+      reshapeLttbRows(rows as unknown as LttbRow[], bucketSec),
   },
 };
 
