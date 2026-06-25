@@ -151,7 +151,7 @@ describe('BreathSessionsService', () => {
         andWhere: jest.fn(),
         orderBy: jest.fn(),
         addOrderBy: jest.fn(),
-        take: jest.fn(),
+        limit: jest.fn(),
         getMany: jest.fn().mockResolvedValue(rows),
       };
       qb.innerJoin.mockReturnValue(qb);
@@ -159,7 +159,7 @@ describe('BreathSessionsService', () => {
       qb.andWhere.mockReturnValue(qb);
       qb.orderBy.mockReturnValue(qb);
       qb.addOrderBy.mockReturnValue(qb);
-      qb.take.mockReturnValue(qb);
+      qb.limit.mockReturnValue(qb);
       return qb;
     };
 
