@@ -1,13 +1,13 @@
 .PHONY: help build up down restart logs ps health db-reset
 
 # Конфигурация по умолчанию
-COMPOSE_DEV = docker-compose.dev.yml
+COMPOSE_STAGING = docker-compose.staging.yml
 COMPOSE_PROD = docker-compose.prod.yml
 
 help:
 	@echo "Доступные команды:"
-	@echo "  make build          - Собрать docker-образы для разработки"
-	@echo "  make up             - Запустить приложение в dev-режиме (в фоне)"
+	@echo "  make build          - Собрать docker-образы для staging"
+	@echo "  make up             - Запустить приложение в staging-режиме (в фоне)"
 	@echo "  make down           - Остановить и удалить контейнеры"
 	@echo "  make restart        - Перезапустить приложение"
 	@echo "  make logs           - Показать логи приложения"
@@ -17,29 +17,29 @@ help:
 	@echo "  make up-prod        - Запустить в продакшене"
 
 build:
-	docker compose --env-file .env.dev -f $(COMPOSE_DEV) build
+	docker compose --env-file .env.staging -f $(COMPOSE_STAGING) build
 
 up:
-	docker compose --env-file .env.dev -f $(COMPOSE_DEV) up -d
+	docker compose --env-file .env.staging -f $(COMPOSE_STAGING) up -d
 
 down:
-	docker compose --env-file .env.dev -f $(COMPOSE_DEV) down
+	docker compose --env-file .env.staging -f $(COMPOSE_STAGING) down
 
 restart:
-	docker compose --env-file .env.dev -f $(COMPOSE_DEV) restart
+	docker compose --env-file .env.staging -f $(COMPOSE_STAGING) restart
 
 logs:
-	docker compose --env-file .env.dev -f $(COMPOSE_DEV) logs -f mind_api_dev
+	docker compose --env-file .env.staging -f $(COMPOSE_STAGING) logs -f mind_api_staging
 
 ps:
-	docker compose --env-file .env.dev -f $(COMPOSE_DEV) ps
+	docker compose --env-file .env.staging -f $(COMPOSE_STAGING) ps
 
 health:
 	curl http://localhost:3002/health
 
 db-reset:
-	docker exec -it mind_api_database_dev_host psql -U mind_database_dev_user -d postgres -c "DROP DATABASE IF EXISTS mind_database_dev;" -c "CREATE DATABASE mind_database_dev;"
-	docker compose --env-file .env.dev -f $(COMPOSE_DEV) restart mind_api_dev
+	docker exec -it mind_api_database_staging_host psql -U mind_database_dev_user -d postgres -c "DROP DATABASE IF EXISTS mind_database_dev;" -c "CREATE DATABASE mind_database_dev;"
+	docker compose --env-file .env.staging -f $(COMPOSE_STAGING) restart mind_api_staging
 
 build-prod:
 	docker compose --env-file .env.prod -f $(COMPOSE_PROD) build

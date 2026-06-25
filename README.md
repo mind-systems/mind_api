@@ -58,7 +58,7 @@ make down
 **1. Подготовка БД:**
 ```bash
 # Запустить только Postgres через Docker
-make up  # или docker compose --env-file .env.dev -f docker-compose.dev.yml up -d postgres
+make up  # или docker compose --env-file .env.staging -f docker-compose.staging.yml up -d postgres
 ```
 Или запустить базу через сервис и создать юзера бд
 

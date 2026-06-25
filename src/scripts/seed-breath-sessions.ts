@@ -4,7 +4,7 @@
 // userId=<uuid> npx ts-node --project tsconfig.json src/scripts/seed-breath-sessions.ts
 //
 // Запуск (БД в Docker):
-// userId=<uuid> envFile=.env.seed.dev npx ts-node --project tsconfig.json src/scripts/seed-breath-sessions.ts
+// userId=<uuid> envFile=.env.seed.staging npx ts-node --project tsconfig.json src/scripts/seed-breath-sessions.ts
 
 import 'reflect-metadata';
 import { config } from 'dotenv';

@@ -1,18 +1,18 @@
 version: '3.8'
 
 services:
-  mind_database_dev_host:
+  mind_database_staging_host:
     image: postgres:15-alpine
-    container_name: mind_api_database_dev_host
+    container_name: mind_api_database_staging_host
     restart: unless-stopped
     env_file:
-      - .env.dev
+      - .env.staging
     volumes:
-      - database_dev_volume:/var/lib/postgresql/data
+      - database_staging_volume:/var/lib/postgresql/data
     ports:
       - "${HOST_DB_PORT}:${CONTAINER_DB_PORT}"
     networks:
-      - network_dev
+      - network_staging
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -24,23 +24,23 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  mind_api_dev:
-    image: mind_api_dev:latest
-    container_name: mind_api_dev
+  mind_api_staging:
+    image: mind_api_staging:latest
+    container_name: mind_api_staging
     build:
       context: .
       target: dev
     restart: unless-stopped
     env_file:
-      - .env.dev
+      - .env.staging
     ports:
       - "${HOST_API_PORT}:${CONTAINER_API_PORT}"
       - "${HOST_GRPC_PORT}:${CONTAINER_GRPC_PORT}"
     depends_on:
-      mind_database_dev_host:
+      mind_database_staging_host:
         condition: service_healthy
     networks:
-      - network_dev
+      - network_staging
     healthcheck:
       test: ["CMD", "sh", "-c", "wget --no-verbose --tries=1 --spider http://localhost:${CONTAINER_API_PORT}/health || exit 1"]
       interval: 10s
@@ -54,8 +54,8 @@ services:
         max-file: "3"
 
 volumes:
-  database_dev_volume:
+  database_staging_volume:
 
 networks:
-  network_dev:
+  network_staging:
     driver: bridge

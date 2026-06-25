@@ -50,6 +50,6 @@ Mind Awake API is a NestJS 11 REST backend for a mindfulness breathing app. It h
 ## Key Conventions
 - **Migrations:** Always use explicit migrations (`npm run migration:run`). Never enable `synchronize: true`.
 - **Auth flow:** Client calls `POST /auth/send-code` → receives OTP by email → calls `POST /auth/verify-code` → gets JWT
-- **Env vars:** Dev uses `.env.dev`, prod uses `.env.prod`; base `.env` for local development
+- **Env vars:** Staging uses `.env.staging`, prod uses `.env.prod`; base `.env` for local development
 - **Ports:** Dev Docker API=3002, DB=5432; local API=3000
 - **Tests:** `src/**/*.spec.ts` pattern; run with `npm test`

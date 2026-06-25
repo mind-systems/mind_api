@@ -26,7 +26,7 @@ npm run migration:run      # Apply pending migrations
 npm run migration:revert   # Revert last migration
 npm run migration:create src/migrations/<Name>  # Scaffold new migration
 
-# Docker (dev)
+# Docker (staging)
 make up                    # Start (API on :3002, DB on :5432)
 make down                  # Stop
 make logs                  # Tail nestjs logs
@@ -98,7 +98,7 @@ gRPC controllers handle request/response mapping and delegate all business logic
 | File | Used for |
 |------|----------|
 | `.env` | Local development (base) |
-| `.env.dev` | Docker dev (`make up`) |
+| `.env.staging` | Docker staging (`make up`) |
 | `.env.prod` | Docker prod (`make up-prod`) |
 
 ### Documentation
