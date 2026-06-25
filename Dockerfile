@@ -1,5 +1,7 @@
 FROM --platform=$BUILDPLATFORM node:20-alpine AS builder
 
+RUN apk add --no-cache git
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -29,6 +31,8 @@ COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/package*.json ./
 COPY --from=builder --chown=nestjs:nodejs /app/proto ./proto
 
+RUN mkdir -p logs && chown nestjs:nodejs logs
+
 USER nestjs
 
 EXPOSE 3000
@@ -37,7 +41,7 @@ EXPOSE 50051
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', r => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-CMD ["dumb-init", "node", "dist/main"]
+CMD ["dumb-init", "node", "dist/src/main"]
 
 # ============================================
 # 2. Dockerfile for Development
