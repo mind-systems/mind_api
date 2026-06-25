@@ -1,0 +1,127 @@
+$ npx jest src/realtime/services/session-watchdog.service.spec.ts
+exit code: 0
+elapsed: 3.1s
+
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-a userId=user-a idleMs=700000[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog swept 1 stale sessions[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-a userId=user-a idleMs=700000[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog swept 1 stale sessions[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-a userId=user-a idleMs=700000[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-b userId=user-b idleMs=700000[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog swept 2 stale sessions[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-0.7557944935772262 userId=user-a idleMs=700000[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-0.22910771829491328 userId=user-b idleMs=700000[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog swept 2 stale sessions[39m
+[96m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [96mVERBOSE[39m [38;5;3m[SessionWatchdogService] [39m[96mWatchdog skipping sessionId=session-0.41340879477190084 userId=user-a — live subscriber present[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog swept 0 stale sessions[39m
+[96m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [96mVERBOSE[39m [38;5;3m[SessionWatchdogService] [39m[96mWatchdog skipping sessionId=session-a userId=user-a — live subscriber present[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-b userId=user-b idleMs=700000[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog swept 1 stale sessions[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-a userId=user-a idleMs=700000[39m
+[31m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [31m  ERROR[39m [38;5;3m[SessionWatchdogService] [39m[31mWatchdog failed to reap sessionId=session-a[39m
+[31m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [31m  ERROR[39m [38;5;3m[SessionWatchdogService] [39mError: engine error
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/services/session-watchdog.service.spec.ts:209:32[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-b userId=user-b idleMs=700000[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog swept 1 stale sessions[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-a userId=user-a idleMs=700000[39m
+[31m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [31m  ERROR[39m [38;5;3m[SessionWatchdogService] [39m[31mWatchdog failed to reap sessionId=session-a[39m
+[31m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [31m  ERROR[39m [38;5;3m[SessionWatchdogService] [39mError: engine error
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/services/session-watchdog.service.spec.ts:223:32[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-b userId=user-b idleMs=700000[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog swept 1 stale sessions[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-0.2762341054709604 userId=user-a idleMs=700000[39m
+[31m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [31m  ERROR[39m [38;5;3m[SessionWatchdogService] [39m[31mWatchdog failed to reap sessionId=session-0.2762341054709604[39m
+[31m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [31m  ERROR[39m [38;5;3m[SessionWatchdogService] [39mError: engine error
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/services/session-watchdog.service.spec.ts:236:53[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog reaping stale session: sessionId=session-0.5468123408396264 userId=user-b idleMs=700000[39m
+[31m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [31m  ERROR[39m [38;5;3m[SessionWatchdogService] [39m[31mWatchdog failed to reap sessionId=session-0.5468123408396264[39m
+[31m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [31m  ERROR[39m [38;5;3m[SessionWatchdogService] [39mError: engine error
+    at Object.<anonymous> [90m(/Users/max/projects/mind/mind_api/[39msrc/realtime/services/session-watchdog.service.spec.ts:236:53[90m)[39m
+    at Promise.finally.completed [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1557:28[90m)[39m
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1497:10[90m)[39m
+    at _callCircusTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1007:40[90m)[39m
+    at _runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:947:3[90m)[39m
+    at [90m/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:849:7
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:862:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at _runTestsForDescribeBlock [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:857:11[90m)[39m
+    at run [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:761:3[90m)[39m
+    at runAndTransformResultsToJestFormat [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/jestAdapterInit.js:1918:21[90m)[39m
+    at jestAdapter [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-circus[24m/build/runner.js:101:19[90m)[39m
+    at runTestInternal [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:275:16[90m)[39m
+    at runTest [90m(/Users/max/projects/mind/mind_api/[39mnode_modules/[4mjest-runner[24m/build/index.js:343:7[90m)[39m
+[33m[Nest] 59570  - [39m11/15/2023, 4:13:20 AM [33m   WARN[39m [38;5;3m[SessionWatchdogService] [39m[33mWatchdog swept 0 stale sessions[39m
+PASS src/realtime/services/session-watchdog.service.spec.ts
+  SessionWatchdogService
+    sweep — query construction and empty result
+      ✓ should query repo.find with status In([ACTIVE, DISCONNECTED]) and lastActivityAt LessThan(threshold) (5 ms)
+      ✓ should compute the threshold from a custom WS_SESSION_MAX_IDLE_MS when configured (1 ms)
+      ✓ should return early and not call activityEngine.abandonStale or activeStreamRegistry methods when repo.find resolves to an empty array (1 ms)
+    sweep — reaping behavior
+      ✓ should call activityEngine.abandonStale(userId, id) for each stale session (3 ms)
+      ✓ should call activeStreamRegistry.closeAll(userId) after abandonStale for a reaped session (1 ms)
+      ✓ should reap every stale session when multiple rows are returned (2 ms)
+      ✓ should check hasLiveSubscriber before reaping each session (1 ms)
+    sweep — live-subscriber skip path
+      ✓ should skip a session and not call abandonStale or closeAll when hasLiveSubscriber returns true for that userId (1 ms)
+      ✓ should reap only the rows without a live subscriber when a mix of rows is returned (1 ms)
+    sweep — per-row error isolation
+      ✓ should continue reaping remaining sessions when abandonStale rejects for one row (12 ms)
+      ✓ should not call closeAll for a row whose abandonStale rejected (2 ms)
+      ✓ should resolve (not reject) when every row fails to reap (1 ms)
+    lifecycle — bootstrap and shutdown timer management
+      ✓ should start a setInterval with the configured sweep interval on onApplicationBootstrap (1 ms)
+      ✓ should clear the sweep timer on onApplicationShutdown (1 ms)
+      ✓ should not call clearInterval on onApplicationShutdown when the timer was never started
+      ✓ should invoke sweep when the interval callback fires (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       16 passed, 16 total
+Snapshots:   0 total
+Time:        1.122 s, estimated 2 s
+Ran all test suites matching src/realtime/services/session-watchdog.service.spec.ts.
+
+TEST_PASS
