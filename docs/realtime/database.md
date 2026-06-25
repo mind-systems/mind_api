@@ -10,7 +10,7 @@ Realtime-система использует четыре таблицы. `modul
 |---------|-----|----------|
 | `id` | uuid PK | |
 | `userId` | uuid FK → users | Проиндексирован. |
-| `activityType` | enum | Тип активности. Единственное текущее значение: `breath`. |
+| `activityType` | enum | Тип активности: `breath` или `meditation`. |
 | `activityRefId` | uuid nullable | Идентификатор связанной сущности. FK-ограничение отсутствует намеренно — позволяет расширять набор типов без миграций. |
 | `status` | enum | `active`, `disconnected`, `completed`, `abandoned`, `interrupted`, `resumed`. |
 | `startedAt` | timestamp | Время начала активности. |

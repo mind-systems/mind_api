@@ -49,10 +49,12 @@
 
 ## Rate limiting
 
-| Уровень | Область | Лимит по умолчанию |
-|---------|---------|-------------------|
-| Interceptor | Все команды `ModuleStateService` | 200 событий / 1000 мс |
-| Controller | `activity:start` | 10 / мин |
+Только `activity:start` подпадает под rate limiting — на уровне контроллера. Остальные команды `ModuleStateService` не ограничиваются.
+
+| Переменная | По умолчанию | Описание |
+|------------|-------------|----------|
+| `WS_RATE_LIMIT_ACTIVITY_START_PER_MIN` | `10` | Максимальное число `activity:start` от одного пользователя за окно. |
+| `WS_RATE_LIMIT_WINDOW_MS` | `60000` | Длина окна в мс. |
 
 При превышении клиент получает `session:error` с кодом `RATE_LIMIT_EXCEEDED`.
 

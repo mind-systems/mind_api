@@ -19,8 +19,8 @@
 | `LOG_DESTINATION` | `file` | Назначение вывода логов: `file`, `grafana` или `both`. |
 | `OTLP_ENDPOINT` | `http://localhost:3100/otlp/v1/logs` | URL OTLP-эндпоинта (используется только в режимах `grafana` и `both`). |
 
-## Требование к реальному окружению
+## Конфигурация окружения
 
-Обе переменные читаются в `main.ts` до того, как `ConfigModule` разбирает `.env`. Это означает, что их нельзя задать через `.env`-файл проекта — они должны быть выставлены в окружении процесса: через shell, Docker `env_file` или `environment` в `docker-compose`. Это то же самое ограничение, что действует для `LOG_LEVEL` и `NODE_ENV`.
+`main.ts` загружает `.env` через `dotenv/config` как первую строку — до инициализации `ConfigModule`. Это означает, что `LOG_DESTINATION` и `OTLP_ENDPOINT` можно задавать как в `.env`-файле проекта, так и через переменные окружения процесса (shell, Docker `env_file`, `environment` в `docker-compose`). Переменные окружения процесса имеют приоритет над `.env` (поведение стандартного dotenv).
 
 В продакшне значения подставляются через `env_file: .env.prod` в `docker-compose.prod.yml`.

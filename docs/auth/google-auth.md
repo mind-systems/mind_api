@@ -16,7 +16,7 @@
 
 ### Браузерный flow
 
-Браузерный клиент инициирует стандартный OAuth redirect. Google перенаправляет на `GET /auth/google/callback` — сервер принимает `code` из query-параметра и переадресует его обратно в приложение через `APP_BASE_URL`. Клиент затем делает gRPC-вызов `GoogleAuth`, передавая полученный код в поле `server_auth_code` и `redirect_uri` в `GoogleAuthRequest` — он нужен Google для верификации при обмене кода на токены.
+Браузерный клиент открывает `GET /auth/google?state=<opaque>`. Сервер формирует Google OAuth URL (client_id, redirect_uri из `WEB_REDIRECT_URI`, scope `openid email profile`) и делает `302 redirect` напрямую к Google, пробрасывая `state`. Google перенаправляет на `GET /auth/google/callback` — сервер принимает `code` и `state` из query-параметров и переадресует их обратно в SPA через `APP_BASE_URL`. SPA верифицирует `state` (защита от login-CSRF), затем делает `POST /auth/google` с `{ code, redirectUri }` — REST-эндпоинт обменивает код на токены Google и возвращает `AuthResponse` с `access_token`. Для последующих запросов токен передаётся в Authorization-заголовке (REST) или в metadata (gRPC).
 
 ## Конфигурация
 
@@ -25,8 +25,9 @@
 | `GOOGLE_CLIENT_ID` | OAuth 2.0 Client ID из Google Cloud Console |
 | `GOOGLE_CLIENT_SECRET` | Client Secret |
 | `APP_BASE_URL` | Базовый URL приложения — используется в callback relay для формирования redirect-адреса |
+| `WEB_REDIRECT_URI` | OAuth redirect URI для браузерного flow; передаётся Google при обмене кода. Обычно `{APP_BASE_URL}/auth/google/callback` |
 
-Все три переменные обязательны — при старте приложения `ConfigService.getOrThrow` бросит ошибку, если они не заданы.
+Все четыре переменные обязательны — при старте приложения `ConfigService.getOrThrow` бросит ошибку, если они не заданы.
 
 ## Эндпоинты
 
@@ -45,13 +46,28 @@ UNAUTHENTICATED — невалидный или просроченный server_
 ```
 
 ```
-GET /auth/google/callback?code=...
-GET /auth/google/callback?error=...
+GET /auth/google?state=<opaque>
+
+Инициирует браузерный OAuth flow. Формирует Google OAuth URL и делает 302
+redirect. Параметр state пробрасывается в Google и возвращается через callback.
+```
+
+```
+GET /auth/google/callback?code=...&state=...
+GET /auth/google/callback?error=...&state=...
 
 Relay-эндпоинт для браузерного OAuth flow. Принимает callback от Google и
-перенаправляет обратно в приложение:
-  → успех: {APP_BASE_URL}/auth/google/callback?googleCode=<code>
-  → ошибка: {APP_BASE_URL}/auth/google/callback?googleError=<error>
+перенаправляет обратно в SPA:
+  → успех: {APP_BASE_URL}/auth/google/callback?googleCode=<code>&state=<state>
+  → ошибка: {APP_BASE_URL}/auth/google/callback?googleError=<error>&state=<state>
+```
+
+```
+POST /auth/google
+Body: { code: string, redirectUri: string }
+
+Обменивает authorization code на access_token. Используется SPA после
+получения code из callback. Возвращает тот же AuthResponse, что и gRPC GoogleAuth.
 ```
 
 ## Реализация

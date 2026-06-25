@@ -16,9 +16,8 @@
 | `WS_BIO_STREAM_MAX_SESSIONS` | `1000` | Максимальное количество одновременных биометрических сессий с активными буферами. Защита от исчерпания памяти при пиковой нагрузке. |
 | `WS_BIO_BACKPRESSURE_SAMPLES_PER_SEC` | `50` | Подсказка обратного давления для биометрического потока — возвращается клиенту в поле `max_samples_per_second` ответа `BioStreamAck`. |
 | `WS_BIO_STREAM_FLUSH_INTERVAL_MS` | `5000` | Интервал периодического сброса биометрического буфера в таблицу `bio_session_samples`. |
-| `WS_RATE_LIMIT_MAX_EVENTS` | `200` | Максимальное количество команд от одного клиента в окне `WS_RATE_LIMIT_WINDOW_MS`. |
-| `WS_RATE_LIMIT_WINDOW_MS` | `1000` | Длина окна rate limiting в мс. |
-| `WS_RATE_LIMIT_ACTIVITY_START_PER_MIN` | `10` | Максимальное количество `activity:start` от одного пользователя в минуту. |
+| `WS_RATE_LIMIT_ACTIVITY_START_PER_MIN` | `10` | Максимальное количество `activity:start` от одного пользователя за окно `WS_RATE_LIMIT_WINDOW_MS`. |
+| `WS_RATE_LIMIT_WINDOW_MS` | `60000` | Длина окна rate limiting в мс. |
 | `SUGGESTIONS_COMPLEXITY_THRESHOLD` | `50` | Допустимое превышение сложности сессий над `maxCompletedComplexity` при формировании рекомендаций (см. [Рекомендации](../breath/suggestions.md)). |
 | `LOG_LEVEL` | `info` | Минимальный уровень логирования. Допустимые значения: `error`, `warn`, `info`, `verbose`, `debug`, `silly`. |
 
