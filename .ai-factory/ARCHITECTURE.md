@@ -203,19 +203,35 @@ npm run migration:revert
 
 | Feature | Hashes |
 |---------|--------|
-| Email OTP auth | |
-| Google Sign-In | |
+| **Auth** | |
+| Email OTP auth | f0d36b7 |
+| Google Sign-In | 9b78a07 |
 | User profile | |
-| Personal access tokens | |
-| Breath session CRUD | |
+| Personal access tokens | cfd8706 |
+| Device ping | |
+| **Breath sessions** | |
+| Breath session CRUD | 2e497e7 f684c24 |
 | Time-of-day suggestions | |
 | Session statistics (streak, duration, complexity) | |
-| Device ping | |
+| **Sync** | |
 | Sync change journal (TTL, purge) | |
 | Sync unary (cursor, full-resync sentinel) | |
-| gRPC transport | f39c8bd |
 | Sync change stream | 733e428 19935b7 |
-| Activity session stream | 128bb67 |
-| Instruction stream | 449f3f9 |
+| **Realtime** | |
+| gRPC transport | f39c8bd |
+| Activity session stream | 128bb67 c57784f 81b6a49 1698261 |
+| Instruction stream | 449f3f9 f057704 731ab41 |
 | Session revocation disconnect | da84ee0 |
-| Roadmap drop history | a5959dc |
+| **Biometric** | |
+| Biometric stream | bc32504 f057704 731ab41 |
+| **BCI** | |
+| BCI device management | fd65dc3 |
+| **NFB calibration** | |
+| NFB calibration history | 5b1de88 b6b2040 9a294ab |
+| **Meditation** | |
+| Meditation notes | 61f8b41 d7bdd4a |
+| Meditation poses | d7bdd4a |
+| **Web dashboard** | |
+| Web dashboard REST API | 456e566 9d537d1 854a034 1da5c00 791927d |
+| **Internal** | |
+| Roadmap drop history | a5959dc, 0656ef1 |
