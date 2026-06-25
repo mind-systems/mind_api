@@ -1,0 +1,45 @@
+$ npx jest src/nfb-calibration/nfb-calibration.service.spec.ts
+exit code: 0
+elapsed: 2.8s
+
+PASS src/nfb-calibration/nfb-calibration.service.spec.ts
+  NfbCalibrationService.record — valid path
+    ✓ should create and save a record when calibratedAt is a valid ISO timestamp (5 ms)
+    ✓ should return the entity resolved by repo.save
+    ✓ should pass all request fields through to repo.create when saving (1 ms)
+    ✓ should convert calibratedAt string into a Date instance passed to repo.create (1 ms)
+  NfbCalibrationService.record — failReason mapping
+    ✓ should set failReason to null when request failReason is an empty string (1 ms)
+    ✓ should set failReason to null when request failReason is undefined
+    ✓ should preserve failReason when request provides a non-empty string (1 ms)
+  NfbCalibrationService.record — invalid timestamp guard
+    ✓ should throw RpcException with code INVALID_ARGUMENT when calibratedAt is not a valid date string (1 ms)
+    ✓ should throw RpcException with message "Invalid calibratedAt timestamp" when calibratedAt parses to NaN (1 ms)
+    ✓ should not call repo.create when calibratedAt is invalid (1 ms)
+    ✓ should not call repo.save when calibratedAt is invalid
+  NfbCalibrationService.list — where clause construction
+    ✓ should query findAndCount with where userId only when deviceSerial is undefined (1 ms)
+    ✓ should omit deviceSerial from the where clause when deviceSerial is an empty string (1 ms)
+    ✓ should include deviceSerial in the where clause when deviceSerial is non-empty
+    ✓ should include deviceSerial when deviceSerial is a single character (1 ms)
+  NfbCalibrationService.list — pagination, limit cap, ordering
+    ✓ should order by createdAt DESC
+    ✓ should use the provided limit as take when limit is between 1 and 200
+    ✓ should default take to 50 when limit is 0
+    ✓ should default take to 50 when limit is negative (1 ms)
+    ✓ should default take to 50 when limit argument is omitted
+    ✓ should cap take at 200 when limit exceeds 200 (1 ms)
+    ✓ should pass offset as the skip value
+    ✓ should default skip to 0 when offset argument is omitted
+  NfbCalibrationService.list — result passthrough
+    ✓ should return the [records, count] tuple resolved by findAndCount
+    ✓ should return an empty array with count 0 when no records match
+    ✓ should propagate the error when findAndCount rejects (10 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       26 passed, 26 total
+Snapshots:   0 total
+Time:        0.997 s, estimated 3 s
+Ran all test suites matching src/nfb-calibration/nfb-calibration.service.spec.ts.
+
+TEST_PASS
