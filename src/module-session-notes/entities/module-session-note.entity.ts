@@ -6,8 +6,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity('meditation_notes')
-export class MeditationNote {
+@Entity('module_session_notes')
+export class ModuleSessionNote {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -16,9 +16,6 @@ export class MeditationNote {
 
   @Column('uuid', { name: 'session_id', nullable: true })
   sessionId: string | null;
-
-  @Column({ name: 'pose_id' })
-  poseId: string;
 
   @Column({ name: 'note_text', type: 'text' })
   noteText: string;

@@ -1,8 +1,8 @@
 import { QueryFailedError } from 'typeorm';
 import { RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
-import { MeditationNotesService } from './meditation-notes.service';
-import { MeditationNote } from './entities/meditation-note.entity';
+import { ModuleSessionNotesService } from './module-session-notes.service';
+import { ModuleSessionNote } from './entities/module-session-note.entity';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -24,7 +24,7 @@ function makeRepo(): RepoMock {
   };
 }
 
-function makeQb(rows: MeditationNote[]) {
+function makeQb(rows: ModuleSessionNote[]) {
   const stub: Record<string, jest.Mock> = {};
   const chainFns = ['where', 'andWhere', 'orderBy', 'take'];
   chainFns.forEach((fn) => {
@@ -34,12 +34,11 @@ function makeQb(rows: MeditationNote[]) {
   return stub;
 }
 
-function makeNote(overrides: Partial<MeditationNote> = {}): MeditationNote {
+function makeNote(overrides: Partial<ModuleSessionNote> = {}): ModuleSessionNote {
   return {
     id: 'note-id-1',
     userId: 'user-id-1',
     sessionId: 'session-id-1',
-    poseId: 'pose-id-1',
     noteText: 'hello',
     createdAt: new Date('2026-01-01T10:00:00.000Z'),
     updatedAt: new Date('2026-01-01T10:00:00.000Z'),
@@ -62,13 +61,13 @@ function getRpcError(err: unknown): { code: number; message: string } {
 // Suite
 // ---------------------------------------------------------------------------
 
-describe('MeditationNotesService', () => {
-  let service: MeditationNotesService;
+describe('ModuleSessionNotesService', () => {
+  let service: ModuleSessionNotesService;
   let repo: RepoMock;
 
   beforeEach(() => {
     repo = makeRepo();
-    service = new MeditationNotesService(repo as any);
+    service = new ModuleSessionNotesService(repo as any);
   });
 
   afterEach(() => {
@@ -80,16 +79,15 @@ describe('MeditationNotesService', () => {
   // =========================================================================
 
   describe('create() — happy path', () => {
-    it('should build the entity with the given userId, sessionId, poseId and noteText via repo.create', async () => {
+    it('should build the entity with the given userId, sessionId and noteText via repo.create', async () => {
       const saved = makeNote();
       repo.save.mockResolvedValue(saved);
 
-      await service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello');
+      await service.create('user-id-1', 'session-id-1', 'hello');
 
       expect(repo.create).toHaveBeenCalledWith({
         userId: 'user-id-1',
         sessionId: 'session-id-1',
-        poseId: 'pose-id-1',
         noteText: 'hello',
       });
     });
@@ -98,7 +96,7 @@ describe('MeditationNotesService', () => {
       const saved = makeNote();
       repo.save.mockResolvedValue(saved);
 
-      const result = await service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello');
+      const result = await service.create('user-id-1', 'session-id-1', 'hello');
 
       expect(repo.save).toHaveBeenCalledTimes(1);
       expect(result).toBe(saved);
@@ -108,7 +106,7 @@ describe('MeditationNotesService', () => {
       const saved = makeNote({ sessionId: null });
       repo.save.mockResolvedValue(saved);
 
-      await service.create('user-id-1', null, 'pose-id-1', 'hello');
+      await service.create('user-id-1', null, 'hello');
 
       expect(repo.create).toHaveBeenCalledWith(
         expect.objectContaining({ sessionId: null }),
@@ -121,11 +119,11 @@ describe('MeditationNotesService', () => {
       repo.save.mockRejectedValue(makeQueryFailedError('23505'));
 
       await expect(
-        service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello'),
+        service.create('user-id-1', 'session-id-1', 'hello'),
       ).rejects.toBeInstanceOf(RpcException);
 
       try {
-        await service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello');
+        await service.create('user-id-1', 'session-id-1', 'hello');
       } catch (err) {
         const rpc = getRpcError(err);
         expect(rpc.code).toBe(GrpcStatus.ALREADY_EXISTS);
@@ -136,7 +134,7 @@ describe('MeditationNotesService', () => {
       repo.save.mockRejectedValue(makeQueryFailedError('23505'));
 
       try {
-        await service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello');
+        await service.create('user-id-1', 'session-id-1', 'hello');
       } catch (err) {
         const rpc = getRpcError(err);
         expect(rpc.message).toBe('Note for this session already exists');
@@ -147,7 +145,7 @@ describe('MeditationNotesService', () => {
       repo.save.mockRejectedValue(makeQueryFailedError('23505'));
 
       try {
-        await service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello');
+        await service.create('user-id-1', 'session-id-1', 'hello');
       } catch {
         // expected
       }
@@ -163,7 +161,7 @@ describe('MeditationNotesService', () => {
         .mockRejectedValueOnce(makeQueryFailedError('23503'))
         .mockResolvedValueOnce(savedNote);
 
-      await service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello');
+      await service.create('user-id-1', 'session-id-1', 'hello');
 
       // The second call should receive the note with sessionId nulled out
       const secondCallArg = repo.save.mock.calls[1][0];
@@ -176,7 +174,7 @@ describe('MeditationNotesService', () => {
         .mockRejectedValueOnce(makeQueryFailedError('23503'))
         .mockResolvedValueOnce(savedNote);
 
-      const result = await service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello');
+      const result = await service.create('user-id-1', 'session-id-1', 'hello');
 
       expect(result).toBe(savedNote);
     });
@@ -187,7 +185,7 @@ describe('MeditationNotesService', () => {
         .mockRejectedValueOnce(makeQueryFailedError('23503'))
         .mockResolvedValueOnce(savedNote);
 
-      await service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello');
+      await service.create('user-id-1', 'session-id-1', 'hello');
 
       expect(repo.save).toHaveBeenCalledTimes(2);
     });
@@ -199,7 +197,7 @@ describe('MeditationNotesService', () => {
       repo.save.mockRejectedValue(err);
 
       await expect(
-        service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello'),
+        service.create('user-id-1', 'session-id-1', 'hello'),
       ).rejects.toBe(err);
     });
 
@@ -208,7 +206,7 @@ describe('MeditationNotesService', () => {
       repo.save.mockRejectedValue(plainErr);
 
       await expect(
-        service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello'),
+        service.create('user-id-1', 'session-id-1', 'hello'),
       ).rejects.toBe(plainErr);
     });
 
@@ -216,7 +214,7 @@ describe('MeditationNotesService', () => {
       repo.save.mockRejectedValue(new Error('network'));
 
       try {
-        await service.create('user-id-1', 'session-id-1', 'pose-id-1', 'hello');
+        await service.create('user-id-1', 'session-id-1', 'hello');
       } catch {
         // expected
       }

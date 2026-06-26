@@ -15,7 +15,7 @@
 
 - Rename file to `module_session_notes.proto`
 - Rename message `MeditationNote` → `ModuleSessionNote`; keep same fields except drop `pose_id` (field 3); reassign reserved field or leave gap
-- Rename `CreateNoteRequest`: drop `pose_id` field (field 2); keep `session_id` (1) + `note_text` (3, renumber to 2)
+- Rename `CreateNoteRequest`: drop `pose_id` field (field 2); add `reserved 2; reserved "pose_id";`; keep `session_id` (1) and `note_text` (3) at their existing field numbers — do NOT renumber
 - Rename `UpdateNoteRequest` — no structural change needed
 - Rename `ListNotesRequest` / `ListNotesResponse`: rename `notes` field type to `ModuleSessionNote`
 - Rename service `MeditationNotesService` → `ModuleSessionNotesService`

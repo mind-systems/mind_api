@@ -4,8 +4,8 @@ import type { BciDevice as BciDeviceProto } from '../../proto/generated/bci_devi
 import type { BciDevice } from '../bci/entities/bci-device.entity';
 import type { NfbCalibrationRecord as NfbCalibrationRecordProto } from '../../proto/generated/nfb_calibration';
 import type { NfbCalibrationRecord } from '../nfb-calibration/entities/nfb-calibration-record.entity';
-import type { MeditationNote as MeditationNoteProto } from '../../proto/generated/meditation_notes';
-import type { MeditationNote } from '../meditation-notes/entities/meditation-note.entity';
+import type { ModuleSessionNote as ModuleSessionNoteProto } from '../../proto/generated/module_session_notes';
+import type { ModuleSessionNote } from '../module-session-notes/entities/module-session-note.entity';
 import type { MeditationPose as MeditationPoseProto } from '../../proto/generated/meditation_poses';
 import type { MeditationPose } from '../meditation-poses/entities/meditation-pose.entity';
 import { UserRole } from '../users/interfaces/user-role.enum';
@@ -176,13 +176,12 @@ export function toProtoNfbCalibrationRecord(
   };
 }
 
-export function toProtoMeditationNote(
-  entity: MeditationNote,
-): MeditationNoteProto {
+export function toProtoModuleSessionNote(
+  entity: ModuleSessionNote,
+): ModuleSessionNoteProto {
   return {
     id: entity.id,
     sessionId: entity.sessionId ?? '',
-    poseId: entity.poseId,
     noteText: entity.noteText,
     createdAt: entity.createdAt.toISOString(),
     updatedAt: entity.updatedAt.toISOString(),

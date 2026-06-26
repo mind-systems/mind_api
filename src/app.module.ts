@@ -17,7 +17,7 @@ import { ChangelogModule } from './changelog/changelog.module';
 import { SyncModule } from './sync/sync.module';
 import { BciModule } from './bci/bci.module';
 import { NfbCalibrationModule } from './nfb-calibration/nfb-calibration.module';
-import { MeditationNotesModule } from './meditation-notes/meditation-notes.module';
+import { ModuleSessionNotesModule } from './module-session-notes/module-session-notes.module';
 import { MeditationPosesModule } from './meditation-poses/meditation-poses.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { GrpcTraceContextInterceptor } from './grpc/grpc-trace-context.interceptor';
@@ -42,7 +42,7 @@ import { TraceContextMiddleware } from './common/middleware/trace-context.middle
     BreathSessionsModule,
     BciModule,
     NfbCalibrationModule,
-    MeditationNotesModule,
+    ModuleSessionNotesModule,
     MeditationPosesModule,
     DeviceModule,
     RealtimeModule,

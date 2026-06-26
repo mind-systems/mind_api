@@ -3,22 +3,21 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
 import { RpcException } from '@nestjs/microservices';
 import { status as GrpcStatus } from '@grpc/grpc-js';
-import { MeditationNote } from './entities/meditation-note.entity';
+import { ModuleSessionNote } from './entities/module-session-note.entity';
 
 @Injectable()
-export class MeditationNotesService {
+export class ModuleSessionNotesService {
   constructor(
-    @InjectRepository(MeditationNote)
-    private readonly repo: Repository<MeditationNote>,
+    @InjectRepository(ModuleSessionNote)
+    private readonly repo: Repository<ModuleSessionNote>,
   ) {}
 
   async create(
     userId: string,
     sessionId: string | null,
-    poseId: string,
     noteText: string,
-  ): Promise<MeditationNote> {
-    const note = this.repo.create({ userId, sessionId, poseId, noteText });
+  ): Promise<ModuleSessionNote> {
+    const note = this.repo.create({ userId, sessionId, noteText });
     try {
       return await this.repo.save(note);
     } catch (err) {
@@ -43,7 +42,7 @@ export class MeditationNotesService {
     noteId: string,
     userId: string,
     noteText: string,
-  ): Promise<MeditationNote> {
+  ): Promise<ModuleSessionNote> {
     const note = await this.repo.findOneBy({ id: noteId });
     if (!note) {
       throw new RpcException({
@@ -65,7 +64,7 @@ export class MeditationNotesService {
     userId: string,
     pageSize: number,
     pageToken: string,
-  ): Promise<{ notes: MeditationNote[]; nextPageToken: string }> {
+  ): Promise<{ notes: ModuleSessionNote[]; nextPageToken: string }> {
     const limit = Math.min(pageSize || 20, 100);
     const qb = this.repo
       .createQueryBuilder('n')
