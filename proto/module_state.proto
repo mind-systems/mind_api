@@ -42,6 +42,10 @@ message ActivityStartCmd {
   // Client wall-clock instant (Unix millis) that drives startedAt.
   // Optional for backward compatibility — absent means server now().
   optional int64 client_timestamp_ms = 4;
+  // Client idempotency token for deduplicating retried activity:start commands
+  // (e.g. network retry or double-tap). Server uses this to avoid creating
+  // duplicate sessions for the same logical start event.
+  optional string client_activity_id = 5;
 }
 
 // Maps to ActivityEndDto in src/realtime/dto/activity-end.dto.ts.
@@ -49,14 +53,25 @@ message ActivityEndCmd {
   // Client wall-clock instant (Unix millis) that drives endedAt.
   // Optional for backward compatibility — absent means server now().
   optional int64 client_timestamp_ms = 1;
+  // Addresses a specific child session among concurrent ones.
+  optional string session_id = 2;
 }
 
 // Stop is handled inline in the gateway; no existing DTO.
-message ActivityStopCmd {}
+message ActivityStopCmd {
+  // Addresses a specific child session among concurrent ones.
+  optional string session_id = 1;
+}
 
-message ActivityPauseCmd {}
+message ActivityPauseCmd {
+  // Addresses a specific child session among concurrent ones.
+  optional string session_id = 1;
+}
 
-message ActivityResumeCmd {}
+message ActivityResumeCmd {
+  // Addresses a specific child session among concurrent ones.
+  optional string session_id = 1;
+}
 
 // ---------------------------------------------------------------------------
 // Server → client events
