@@ -177,7 +177,9 @@ describe('SessionsService.deleteRun', () => {
 
       // Outcome: two deletes must fire — child first, then root.
       expect(repoWithCount.delete).toHaveBeenCalledTimes(2);
-      expect(repoWithCount.delete).toHaveBeenNthCalledWith(1, { id: 'child-session-id' });
+      expect(repoWithCount.delete).toHaveBeenNthCalledWith(1, {
+        id: 'child-session-id',
+      });
       expect(repoWithCount.delete).toHaveBeenNthCalledWith(2, { id: ROOT_ID });
     });
 
@@ -199,12 +201,16 @@ describe('SessionsService.deleteRun', () => {
 
       // Outcome: only one delete (the child). Root must NOT be touched.
       expect(repoWithCount.delete).toHaveBeenCalledTimes(1);
-      expect(repoWithCount.delete).toHaveBeenCalledWith({ id: 'child-session-id' });
+      expect(repoWithCount.delete).toHaveBeenCalledWith({
+        id: 'child-session-id',
+      });
       expect(repoWithCount.delete).not.toHaveBeenCalledWith({ id: ROOT_ID });
       // P4: the keep-path must consult the sibling count — not short-circuit.
       // This assertion is RED now (current code never calls count) and GREEN after spec 15
       // implements the count-then-keep logic.
-      expect(repoWithCount.count).toHaveBeenCalledWith({ where: { rootSessionId: ROOT_ID } });
+      expect(repoWithCount.count).toHaveBeenCalledWith({
+        where: { rootSessionId: ROOT_ID },
+      });
     });
 
     // [RED until spec 15-deleterun-orphan-root-cleanup]
@@ -225,9 +231,11 @@ describe('SessionsService.deleteRun', () => {
 
       // P4: the child delete invocation order must precede the count invocation order.
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const deleteOrder: number = repoWithCount.delete.mock.invocationCallOrder[0] as number;
+      const deleteOrder: number = repoWithCount.delete.mock
+        .invocationCallOrder[0] as number;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const countOrder: number = repoWithCount.count.mock.invocationCallOrder[0] as number;
+      const countOrder: number = repoWithCount.count.mock
+        .invocationCallOrder[0] as number;
       expect(typeof countOrder).toBe('number'); // count must have been called
       expect(deleteOrder).toBeLessThan(countOrder);
     });
@@ -250,7 +258,9 @@ describe('SessionsService.deleteRun', () => {
 
       // Only the single session delete fires — no root delete, no count query.
       expect(repoWithCount.delete).toHaveBeenCalledTimes(1);
-      expect(repoWithCount.delete).toHaveBeenCalledWith({ id: 'legacy-session-id' });
+      expect(repoWithCount.delete).toHaveBeenCalledWith({
+        id: 'legacy-session-id',
+      });
       expect(repoWithCount.count).not.toHaveBeenCalled();
     });
   });

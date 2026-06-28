@@ -265,7 +265,11 @@ describe('characterization — engine [GREEN now, must survive Phase 55]', () =>
 
     await h.start('user-1', { activityType: ActivityType.BREATH });
 
-    const savedEnd = { ...session, status: SessionStatus.COMPLETED, endedAt: new Date() };
+    const savedEnd = {
+      ...session,
+      status: SessionStatus.COMPLETED,
+      endedAt: new Date(),
+    };
     repo.findOne.mockResolvedValue(session);
     repo.save.mockResolvedValueOnce(savedEnd);
 
@@ -304,7 +308,11 @@ describe('characterization — engine [GREEN now, must survive Phase 55]', () =>
 
     await h.start('user-1', { activityType: ActivityType.BREATH });
 
-    const savedStop = { ...session, status: SessionStatus.INTERRUPTED, endedAt: new Date() };
+    const savedStop = {
+      ...session,
+      status: SessionStatus.INTERRUPTED,
+      endedAt: new Date(),
+    };
     repo.findOne.mockResolvedValue(session);
     repo.save.mockResolvedValueOnce(savedStop);
 
@@ -353,7 +361,11 @@ describe('characterization — engine [GREEN now, must survive Phase 55]', () =>
     );
 
     // Advance past graceMs — abandonActivity runs
-    const savedAbandoned = { ...session, status: SessionStatus.ABANDONED, endedAt: new Date() };
+    const savedAbandoned = {
+      ...session,
+      status: SessionStatus.ABANDONED,
+      endedAt: new Date(),
+    };
     repo.findOne.mockResolvedValue(session);
     repo.save.mockResolvedValue(savedAbandoned);
 
@@ -388,7 +400,9 @@ describe('characterization — engine [GREEN now, must survive Phase 55]', () =>
   // ── disconnect → reconnect-in-grace → resume ─────────────────────────────
 
   it('disconnect→reconnect-in-grace→resume: reconnect before grace fires cancels timer and resumes to active, ABANDONED never emitted', async () => {
-    const disconnectedSession = makeSession({ status: SessionStatus.DISCONNECTED });
+    const disconnectedSession = makeSession({
+      status: SessionStatus.DISCONNECTED,
+    });
     store.set('user-1', makeState({ sessionId: 'session-1' }));
     repo.update.mockResolvedValue(undefined);
 
@@ -497,7 +511,9 @@ describe('characterization — engine [GREEN now, must survive Phase 55]', () =>
       capturedCreate = data;
       return { ...makeSession(), ...data };
     });
-    repo.save.mockImplementation((s: ModuleSession) => Promise.resolve({ ...s }));
+    repo.save.mockImplementation((s: ModuleSession) =>
+      Promise.resolve({ ...s }),
+    );
 
     const before = Date.now();
     await h.start('user-1', dto);
@@ -508,8 +524,12 @@ describe('characterization — engine [GREEN now, must survive Phase 55]', () =>
     expect(capturedCreate!.startedAt).toEqual(new Date(clientMs));
     // lastActivityAt is server-clocked (not the client value)
     expect(capturedCreate!.lastActivityAt).toBeDefined();
-    expect(capturedCreate!.lastActivityAt!.getTime()).toBeGreaterThanOrEqual(before);
-    expect(capturedCreate!.lastActivityAt!.getTime()).toBeLessThanOrEqual(after);
+    expect(capturedCreate!.lastActivityAt!.getTime()).toBeGreaterThanOrEqual(
+      before,
+    );
+    expect(capturedCreate!.lastActivityAt!.getTime()).toBeLessThanOrEqual(
+      after,
+    );
     expect(capturedCreate!.lastActivityAt!.getTime()).not.toBe(clientMs);
   });
 
@@ -523,7 +543,9 @@ describe('characterization — engine [GREEN now, must survive Phase 55]', () =>
     const longLike = { toNumber: () => clientEndMs };
 
     repo.findOne.mockResolvedValue(session);
-    repo.save.mockImplementation((s: ModuleSession) => Promise.resolve({ ...s }));
+    repo.save.mockImplementation((s: ModuleSession) =>
+      Promise.resolve({ ...s }),
+    );
 
     await h.end('user-1', longLike as any);
 
@@ -591,17 +613,32 @@ describe('target — engine multi-session [RED until Phase 55]', () => {
 
     // Each session has its own grace timer keyed by sessionId
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    expect((store as any).hasPendingGraceTimerForSession('session-root')).toBe(true);
+    expect((store as any).hasPendingGraceTimerForSession('session-root')).toBe(
+      true,
+    );
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    expect((store as any).hasPendingGraceTimerForSession('session-A')).toBe(true);
+    expect((store as any).hasPendingGraceTimerForSession('session-A')).toBe(
+      true,
+    );
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    expect((store as any).hasPendingGraceTimerForSession('session-B')).toBe(true);
+    expect((store as any).hasPendingGraceTimerForSession('session-B')).toBe(
+      true,
+    );
   });
 
   it('reconnect in grace resumes EVERY disconnected session of the user (root + all children back to active)', async () => {
-    const rootSession = makeSession({ id: 'session-root', status: SessionStatus.DISCONNECTED });
-    const childASession = makeSession({ id: 'session-A', status: SessionStatus.DISCONNECTED });
-    const childBSession = makeSession({ id: 'session-B', status: SessionStatus.DISCONNECTED });
+    const rootSession = makeSession({
+      id: 'session-root',
+      status: SessionStatus.DISCONNECTED,
+    });
+    const childASession = makeSession({
+      id: 'session-A',
+      status: SessionStatus.DISCONNECTED,
+    });
+    const childBSession = makeSession({
+      id: 'session-B',
+      status: SessionStatus.DISCONNECTED,
+    });
 
     const rootState = makeState({ sessionId: 'session-root' });
     const childAState = makeState({ sessionId: 'session-A' });
@@ -622,23 +659,37 @@ describe('target — engine multi-session [RED until Phase 55]', () => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     (store as any).startGraceTimerForSession('session-B', jest.fn());
 
-    repo.findOne.mockImplementation(({ where: { id } }: { where: { id: string } }) => {
-      if (id === 'session-root') return Promise.resolve(rootSession);
-      if (id === 'session-A') return Promise.resolve(childASession);
-      if (id === 'session-B') return Promise.resolve(childBSession);
-      return Promise.resolve(null);
-    });
-    repo.save.mockImplementation((s: ModuleSession) => Promise.resolve({ ...s, status: SessionStatus.ACTIVE, disconnectedAt: null }));
+    repo.findOne.mockImplementation(
+      ({ where: { id } }: { where: { id: string } }) => {
+        if (id === 'session-root') return Promise.resolve(rootSession);
+        if (id === 'session-A') return Promise.resolve(childASession);
+        if (id === 'session-B') return Promise.resolve(childBSession);
+        return Promise.resolve(null);
+      },
+    );
+    repo.save.mockImplementation((s: ModuleSession) =>
+      Promise.resolve({
+        ...s,
+        status: SessionStatus.ACTIVE,
+        disconnectedAt: null,
+      }),
+    );
 
     await h.reconnect('user-1', 'session-root');
 
     // All three grace timers are cancelled
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    expect((store as any).hasPendingGraceTimerForSession('session-root')).toBe(false);
+    expect((store as any).hasPendingGraceTimerForSession('session-root')).toBe(
+      false,
+    );
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    expect((store as any).hasPendingGraceTimerForSession('session-A')).toBe(false);
+    expect((store as any).hasPendingGraceTimerForSession('session-A')).toBe(
+      false,
+    );
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    expect((store as any).hasPendingGraceTimerForSession('session-B')).toBe(false);
+    expect((store as any).hasPendingGraceTimerForSession('session-B')).toBe(
+      false,
+    );
 
     // All three sessions resumed to ACTIVE
     expect(rootSession.status).toBe(SessionStatus.ACTIVE);
@@ -687,7 +738,7 @@ describe('target — ensureRoot / linking [RED until Phase 55 — lazy-root-crea
 
     // First ensureRoot call creates the root
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const first = await (engine as any).ensureRoot('user-1') as ModuleSession;
+    const first = (await (engine as any).ensureRoot('user-1')) as ModuleSession;
 
     expect(first).toBeDefined();
     expect((first as any).activityType).toBe('root');
@@ -698,7 +749,9 @@ describe('target — ensureRoot / linking [RED until Phase 55 — lazy-root-crea
 
     // Second ensureRoot call reuses the same root — no duplicate save
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const second = await (engine as any).ensureRoot('user-1') as ModuleSession;
+    const second = (await (engine as any).ensureRoot(
+      'user-1',
+    )) as ModuleSession;
 
     expect(second).toBeDefined();
     expect(repo.save.mock.calls.length).toBe(saveCallCount); // no additional save
@@ -720,7 +773,11 @@ describe('target — ensureRoot / linking [RED until Phase 55 — lazy-root-crea
     } as any);
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    (store as any).setRoot('user-1', 'root-session-1', makeState({ sessionId: 'root-session-1', activityType: 'root' as any }));
+    (store as any).setRoot(
+      'user-1',
+      'root-session-1',
+      makeState({ sessionId: 'root-session-1', activityType: 'root' as any }),
+    );
 
     repo.create.mockReturnValue(childRow);
     repo.save.mockResolvedValue(childRow);
@@ -732,7 +789,8 @@ describe('target — ensureRoot / linking [RED until Phase 55 — lazy-root-crea
     expect(savedChild.rootSessionId).toBe('root-session-1');
 
     // The stored ActivityState must also carry rootSessionId
-    const storedState = store.get('user-1') ?? (store as any).getSoleChild('user-1');
+    const storedState =
+      store.get('user-1') ?? (store as any).getSoleChild('user-1');
     expect((storedState as any).rootSessionId).toBe('root-session-1');
   });
 
@@ -751,16 +809,28 @@ describe('target — ensureRoot / linking [RED until Phase 55 — lazy-root-crea
     } as any);
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    (store as any).setRoot('user-1', 'root-session-1', makeState({ sessionId: 'root-session-1', activityType: 'root' as any }));
+    (store as any).setRoot(
+      'user-1',
+      'root-session-1',
+      makeState({ sessionId: 'root-session-1', activityType: 'root' as any }),
+    );
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    (store as any).addChild('user-1', 'child-session-1', makeState({ sessionId: 'child-session-1' }));
+    (store as any).addChild(
+      'user-1',
+      'child-session-1',
+      makeState({ sessionId: 'child-session-1' }),
+    );
 
-    repo.findOne.mockImplementation(({ where: { id } }: { where: { id: string } }) => {
-      if (id === 'child-session-1') return Promise.resolve(childRow);
-      if (id === 'root-session-1') return Promise.resolve(rootRow);
-      return Promise.resolve(null);
-    });
-    repo.save.mockImplementation((s: ModuleSession) => Promise.resolve({ ...s }));
+    repo.findOne.mockImplementation(
+      ({ where: { id } }: { where: { id: string } }) => {
+        if (id === 'child-session-1') return Promise.resolve(childRow);
+        if (id === 'root-session-1') return Promise.resolve(rootRow);
+        return Promise.resolve(null);
+      },
+    );
+    repo.save.mockImplementation((s: ModuleSession) =>
+      Promise.resolve({ ...s }),
+    );
 
     // End addresses the child, not the root
     await engine.endActivity('user-1');
@@ -777,6 +847,8 @@ describe('target — ensureRoot / linking [RED until Phase 55 — lazy-root-crea
       ([event]: [string]) => event === SessionEvents.COMPLETED,
     );
     expect(completedEmits).toHaveLength(1);
-    expect(completedEmits[0][1]).toMatchObject({ sessionId: 'child-session-1' });
+    expect(completedEmits[0][1]).toMatchObject({
+      sessionId: 'child-session-1',
+    });
   });
 });

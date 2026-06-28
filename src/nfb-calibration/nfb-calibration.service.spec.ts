@@ -105,7 +105,8 @@ describe('NfbCalibrationService.record — valid path', () => {
         individualFrequency: req.individualFrequency,
         individualPeakFrequency: req.individualPeakFrequency,
         individualPeakFrequencyPower: req.individualPeakFrequencyPower,
-        individualPeakFrequencySuppression: req.individualPeakFrequencySuppression,
+        individualPeakFrequencySuppression:
+          req.individualPeakFrequencySuppression,
         individualBandwidth: req.individualBandwidth,
         individualNormalizedPower: req.individualNormalizedPower,
         lowerFrequency: req.lowerFrequency,

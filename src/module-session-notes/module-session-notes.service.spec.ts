@@ -34,7 +34,9 @@ function makeQb(rows: ModuleSessionNote[]) {
   return stub;
 }
 
-function makeNote(overrides: Partial<ModuleSessionNote> = {}): ModuleSessionNote {
+function makeNote(
+  overrides: Partial<ModuleSessionNote> = {},
+): ModuleSessionNote {
   return {
     id: 'note-id-1',
     userId: 'user-id-1',
@@ -46,8 +48,14 @@ function makeNote(overrides: Partial<ModuleSessionNote> = {}): ModuleSessionNote
   };
 }
 
-function makeQueryFailedError(code: string): QueryFailedError & { code: string } {
-  const err = new QueryFailedError('SELECT', [], new Error('pg error')) as QueryFailedError & { code: string };
+function makeQueryFailedError(
+  code: string,
+): QueryFailedError & { code: string } {
+  const err = new QueryFailedError(
+    'SELECT',
+    [],
+    new Error('pg error'),
+  ) as QueryFailedError & { code: string };
   err.code = code;
   return err;
 }
@@ -320,9 +328,15 @@ describe('ModuleSessionNotesService', () => {
       repo.findOneBy.mockResolvedValue(note);
       repo.save.mockResolvedValue(savedNote);
 
-      const result = await service.updateText('note-id-1', 'user-id-1', 'updated text');
+      const result = await service.updateText(
+        'note-id-1',
+        'user-id-1',
+        'updated text',
+      );
 
-      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ noteText: 'updated text' }));
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ noteText: 'updated text' }),
+      );
       expect(result).toBe(savedNote);
     });
   });
@@ -332,13 +346,15 @@ describe('ModuleSessionNotesService', () => {
   // =========================================================================
 
   describe('list() — query construction', () => {
-    it('should filter by userId via where(\'n.userId = :userId\')', async () => {
+    it("should filter by userId via where('n.userId = :userId')", async () => {
       const qb = makeQb([]);
       repo.createQueryBuilder.mockReturnValue(qb);
 
       await service.list('user-id-1', 10, '');
 
-      expect(qb.where).toHaveBeenCalledWith('n.userId = :userId', { userId: 'user-id-1' });
+      expect(qb.where).toHaveBeenCalledWith('n.userId = :userId', {
+        userId: 'user-id-1',
+      });
     });
 
     it('should order by createdAt DESC', async () => {
@@ -396,7 +412,9 @@ describe('ModuleSessionNotesService', () => {
 
       await service.list('user-id-1', 10, token);
 
-      expect(qb.andWhere).toHaveBeenCalledWith('n.createdAt < :cursor', { cursor: isoString });
+      expect(qb.andWhere).toHaveBeenCalledWith('n.createdAt < :cursor', {
+        cursor: isoString,
+      });
     });
   });
 
@@ -428,7 +446,7 @@ describe('ModuleSessionNotesService', () => {
       expect(result.notes.map((n) => n.id)).toEqual(['n1', 'n2']);
     });
 
-    it('should encode the last returned note\'s createdAt ISO string as a base64url nextPageToken when there are more rows', async () => {
+    it("should encode the last returned note's createdAt ISO string as a base64url nextPageToken when there are more rows", async () => {
       const lastDate = new Date('2026-01-02T00:00:00.000Z');
       const notes = [
         makeNote({ id: 'n1', createdAt: new Date('2026-01-03T00:00:00.000Z') }),
@@ -440,11 +458,13 @@ describe('ModuleSessionNotesService', () => {
 
       const result = await service.list('user-id-1', 2, '');
 
-      const expectedToken = Buffer.from(lastDate.toISOString()).toString('base64url');
+      const expectedToken = Buffer.from(lastDate.toISOString()).toString(
+        'base64url',
+      );
       expect(result.nextPageToken).toBe(expectedToken);
     });
 
-    it('should produce a nextPageToken that round-trips back to the last item\'s createdAt ISO string', async () => {
+    it("should produce a nextPageToken that round-trips back to the last item's createdAt ISO string", async () => {
       const lastDate = new Date('2026-06-15T08:30:00.000Z');
       const notes = [
         makeNote({ id: 'n1', createdAt: new Date('2026-06-16T00:00:00.000Z') }),
@@ -456,7 +476,9 @@ describe('ModuleSessionNotesService', () => {
 
       const result = await service.list('user-id-1', 2, '');
 
-      const decoded = Buffer.from(result.nextPageToken, 'base64url').toString('utf8');
+      const decoded = Buffer.from(result.nextPageToken, 'base64url').toString(
+        'utf8',
+      );
       expect(decoded).toBe(lastDate.toISOString());
     });
 

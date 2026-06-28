@@ -20,7 +20,7 @@ TDD test tasks for the continuous-bio-timeline refactor, written **before** thei
 - [x] **Tests: concurrent activities + idempotency dedup** — guards duplicate-session-on-retry, cross-user token collision, and command routed to the wrong child; asserts `AMBIGUOUS_SESSION` does not silently pick a child. All target (the old singleton behavior is covered/removed). Spec: `.ai-factory/notes/17-test-concurrency-idempotency.md`. [36m 35s]
 - [x] **Tests: root excluded from stats + run history** — guards a root silently inflating streak/duration, and the twin risk of over-guarding skipping the bio flush on the shared ABANDONED event. Spec: `.ai-factory/notes/18-test-root-stats-exclusion.md`. [25m 17s]
 - [x] **Tests: root reaping rule + deleteRun orphan cleanup** — highest blast radius: the reap predicate gates a self-referential `ON DELETE CASCADE`. Asserts reap iff no children (bio no longer protects), never reaps a root with a practice, and deleteRun deletes the root only after its last child. Spec: `.ai-factory/notes/19-test-root-reaping-deleterun.md`. [33m 7s]
-- [ ] **Tests: bio ingest bound to root** — guards the silent parts (batch pushed with wrong owner id → bio invisible to the read; flush not firing on root lifecycle → buffered bio lost); loud error paths get only a smoke check. Spec: `.ai-factory/notes/21-test-bio-ingest-to-root.md`.
+- [x] **Tests: bio ingest bound to root** — guards the silent parts (batch pushed with wrong owner id → bio invisible to the read; flush not firing on root lifecycle → buffered bio lost); loud error paths get only a smoke check. Spec: `.ai-factory/notes/21-test-bio-ingest-to-root.md`. [2026-06-28] [20m 51s]
 
 ---STOP---
 

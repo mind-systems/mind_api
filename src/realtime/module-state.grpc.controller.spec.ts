@@ -780,7 +780,10 @@ describe('ModuleStateGrpcController', () => {
         request$.next({ activityEnd: {} });
         await flushMicrotasks();
 
-        expect(activityEngine.endActivity).toHaveBeenCalledWith('user-1', undefined);
+        expect(activityEngine.endActivity).toHaveBeenCalledWith(
+          'user-1',
+          undefined,
+        );
       });
 
       it('should emit sessionState COMPLETED with moduleSessionId from the returned session', async () => {

@@ -9,7 +9,9 @@ const FIXED_NOW = 1_700_000_000_000;
 const DEFAULT_EMPTY_ROOT_TTL_MS = 300_000;
 
 function makeSession(
-  overrides: Partial<Pick<ModuleSession, 'id' | 'userId' | 'status' | 'lastActivityAt'>> = {},
+  overrides: Partial<
+    Pick<ModuleSession, 'id' | 'userId' | 'status' | 'lastActivityAt'>
+  > = {},
 ): ModuleSession {
   return {
     id: `session-${Math.random()}`,
@@ -48,7 +50,10 @@ describe('SessionWatchdogService', () => {
   // The existing sweep() cases only use repo.find, so adding these mocks is non-breaking.
   let repo: { find: jest.Mock; count: jest.Mock; delete: jest.Mock };
   let activityEngine: { abandonStale: jest.Mock };
-  let activeStreamRegistry: { hasLiveSubscriber: jest.Mock; closeAll: jest.Mock };
+  let activeStreamRegistry: {
+    hasLiveSubscriber: jest.Mock;
+    closeAll: jest.Mock;
+  };
   let configService: { get: jest.Mock };
 
   beforeEach(() => {
@@ -103,7 +108,10 @@ describe('SessionWatchdogService', () => {
 
       expect(status).toBeInstanceOf(FindOperator);
       expect((status as any).value).toEqual(
-        expect.arrayContaining([SessionStatus.ACTIVE, SessionStatus.DISCONNECTED]),
+        expect.arrayContaining([
+          SessionStatus.ACTIVE,
+          SessionStatus.DISCONNECTED,
+        ]),
       );
 
       const expectedThreshold = new Date(FIXED_NOW - 600_000);
@@ -157,7 +165,10 @@ describe('SessionWatchdogService', () => {
       await service.sweep();
 
       expect(activityEngine.abandonStale).toHaveBeenCalledTimes(1);
-      expect(activityEngine.abandonStale).toHaveBeenCalledWith('user-a', 'session-a');
+      expect(activityEngine.abandonStale).toHaveBeenCalledWith(
+        'user-a',
+        'session-a',
+      );
     });
 
     it('should call activeStreamRegistry.closeAll(userId) after abandonStale for a reaped session', async () => {
@@ -177,8 +188,14 @@ describe('SessionWatchdogService', () => {
       await service.sweep();
 
       expect(activityEngine.abandonStale).toHaveBeenCalledTimes(2);
-      expect(activityEngine.abandonStale).toHaveBeenCalledWith('user-a', 'session-a');
-      expect(activityEngine.abandonStale).toHaveBeenCalledWith('user-b', 'session-b');
+      expect(activityEngine.abandonStale).toHaveBeenCalledWith(
+        'user-a',
+        'session-a',
+      );
+      expect(activityEngine.abandonStale).toHaveBeenCalledWith(
+        'user-b',
+        'session-b',
+      );
       expect(activeStreamRegistry.closeAll).toHaveBeenCalledTimes(2);
       expect(activeStreamRegistry.closeAll).toHaveBeenCalledWith('user-a');
       expect(activeStreamRegistry.closeAll).toHaveBeenCalledWith('user-b');
@@ -192,8 +209,12 @@ describe('SessionWatchdogService', () => {
       await service.sweep();
 
       expect(activeStreamRegistry.hasLiveSubscriber).toHaveBeenCalledTimes(2);
-      expect(activeStreamRegistry.hasLiveSubscriber).toHaveBeenCalledWith('user-a');
-      expect(activeStreamRegistry.hasLiveSubscriber).toHaveBeenCalledWith('user-b');
+      expect(activeStreamRegistry.hasLiveSubscriber).toHaveBeenCalledWith(
+        'user-a',
+      );
+      expect(activeStreamRegistry.hasLiveSubscriber).toHaveBeenCalledWith(
+        'user-b',
+      );
     });
   });
 
@@ -224,8 +245,14 @@ describe('SessionWatchdogService', () => {
       await service.sweep();
 
       expect(activityEngine.abandonStale).toHaveBeenCalledTimes(1);
-      expect(activityEngine.abandonStale).toHaveBeenCalledWith('user-b', 'session-b');
-      expect(activityEngine.abandonStale).not.toHaveBeenCalledWith('user-a', expect.anything());
+      expect(activityEngine.abandonStale).toHaveBeenCalledWith(
+        'user-b',
+        'session-b',
+      );
+      expect(activityEngine.abandonStale).not.toHaveBeenCalledWith(
+        'user-a',
+        expect.anything(),
+      );
       expect(activeStreamRegistry.closeAll).toHaveBeenCalledTimes(1);
       expect(activeStreamRegistry.closeAll).toHaveBeenCalledWith('user-b');
     });
@@ -247,7 +274,10 @@ describe('SessionWatchdogService', () => {
       await expect(service.sweep()).resolves.toBeUndefined();
 
       expect(activityEngine.abandonStale).toHaveBeenCalledTimes(2);
-      expect(activityEngine.abandonStale).toHaveBeenCalledWith('user-b', 'session-b');
+      expect(activityEngine.abandonStale).toHaveBeenCalledWith(
+        'user-b',
+        'session-b',
+      );
     });
 
     it('should not call closeAll for a row whose abandonStale rejected', async () => {
@@ -311,7 +341,8 @@ describe('SessionWatchdogService', () => {
         ([arg]: [any]) => (arg as { id: string })?.id === root.id,
       );
       const wasAbandoned = activityEngine.abandonStale.mock.calls.some(
-        ([uid, sid]: [string, string]) => uid === root.userId && sid === root.id,
+        ([uid, sid]: [string, string]) =>
+          uid === root.userId && sid === root.id,
       );
       expect(wasDeleted || wasAbandoned).toBe(true);
     });
@@ -333,7 +364,8 @@ describe('SessionWatchdogService', () => {
         ([arg]: [any]) => (arg as { id: string })?.id === root.id,
       );
       const wasAbandoned = activityEngine.abandonStale.mock.calls.some(
-        ([uid, sid]: [string, string]) => uid === root.userId && sid === root.id,
+        ([uid, sid]: [string, string]) =>
+          uid === root.userId && sid === root.id,
       );
       expect(wasDeleted || wasAbandoned).toBe(false);
     });
@@ -354,7 +386,8 @@ describe('SessionWatchdogService', () => {
         ([arg]: [any]) => (arg as { id: string })?.id === root.id,
       );
       const wasAbandoned = activityEngine.abandonStale.mock.calls.some(
-        ([uid, sid]: [string, string]) => uid === root.userId && sid === root.id,
+        ([uid, sid]: [string, string]) =>
+          uid === root.userId && sid === root.id,
       );
       expect(wasDeleted || wasAbandoned).toBe(false);
     });
@@ -401,13 +434,19 @@ describe('SessionWatchdogService', () => {
     // This case verifies the behavioural outcome (abandonStale + closeAll) still fires for a
     // stale practice session when only sweep() is invoked — sweepEmptyRoots() is NOT called here.
     it('[characterization — must stay GREEN] should leave non-root stale-session reaping behavior unchanged', async () => {
-      const staleSession = makeSession({ userId: 'user-nrt', id: 'session-nrt' });
+      const staleSession = makeSession({
+        userId: 'user-nrt',
+        id: 'session-nrt',
+      });
       repo.find.mockResolvedValue([staleSession]);
 
       await service.sweep();
 
       // The sweep() reap loop (session-watchdog.service.ts:82-83) must still fire.
-      expect(activityEngine.abandonStale).toHaveBeenCalledWith('user-nrt', 'session-nrt');
+      expect(activityEngine.abandonStale).toHaveBeenCalledWith(
+        'user-nrt',
+        'session-nrt',
+      );
       expect(activeStreamRegistry.closeAll).toHaveBeenCalledWith('user-nrt');
       // sweepEmptyRoots() was NOT called — no root-level delete must have fired.
       expect(repo.delete).not.toHaveBeenCalled();
@@ -451,11 +490,15 @@ describe('SessionWatchdogService', () => {
 
     it('should invoke sweep when the interval callback fires', () => {
       let capturedCallback: (() => void) | undefined;
-      jest.spyOn(global, 'setInterval').mockImplementation((cb: TimerHandler) => {
-        capturedCallback = cb as () => void;
-        return 0 as unknown as ReturnType<typeof setInterval>;
-      });
-      const sweepSpy = jest.spyOn(service, 'sweep').mockResolvedValue(undefined);
+      jest
+        .spyOn(global, 'setInterval')
+        .mockImplementation((cb: TimerHandler) => {
+          capturedCallback = cb as () => void;
+          return 0 as unknown as ReturnType<typeof setInterval>;
+        });
+      const sweepSpy = jest
+        .spyOn(service, 'sweep')
+        .mockResolvedValue(undefined);
 
       service.onApplicationBootstrap();
 

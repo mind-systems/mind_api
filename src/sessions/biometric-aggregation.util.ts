@@ -141,7 +141,11 @@ export function reshapeAggregateRows(
     }
 
     result.push({ timestamp: start, sampleType, data: minDataSorted });
-    result.push({ timestamp: start + maxOffset, sampleType, data: maxDataSorted });
+    result.push({
+      timestamp: start + maxOffset,
+      sampleType,
+      data: maxDataSorted,
+    });
   }
 
   // Total sort by (timestamp, sampleType) — eliminates row-order and insertion-order dependence.
@@ -329,7 +333,12 @@ export function reshapeLttbRows(
   // Group per (sampleType, bucket, field) → collect raw points.
   const fieldGroups = new Map<
     string,
-    { sampleType: string; bucket: number; field: string; points: { ts: number; value: number }[] }
+    {
+      sampleType: string;
+      bucket: number;
+      field: string;
+      points: { ts: number; value: number }[];
+    }
   >();
 
   for (const row of rows) {
@@ -337,7 +346,12 @@ export function reshapeLttbRows(
     const key = `${row.sampleType}|${bucket}|${row.field}`;
     let group = fieldGroups.get(key);
     if (!group) {
-      group = { sampleType: row.sampleType, bucket, field: row.field, points: [] };
+      group = {
+        sampleType: row.sampleType,
+        bucket,
+        field: row.field,
+        points: [],
+      };
       fieldGroups.set(key, group);
     }
     group.points.push({ ts: Number(row.ts), value: Number(row.value) });
@@ -430,15 +444,20 @@ export function collectRawPoints(
     if (toMs !== undefined && ts >= toMs) continue;
 
     const sampleType =
-      typeof sample['sampleType'] === 'string' ? sample['sampleType'] : undefined;
+      typeof sample['sampleType'] === 'string'
+        ? sample['sampleType']
+        : undefined;
     if (sampleType === undefined) continue;
 
     const data = sample['data'];
-    if (data === null || typeof data !== 'object' || Array.isArray(data)) continue;
+    if (data === null || typeof data !== 'object' || Array.isArray(data))
+      continue;
 
     const bucket = bucketIndexForMs(ts, bucketSec);
 
-    for (const [field, value] of Object.entries(data as Record<string, unknown>)) {
+    for (const [field, value] of Object.entries(
+      data as Record<string, unknown>,
+    )) {
       if (typeof value !== 'number') continue; // only numeric leaves
 
       result.push({
@@ -532,7 +551,13 @@ export function aggregateRawSamples(
 ): AggregateRow[] {
   const grouped = new Map<
     string,
-    { sampleType: string; bucket: number; field: string; min: number; max: number }
+    {
+      sampleType: string;
+      bucket: number;
+      field: string;
+      min: number;
+      max: number;
+    }
   >();
 
   for (const sample of samples) {
@@ -548,11 +573,14 @@ export function aggregateRawSamples(
     if (toMs !== undefined && ts >= toMs) continue;
 
     const sampleType =
-      typeof sample['sampleType'] === 'string' ? sample['sampleType'] : undefined;
+      typeof sample['sampleType'] === 'string'
+        ? sample['sampleType']
+        : undefined;
     if (sampleType === undefined) continue;
 
     const data = sample['data'];
-    if (data === null || typeof data !== 'object' || Array.isArray(data)) continue;
+    if (data === null || typeof data !== 'object' || Array.isArray(data))
+      continue;
 
     const bucket = bucketIndexForMs(ts, bucketSec);
 
@@ -573,11 +601,13 @@ export function aggregateRawSamples(
   }
 
   // Return rows in the same flat shape the SQL query returns (all values as strings).
-  return Array.from(grouped.values()).map(({ sampleType, bucket, field, min, max }) => ({
-    sampleType,
-    bucket: String(bucket),
-    field,
-    min: String(min),
-    max: String(max),
-  }));
+  return Array.from(grouped.values()).map(
+    ({ sampleType, bucket, field, min, max }) => ({
+      sampleType,
+      bucket: String(bucket),
+      field,
+      min: String(min),
+      max: String(max),
+    }),
+  );
 }

@@ -511,7 +511,10 @@ describe('ActivityEngine', () => {
       };
       repo.save.mockResolvedValue(savedSession);
 
-      const result = await engine.handleReconnect('user-1', 'client-session-id');
+      const result = await engine.handleReconnect(
+        'user-1',
+        'client-session-id',
+      );
 
       // returns the resumed ModuleSession (has an `id` field, not { abandoned: true })
       expect(result).toBe(savedSession);
@@ -523,7 +526,10 @@ describe('ActivityEngine', () => {
       const row = makeSession({ status: SessionStatus.ABANDONED });
       repo.findOne.mockResolvedValue(row);
 
-      const result = await engine.handleReconnect('user-1', 'client-session-id');
+      const result = await engine.handleReconnect(
+        'user-1',
+        'client-session-id',
+      );
 
       expect(result).toEqual({ abandoned: true });
       expect(repo.findOne).toHaveBeenCalledWith({
@@ -535,7 +541,10 @@ describe('ActivityEngine', () => {
       const row = makeSession({ status: SessionStatus.COMPLETED });
       repo.findOne.mockResolvedValue(row);
 
-      const result = await engine.handleReconnect('user-1', 'client-session-id');
+      const result = await engine.handleReconnect(
+        'user-1',
+        'client-session-id',
+      );
 
       expect(result).toBeNull();
       expect(repo.findOne).toHaveBeenCalledWith({
@@ -546,7 +555,10 @@ describe('ActivityEngine', () => {
     it('(d) no store entry + missing DB row (findOne → null) → null', async () => {
       repo.findOne.mockResolvedValue(null);
 
-      const result = await engine.handleReconnect('user-1', 'client-session-id');
+      const result = await engine.handleReconnect(
+        'user-1',
+        'client-session-id',
+      );
 
       expect(result).toBeNull();
       expect(repo.findOne).toHaveBeenCalledWith({

@@ -117,7 +117,9 @@ describe('StatsService', () => {
       // 20s is above the 10s min-duration threshold — ensures the min-duration gate does NOT
       // pre-empt this assertion and mask whether the root guard fired.
       const end = new Date(NOW.getTime() + 20_000);
-      await svc.finalise(makeEvent(start, end, { activityType: 'root' as any }));
+      await svc.finalise(
+        makeEvent(start, end, { activityType: 'root' as any }),
+      );
       expect(repo.manager.transaction).not.toHaveBeenCalled();
     });
 

@@ -252,11 +252,94 @@ describe('BiometricStreamEngine', () => {
     // { sessionId } payload — the stats guard must touch only the StatsWorker path.
     // If this goes RED after spec 07, the guard wrongly reached into the bio path → Class-B → escalate.
     it('should still flush the bio buffer on a root ABANDONED — invariant guarding spec 07 against over-guard', async () => {
-      const flushSpy = jest
-        .spyOn(engine, 'flush')
-        .mockResolvedValue(undefined);
+      const flushSpy = jest.spyOn(engine, 'flush').mockResolvedValue(undefined);
       await engine.onSessionAbandoned({ sessionId: 'root-1' });
       expect(flushSpy).toHaveBeenCalledWith('root-1');
+    });
+  });
+
+  // ── Per-root lifecycle flush (characterization — must stay GREEN) ────────────
+  // P4: the engine buffers per-id and flushes per-id already; passing root.id in
+  // spec 10 makes bio per-root automatically. These cases guard spec 10/04 against
+  // breaking that id-agnostic flush without having to change the engine at all.
+
+  describe('root lifecycle flush (characterization — must stay GREEN)', () => {
+    it('[characterization — must stay GREEN] flushes and clears the per-root buffer on root ABANDONED', async () => {
+      repo.save.mockResolvedValue({});
+      engine.pushBatch('root-1', [makeBioSample()]);
+
+      await engine.onSessionAbandoned({ sessionId: 'root-1' });
+
+      // Real save + clear: repo.save called exactly once for the flush
+      expect(repo.save).toHaveBeenCalledTimes(1);
+
+      // Buffer cleared: a follow-up flush must be a no-op
+      repo.save.mockClear();
+      await engine.flush('root-1');
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('[characterization — must stay GREEN] flushes and clears the per-root buffer on REVOKED', async () => {
+      repo.save.mockResolvedValue({});
+      engine.pushBatch('root-1', [makeBioSample()]);
+
+      await engine.onSessionRevoked({ sessionId: 'root-1' });
+
+      expect(repo.save).toHaveBeenCalledTimes(1);
+
+      // Buffer cleared
+      repo.save.mockClear();
+      await engine.flush('root-1');
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('[characterization — must stay GREEN] child COMPLETED is a harmless no-op when the child owns no buffer', async () => {
+      repo.save.mockResolvedValue({});
+      // Only root-1 has a buffer — child-9 never owned bio data
+      engine.pushBatch('root-1', [makeBioSample()]);
+
+      await engine.onSessionCompleted({ sessionId: 'child-9' });
+
+      // No save should have happened (child-9 had no buffer)
+      expect(repo.save).not.toHaveBeenCalled();
+
+      // root-1 buffer is still intact — a later flush still persists it
+      await engine.flush('root-1');
+      expect(repo.save).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ── Overflow temporal density (characterization — must stay GREEN) ────────────
+  // P4 / L1: overflow increments dropped_count without breaking temporal density —
+  // the continue-not-break guarantee (engine :113-119). Assert via returned counters
+  // only, never via buffer.byteSize or buffer.samples.
+
+  describe('overflow temporal density (characterization — must stay GREEN)', () => {
+    it('[characterization — must stay GREEN] dropping a mid-batch oversized sample preserves its neighbours', () => {
+      // config: 1000-byte cap per buffer. Two small samples + one large.
+      // First push fills ~half the budget.
+      engine.pushBatch('root-1', [makeBioSample('cardio', 1)]); // accepted, small
+
+      // Build an oversized sample that exceeds the remaining budget
+      // (BIO_STREAM_MAX_BUFFER_BYTES = 1000 from makeConfig default)
+      const oversized: BioSampleInternal = {
+        timestamp: 2,
+        sampleType: 'nfb',
+        data: 'x'.repeat(950), // pushes byteSize well past 1000
+      };
+      const small: BioSampleInternal = {
+        timestamp: 3,
+        sampleType: 'emotions',
+        data: {},
+      };
+
+      // Send [oversized, small] in one batch; oversized must be dropped,
+      // small must be accepted (continue, not break)
+      const result = engine.pushBatch('root-1', [oversized, small]);
+
+      // L1 — assert outcome counters only
+      expect(result.acceptedCount).toBe(1); // small accepted
+      expect(result.droppedCount).toBe(1); // oversized dropped
     });
   });
 

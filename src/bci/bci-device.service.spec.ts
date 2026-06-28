@@ -283,13 +283,17 @@ describe('BciDeviceService.delete', () => {
     repo.findOneBy.mockResolvedValue(device);
     repo.delete.mockResolvedValue({ affected: 1 });
 
-    await expect(service.delete('user-uuid', 'device-uuid')).resolves.toBeUndefined();
+    await expect(
+      service.delete('user-uuid', 'device-uuid'),
+    ).resolves.toBeUndefined();
   });
 
   it('should throw RpcException with NOT_FOUND when findOneBy returns null', async () => {
     repo.findOneBy.mockResolvedValue(null);
 
-    await expect(service.delete('user-uuid', 'device-uuid')).rejects.toBeInstanceOf(RpcException);
+    await expect(
+      service.delete('user-uuid', 'device-uuid'),
+    ).rejects.toBeInstanceOf(RpcException);
 
     try {
       await service.delete('user-uuid', 'device-uuid');
@@ -305,7 +309,9 @@ describe('BciDeviceService.delete', () => {
   it('should not call delete when the device is not found', async () => {
     repo.findOneBy.mockResolvedValue(null);
 
-    await expect(service.delete('user-uuid', 'device-uuid')).rejects.toBeInstanceOf(RpcException);
+    await expect(
+      service.delete('user-uuid', 'device-uuid'),
+    ).rejects.toBeInstanceOf(RpcException);
 
     expect(repo.delete).not.toHaveBeenCalled();
   });
@@ -314,7 +320,9 @@ describe('BciDeviceService.delete', () => {
     const device = makeDevice({ id: 'device-uuid', userId: 'other-user-uuid' });
     repo.findOneBy.mockResolvedValue(device);
 
-    await expect(service.delete('user-uuid', 'device-uuid')).rejects.toBeInstanceOf(RpcException);
+    await expect(
+      service.delete('user-uuid', 'device-uuid'),
+    ).rejects.toBeInstanceOf(RpcException);
 
     try {
       await service.delete('user-uuid', 'device-uuid');
@@ -331,7 +339,9 @@ describe('BciDeviceService.delete', () => {
     const device = makeDevice({ id: 'device-uuid', userId: 'other-user-uuid' });
     repo.findOneBy.mockResolvedValue(device);
 
-    await expect(service.delete('user-uuid', 'device-uuid')).rejects.toBeInstanceOf(RpcException);
+    await expect(
+      service.delete('user-uuid', 'device-uuid'),
+    ).rejects.toBeInstanceOf(RpcException);
 
     expect(repo.delete).not.toHaveBeenCalled();
   });
@@ -342,6 +352,8 @@ describe('BciDeviceService.delete', () => {
     repo.findOneBy.mockResolvedValue(device);
     repo.delete.mockRejectedValue(error);
 
-    await expect(service.delete('user-uuid', 'device-uuid')).rejects.toThrow(error);
+    await expect(service.delete('user-uuid', 'device-uuid')).rejects.toThrow(
+      error,
+    );
   });
 });

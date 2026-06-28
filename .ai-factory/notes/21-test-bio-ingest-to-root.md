@@ -53,4 +53,60 @@ Ingest moves from "active child" to "user's root". Trace what happens to bio whe
 - Pause does not block bio — assert a batch is accepted for a live root regardless of `isPaused`.
 
 ## Findings
-_(fill during test-writing; escalate to [[10-bio-ingest-to-root]] before implementing it)_
+
+### Pins P1–P6 — test↔feature contract (agreed before authoring target cases)
+
+These pins are the shared contract between this test milestone and feature spec [[10-bio-ingest-to-root]]. Target cases are written against these pins so they flip GREEN when spec 10 lands instead of staying RED for the wrong reason. If spec 10 cannot honor a pin, the test author re-pins here first.
+
+**P1 — resolution mechanism is `ensureRoot`, not `getRoot`.**
+Note 10's locked decision is that a bio-only connection **creates** a root (`await this.activityEngine.ensureRoot(userId)`), so `handleBatch` becomes **async** and the resolved owner is (almost) never null. Note 21's original framing ("`getRoot` stub") is **superseded** — `getRoot` does not exist on `ActivityEngine`; the correct stub is `ensureRoot: jest.fn()` accessed `(engine as any).ensureRoot` since the method does not exist yet (compile-now, L2). `NO_ROOT_SESSION` is emitted **only** in the unexpected case where `ensureRoot` itself yields nothing (note 10 §Decisions).
+→ **Spec 10 must honor:** add `ensureRoot(userId): Promise<ModuleSession | undefined>` to `ActivityEngine`; make `handleBatch` async; emit `NO_ROOT_SESSION` only when `ensureRoot` returns `undefined`.
+
+**P2 — owner id field is `root.id`.**
+`ensureRoot` returns a `ModuleSession`, so push and compare against `root.id` (not `root.sessionId`); `ack.sessionId === root.id`.
+Carve-out: if spec 10 instead forwards a store `ActivityState`, re-pin here and the field is `.sessionId`.
+
+**P3 — error codes are literal strings.**
+The new no-root branch emits `WsErrorCode.NO_ROOT_SESSION`, whose value is the literal `'NO_ROOT_SESSION'` (`ws-error-codes.ts:4`), **replacing** the old literal `'NO_SESSION'` at step 5. `SESSION_MISMATCH` stays the literal `'SESSION_MISMATCH'`; steps 1–4 stay `'INVALID_ARGUMENT'`. Assert these exact strings on `frame.error.code` (today the controller emits literals, not `WsErrorCode.*` — confirmed from source).
+
+**P4 — the engine is structurally unchanged (note 10 §Engine), so its flush/lifecycle cases are CHARACTERIZATION (GREEN now), not target.**
+`pushBatch` is keyed by an arbitrary `sessionId` and the four `@OnEvent` handlers already flush+clear by `payload.sessionId` (`biometric-stream-engine.service.ts:86,204-250`); passing `root.id` makes the buffer per-root automatically, and `doFlush` already no-ops a missing buffer (`:150-157`). Therefore the engine lifecycle cases are **reclassified to characterization** — written at the engine they are GREEN now and guard spec 10/04 against breaking the engine's id-agnostic flush. The genuine **target (RED-until-10) silent signal lives at the controller**: that `streamEngine.pushBatch` is called with `root.id` (the resolved owner).
+→ **Spec 10 must honor:** do not change the engine's `@OnEvent` flush mechanism or the id-agnostic buffer key.
+
+**P5 — the legacy pause pass-through chars are coupled to the retired mechanism.**
+The existing tests at `module-biometric-stream.grpc.controller.spec.ts:114-209` stub `getActiveSession` and send a batch carrying the **child** sessionId. Spec 10 swaps step 5 to `ensureRoot`, so those tests will false-RED unless spec 10 migrates them.
+→ **Spec 10 must honor:** migrate the legacy `getActiveSession` pause chars to use `ensureRoot`.
+Here, the pause invariant ("pause does not block bio") is re-expressed as a **forward target** test against a live root (RED until spec 10).
+
+**P6 — two-state observability mechanism.**
+Drive through `streamData(request$, user)` and assert the **first non-`ready` response frame** (ack or error), not a `done()` that waits only for an ack. Today the controller still calls `getActiveSession` (→ `undefined` → emits a `NO_SESSION` error frame, never an ack), so a forward target asserting an ack would **timeout/hang** rather than fail cleanly. Capturing the first non-ready frame yields a clean RED today (wrong code / error-instead-of-ack) and GREEN after spec 10 — never a hang.
+
+### Run results (Task 6 — TDD signal verified)
+
+Run: `npx jest src/realtime/module-biometric-stream.grpc.controller.spec.ts src/realtime/services/biometric-stream-engine.service.spec.ts`
+
+**Engine spec:** ✅ PASS — all characterization cases GREEN, including the 3 new lifecycle cases (root ABANDONED flush+clear, root REVOKED flush+clear, child COMPLETED no-op) and the mid-batch overflow temporal-density case.
+
+**Controller spec:** 4 failures exactly as expected — all target cases:
+
+1. `[RED] should resolve the user root and call pushBatch(root.id, …)` — `frame.ack` is `undefined` (controller emits `NO_SESSION` error frame instead of ack). ✅ RED for the right reason.
+2. `[RED] should reject a batch whose session_id is a child id with SESSION_MISMATCH` — got `'NO_SESSION'`, expected `'SESSION_MISMATCH'`. ✅ RED for the right reason.
+3. `[RED] should emit NO_ROOT_SESSION when ensureRoot yields nothing` — got `'NO_SESSION'`, expected `'NO_ROOT_SESSION'`. ✅ RED for the right reason.
+4. `[RED] should accept a batch for a paused root` — `frame.ack` is `undefined` (controller emits `NO_SESSION` error). ✅ RED for the right reason.
+
+**P6 holds:** no hang in any case — `firstNonReadyFrame` captures the `NO_SESSION` error frame immediately and rejects cleanly with wrong code. Clean RED, not a timeout.
+
+All 5 characterization cases in the controller spec are GREEN:
+- 4 batch-consistency smoke cases: `INVALID_ARGUMENT` for empty / missing sessionId / inconsistent sessionId / missing sampleType.
+- Legacy pause pass-through and auth tests: untouched, all GREEN.
+
+No ambiguity discovered during authoring. Escalation list below is complete.
+
+### Escalation to spec 10
+
+The following must be resolved **before spec 10 is implemented**:
+1. (P1) Add `ensureRoot(userId): Promise<ModuleSession | undefined>` to `ActivityEngine`; make `handleBatch` async.
+2. (P1) Emit `NO_ROOT_SESSION` (not `NO_SESSION`) when `ensureRoot` returns `undefined`.
+3. (P2) Push and ACK using `root.id` (not a child sessionId or `root.sessionId`).
+4. (P4) Do not alter the engine's id-agnostic flush or `@OnEvent` handlers.
+5. (P5) Migrate the legacy `getActiveSession` pause chars (controller spec lines 114–209) to the new `ensureRoot` mechanism.

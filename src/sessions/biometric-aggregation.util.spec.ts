@@ -28,7 +28,13 @@ function processLttb(
   toMs?: number,
   garbageBoundMs?: number,
 ): Record<string, unknown>[] {
-  const rows = collectRawPoints(samples, bucketSec, fromMs, toMs, garbageBoundMs);
+  const rows = collectRawPoints(
+    samples,
+    bucketSec,
+    fromMs,
+    toMs,
+    garbageBoundMs,
+  );
   return reshapeLttbRows(rows, bucketSec);
 }
 
@@ -44,9 +50,24 @@ function processAvg(
   toMs?: number,
   garbageBoundMs?: number,
 ): Record<string, unknown>[] {
-  const points = collectRawPoints(samples, bucketSec, fromMs, toMs, garbageBoundMs);
+  const points = collectRawPoints(
+    samples,
+    bucketSec,
+    fromMs,
+    toMs,
+    garbageBoundMs,
+  );
 
-  const sums = new Map<string, { sampleType: string; bucket: string; field: string; sum: number; count: number }>();
+  const sums = new Map<
+    string,
+    {
+      sampleType: string;
+      bucket: string;
+      field: string;
+      sum: number;
+      count: number;
+    }
+  >();
   for (const pt of points) {
     const key = `${pt.sampleType}|${pt.bucket}|${pt.field}`;
     const existing = sums.get(key);
@@ -54,16 +75,24 @@ function processAvg(
       existing.sum += Number(pt.value);
       existing.count += 1;
     } else {
-      sums.set(key, { sampleType: pt.sampleType, bucket: pt.bucket, field: pt.field, sum: Number(pt.value), count: 1 });
+      sums.set(key, {
+        sampleType: pt.sampleType,
+        bucket: pt.bucket,
+        field: pt.field,
+        sum: Number(pt.value),
+        count: 1,
+      });
     }
   }
 
-  const avgRows = Array.from(sums.values()).map(({ sampleType, bucket, field, sum, count }) => ({
-    sampleType,
-    bucket,
-    field,
-    avg: String(sum / count),
-  }));
+  const avgRows = Array.from(sums.values()).map(
+    ({ sampleType, bucket, field, sum, count }) => ({
+      sampleType,
+      bucket,
+      field,
+      avg: String(sum / count),
+    }),
+  );
 
   return reshapeAvgRows(avgRows, bucketSec);
 }
@@ -79,15 +108,21 @@ function process(
   toMs?: number,
   garbageBoundMs?: number,
 ): Record<string, unknown>[] {
-  const rows = aggregateRawSamples(samples, bucketSec, fromMs, toMs, garbageBoundMs);
+  const rows = aggregateRawSamples(
+    samples,
+    bucketSec,
+    fromMs,
+    toMs,
+    garbageBoundMs,
+  );
   return reshapeAggregateRows(rows, bucketSec);
 }
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
 // Keep these two in sync: BMS = BSEC * 1000.
-const BSEC = 10;          // bucketSec argument  (seconds)
-const BMS = BSEC * 1000;  // bucket width in ms  (= 10 000 ms)
+const BSEC = 10; // bucketSec argument  (seconds)
+const BMS = BSEC * 1000; // bucket width in ms  (= 10 000 ms)
 
 // ─── tests ────────────────────────────────────────────────────────────────────
 
@@ -95,10 +130,10 @@ describe('biometric-aggregation.util', () => {
   describe('tiling: full-session equals N adjacent windows', () => {
     it('single sampleType — 3 windows tile a full session', () => {
       const samples = [
-        makeSample('motion', 0 * BMS + 1_000, { x: 1, y: 10 }),  // bucket 0
-        makeSample('motion', 0 * BMS + 5_000, { x: 3, y: 20 }),  // bucket 0
-        makeSample('motion', 1 * BMS + 2_000, { x: 5, y: 30 }),  // bucket 1
-        makeSample('motion', 2 * BMS + 8_000, { x: 7, y: 40 }),  // bucket 2
+        makeSample('motion', 0 * BMS + 1_000, { x: 1, y: 10 }), // bucket 0
+        makeSample('motion', 0 * BMS + 5_000, { x: 3, y: 20 }), // bucket 0
+        makeSample('motion', 1 * BMS + 2_000, { x: 5, y: 30 }), // bucket 1
+        makeSample('motion', 2 * BMS + 8_000, { x: 7, y: 40 }), // bucket 2
       ];
 
       const full = process(samples, BSEC, 0 * BMS, 3 * BMS);
@@ -118,8 +153,8 @@ describe('biometric-aggregation.util', () => {
       const samples = [
         makeSample('alpha', 0 * BMS + 1_000, { val: 10 }),
         makeSample('alpha', 0 * BMS + 9_000, { val: 90 }),
-        makeSample('beta',  0 * BMS + 2_000, { val: 20 }),
-        makeSample('beta',  0 * BMS + 8_000, { val: 80 }),
+        makeSample('beta', 0 * BMS + 2_000, { val: 20 }),
+        makeSample('beta', 0 * BMS + 8_000, { val: 80 }),
       ];
 
       const full = process(samples, BSEC, 0 * BMS, 1 * BMS);
@@ -143,11 +178,11 @@ describe('biometric-aggregation.util', () => {
         // bucket 0
         makeSample('alpha', 0 * BMS + 1_000, { a: 1, z: 100 }),
         makeSample('alpha', 0 * BMS + 9_000, { a: 9, z: 900 }),
-        makeSample('beta',  0 * BMS + 3_000, { b: 3 }),
-        makeSample('beta',  0 * BMS + 7_000, { b: 77 }),
+        makeSample('beta', 0 * BMS + 3_000, { b: 3 }),
+        makeSample('beta', 0 * BMS + 7_000, { b: 77 }),
         // bucket 1
-        makeSample('alpha', 1 * BMS + 500,   { a: 2, z: 200 }),
-        makeSample('beta',  1 * BMS + 5_000, { b: 5 }),
+        makeSample('alpha', 1 * BMS + 500, { a: 2, z: 200 }),
+        makeSample('beta', 1 * BMS + 5_000, { b: 5 }),
       ];
 
       const full = process(samples, BSEC, 0, 2 * BMS);
@@ -173,9 +208,9 @@ describe('biometric-aggregation.util', () => {
 
     it('no seam: concatenating two adjacent windows contains the boundary sample exactly once', () => {
       const samples = [
-        makeSample('motion', 0 * BMS + 5_000, { x: 1 }),  // bucket 0
-        makeSample('motion', 1 * BMS,           { x: 2 }), // exactly at boundary → bucket 1
-        makeSample('motion', 1 * BMS + 5_000,  { x: 3 }),  // bucket 1
+        makeSample('motion', 0 * BMS + 5_000, { x: 1 }), // bucket 0
+        makeSample('motion', 1 * BMS, { x: 2 }), // exactly at boundary → bucket 1
+        makeSample('motion', 1 * BMS + 5_000, { x: 3 }), // bucket 1
       ];
 
       const full = process(samples, BSEC, 0 * BMS, 2 * BMS);
@@ -216,14 +251,14 @@ describe('biometric-aggregation.util', () => {
 
     it('window [BMS, 3*BMS) and window [0, 4*BMS) yield identical data for their shared buckets', () => {
       const samples = [
-        makeSample('motion', 0 * BMS + 5_000, { x: 5 }),   // bucket 0 (only in wide)
-        makeSample('motion', 1 * BMS + 5_000, { x: 15 }),  // bucket 1 (shared)
-        makeSample('motion', 2 * BMS + 5_000, { x: 25 }),  // bucket 2 (shared)
-        makeSample('motion', 3 * BMS + 5_000, { x: 35 }),  // bucket 3 (only in wide)
+        makeSample('motion', 0 * BMS + 5_000, { x: 5 }), // bucket 0 (only in wide)
+        makeSample('motion', 1 * BMS + 5_000, { x: 15 }), // bucket 1 (shared)
+        makeSample('motion', 2 * BMS + 5_000, { x: 25 }), // bucket 2 (shared)
+        makeSample('motion', 3 * BMS + 5_000, { x: 35 }), // bucket 3 (only in wide)
       ];
 
       const narrow = process(samples, BSEC, 1 * BMS, 3 * BMS); // buckets 1, 2
-      const wide   = process(samples, BSEC, 0 * BMS, 4 * BMS); // buckets 0, 1, 2, 3
+      const wide = process(samples, BSEC, 0 * BMS, 4 * BMS); // buckets 0, 1, 2, 3
 
       // Shared buckets 1 and 2: timestamps in [BMS, 3*BMS)
       const wideShared = wide.filter(
@@ -249,7 +284,7 @@ describe('biometric-aggregation.util', () => {
 
       expect(minEntry.data.bpm).toBe(60);
       expect(maxEntry.data.bpm).toBe(60);
-      expect(minEntry.timestamp).toBe(0);          // bucket 0 start
+      expect(minEntry.timestamp).toBe(0); // bucket 0 start
       expect(maxEntry.timestamp).toBe(BSEC * 500); // bucketMaxOffsetMs(BSEC)
     });
   });
@@ -270,9 +305,9 @@ describe('biometric-aggregation.util', () => {
     it('two identical calls produce the same JSON string', () => {
       const samples = [
         makeSample('alpha', 0 * BMS + 1_000, { val: 10 }),
-        makeSample('beta',  0 * BMS + 2_000, { val: 20 }),
+        makeSample('beta', 0 * BMS + 2_000, { val: 20 }),
       ];
-      const first  = JSON.stringify(process(samples, BSEC));
+      const first = JSON.stringify(process(samples, BSEC));
       const second = JSON.stringify(process(samples, BSEC));
       expect(first).toBe(second);
     });
@@ -283,10 +318,10 @@ describe('biometric-aggregation.util', () => {
   describe('lttb: tiling byte-equality', () => {
     it('single sampleType — 3 adjacent windows tile a full-session request', () => {
       const samples = [
-        makeSample('motion', 0 * BMS + 1_000, { x: 1, y: 10 }),  // bucket 0
-        makeSample('motion', 0 * BMS + 5_000, { x: 3, y: 20 }),  // bucket 0
-        makeSample('motion', 1 * BMS + 2_000, { x: 5, y: 30 }),  // bucket 1
-        makeSample('motion', 2 * BMS + 8_000, { x: 7, y: 40 }),  // bucket 2
+        makeSample('motion', 0 * BMS + 1_000, { x: 1, y: 10 }), // bucket 0
+        makeSample('motion', 0 * BMS + 5_000, { x: 3, y: 20 }), // bucket 0
+        makeSample('motion', 1 * BMS + 2_000, { x: 5, y: 30 }), // bucket 1
+        makeSample('motion', 2 * BMS + 8_000, { x: 7, y: 40 }), // bucket 2
       ];
 
       const full = processLttb(samples, BSEC, 0 * BMS, 3 * BMS);
@@ -302,8 +337,8 @@ describe('biometric-aggregation.util', () => {
       const samples = [
         makeSample('alpha', 0 * BMS + 1_000, { val: 10 }),
         makeSample('alpha', 0 * BMS + 9_000, { val: 90 }),
-        makeSample('beta',  0 * BMS + 2_000, { val: 20 }),
-        makeSample('beta',  0 * BMS + 8_000, { val: 80 }),
+        makeSample('beta', 0 * BMS + 2_000, { val: 20 }),
+        makeSample('beta', 0 * BMS + 8_000, { val: 80 }),
       ];
 
       const full = processLttb(samples, BSEC, 0 * BMS, 1 * BMS);
@@ -315,7 +350,9 @@ describe('biometric-aggregation.util', () => {
       expect(timestamps).toEqual([...timestamps].sort((a, b) => a - b));
 
       // Within the same timestamp, sampleType must be sorted lexicographically.
-      const sameTs = full.filter((s) => s['timestamp'] === 0 * BMS + BSEC * 500);
+      const sameTs = full.filter(
+        (s) => s['timestamp'] === 0 * BMS + BSEC * 500,
+      );
       const sameTypes = sameTs.map((s) => s['sampleType'] as string);
       expect(sameTypes).toEqual([...sameTypes].sort());
     });
@@ -326,11 +363,11 @@ describe('biometric-aggregation.util', () => {
         makeSample('alpha', 0 * BMS + 1_000, { a: 1, z: 100 }),
         makeSample('alpha', 0 * BMS + 5_000, { a: 50, z: 500 }),
         makeSample('alpha', 0 * BMS + 9_000, { a: 9, z: 900 }),
-        makeSample('beta',  0 * BMS + 3_000, { b: 3 }),
-        makeSample('beta',  0 * BMS + 7_000, { b: 77 }),
+        makeSample('beta', 0 * BMS + 3_000, { b: 3 }),
+        makeSample('beta', 0 * BMS + 7_000, { b: 77 }),
         // bucket 1
-        makeSample('alpha', 1 * BMS + 500,   { a: 2, z: 200 }),
-        makeSample('beta',  1 * BMS + 5_000, { b: 5 }),
+        makeSample('alpha', 1 * BMS + 500, { a: 2, z: 200 }),
+        makeSample('beta', 1 * BMS + 5_000, { b: 5 }),
       ];
 
       const full = processLttb(samples, BSEC, 0, 2 * BMS);
@@ -380,7 +417,7 @@ describe('biometric-aggregation.util', () => {
       // Triangle area for the spike: |(9000)*(100-10) - (3000)*(10-10)| = 810000 (max)
       // LTTB picks value 100; avg = (10+100+10+10)/4 = 32.5
       const samples = [
-        makeSample('hr', 0 * BMS + 0,     { bpm: 10 }),
+        makeSample('hr', 0 * BMS + 0, { bpm: 10 }),
         makeSample('hr', 0 * BMS + 3_000, { bpm: 100 }),
         makeSample('hr', 0 * BMS + 7_000, { bpm: 10 }),
         makeSample('hr', 0 * BMS + 9_000, { bpm: 10 }),
@@ -454,7 +491,9 @@ describe('biometric-aggregation.util', () => {
         makeSample('sensor', 0 * BMS + 9_000, { val: 10 }),
       ];
 
-      const result = processLttb(samplesCollinear, BSEC) as Array<{ data: { val: number } }>;
+      const result = processLttb(samplesCollinear, BSEC) as Array<{
+        data: { val: number };
+      }>;
       expect(result).toHaveLength(1);
       // Collinear — all areas 0. Tied fallback devs → first in sort order (val=2) wins.
       expect(result[0].data.val).toBe(2);

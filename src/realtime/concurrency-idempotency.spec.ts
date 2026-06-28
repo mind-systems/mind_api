@@ -43,7 +43,9 @@ function makeUser(overrides?: Partial<JwtPayload>): JwtPayload {
   };
 }
 
-function makeActivityState(overrides?: Partial<{ sessionId: string; isPaused: boolean }>) {
+function makeActivityState(
+  overrides?: Partial<{ sessionId: string; isPaused: boolean }>,
+) {
   return { sessionId: 'session-1', isPaused: false, ...overrides } as any;
 }
 
@@ -131,11 +133,13 @@ async function flushMicrotasks(times = 3): Promise<void> {
  *
  * clientActivityId is a not-yet-existing proto field; set via (cmd as any).
  */
-function activityStart(opts: {
-  clientActivityId?: string;
-  clientTimestampMs?: number;
-  activityType?: ActivityType;
-} = {}): StateRequest {
+function activityStart(
+  opts: {
+    clientActivityId?: string;
+    clientTimestampMs?: number;
+    activityType?: ActivityType;
+  } = {},
+): StateRequest {
   const cmd: any = {
     activityType: opts.activityType ?? ActivityType.BREATH,
   };
@@ -149,7 +153,9 @@ function activityStart(opts: {
   return { activityStart: cmd };
 }
 
-function activityEnd(opts: { sessionId?: string; clientTimestampMs?: number } = {}): StateRequest {
+function activityEnd(
+  opts: { sessionId?: string; clientTimestampMs?: number } = {},
+): StateRequest {
   const cmd: any = {};
   if (opts.sessionId !== undefined) {
     // Not-yet-existing proto field
@@ -280,7 +286,9 @@ describe('concurrent activities + idempotency dedup', () => {
       // Spec 06 contract: startActivity is invoked and a new (non-echoed) id is returned.
       // TODAY: guard fires → startActivity NOT called, moduleSessionId echoed as 'existing-session' → RED.
       expect(activityEngine.startActivity).toHaveBeenCalledTimes(1);
-      expect(values[0].sessionState?.moduleSessionId).not.toBe('existing-session');
+      expect(values[0].sessionState?.moduleSessionId).not.toBe(
+        'existing-session',
+      );
     });
   });
 
@@ -450,10 +458,23 @@ describe('concurrent activities + idempotency dedup', () => {
       //   endActivity(userId, sessionId, clientTimestampMs)
       //   stopActivity(userId, sessionId)
       // TODAY: handlers only pass userId → assertions fail → RED.
-      expect(activityEngine.pauseActivity).toHaveBeenCalledWith('user-1', 'session-A');
-      expect(activityEngine.unpauseActivity).toHaveBeenCalledWith('user-1', 'session-A');
-      expect(activityEngine.endActivity).toHaveBeenCalledWith('user-1', 'session-A', undefined);
-      expect(activityEngine.stopActivity).toHaveBeenCalledWith('user-1', 'session-A');
+      expect(activityEngine.pauseActivity).toHaveBeenCalledWith(
+        'user-1',
+        'session-A',
+      );
+      expect(activityEngine.unpauseActivity).toHaveBeenCalledWith(
+        'user-1',
+        'session-A',
+      );
+      expect(activityEngine.endActivity).toHaveBeenCalledWith(
+        'user-1',
+        'session-A',
+        undefined,
+      );
+      expect(activityEngine.stopActivity).toHaveBeenCalledWith(
+        'user-1',
+        'session-A',
+      );
     });
 
     it('should fall back to the sole child when sessionId is absent and exactly one child exists', async () => {
@@ -474,10 +495,13 @@ describe('concurrent activities + idempotency dedup', () => {
 
       // Spec 06 contract: getSoleChild returns the child → pauseActivity called with its id.
       // TODAY: pauseActivity called with just userId (no sessionId) → RED.
-      expect(activityEngine.pauseActivity).toHaveBeenCalledWith('user-1', 'session-only');
+      expect(activityEngine.pauseActivity).toHaveBeenCalledWith(
+        'user-1',
+        'session-only',
+      );
     });
 
-    it('should emit sessionError.code === \'AMBIGUOUS_SESSION\' when sessionId is absent and >1 child is active', async () => {
+    it("should emit sessionError.code === 'AMBIGUOUS_SESSION' when sessionId is absent and >1 child is active", async () => {
       // Populate listLiveSessions with ≥2 children so spec 06 can detect ambiguity
       // via listLiveSessions().length > 1 — NOT just via getSoleChild returning undefined
       // (which conflates 0 children with >1 and would drive a buggy "no sole child ⇒ ambiguous" impl).
@@ -530,9 +554,18 @@ describe('concurrent activities + idempotency dedup', () => {
       // Spec 06 contract: one stopActivity call per live session with (userId, sessionId).
       // TODAY: stopActivity called once with just (userId) → toHaveBeenCalledTimes(3) fails → RED.
       expect(activityEngine.stopActivity).toHaveBeenCalledTimes(3);
-      expect(activityEngine.stopActivity).toHaveBeenCalledWith('user-1', 'session-root');
-      expect(activityEngine.stopActivity).toHaveBeenCalledWith('user-1', 'session-A');
-      expect(activityEngine.stopActivity).toHaveBeenCalledWith('user-1', 'session-B');
+      expect(activityEngine.stopActivity).toHaveBeenCalledWith(
+        'user-1',
+        'session-root',
+      );
+      expect(activityEngine.stopActivity).toHaveBeenCalledWith(
+        'user-1',
+        'session-A',
+      );
+      expect(activityEngine.stopActivity).toHaveBeenCalledWith(
+        'user-1',
+        'session-B',
+      );
 
       // closeAll is called once regardless of session count
       expect(activeStreamRegistry.closeAll).toHaveBeenCalledWith('user-1');
