@@ -10,26 +10,27 @@
 
 ## Details
 
-### Current state — `proto/module_state.proto`
-- `ActivityStartCmd { ActivityType activity_type = 1; optional string ref_id = 2; reserved 3; optional int64 client_timestamp_ms = 4; }`
-- `ActivityEndCmd { optional int64 client_timestamp_ms = 1; }`
-- `ActivityStopCmd {}`, `ActivityPauseCmd {}`, `ActivityResumeCmd {}`
+### Current state — `proto/module_state.proto` (verified line numbers)
+- `ActivityStartCmd` (lines 38-45): `ActivityType activity_type = 1;` · `optional string ref_id = 2;` · `reserved 3;` · `optional int64 client_timestamp_ms = 4;` — current max field = **4** (3 is reserved).
+- `ActivityEndCmd` (lines 48-52): `optional int64 client_timestamp_ms = 1;` — current max field = **1**.
+- `ActivityStopCmd {}` (line 55), `ActivityPauseCmd {}` (line 57), `ActivityResumeCmd {}` (line 59) — all empty, current max field = **0**.
 
-### Change
-- `ActivityStartCmd`: add `optional string client_activity_id = 5;` (idempotency token).
-- `ActivityEndCmd`: add `optional string session_id = 2;`
+### Change (exact field numbers)
+- `ActivityStartCmd`: add `optional string client_activity_id = 5;` (idempotency token). Next free after `client_timestamp_ms = 4` is **5** (field 3 is `reserved` — never reuse).
+- `ActivityEndCmd`: add `optional string session_id = 2;` (next free after `client_timestamp_ms = 1`).
 - `ActivityStopCmd`: add `optional string session_id = 1;`
 - `ActivityPauseCmd`: add `optional string session_id = 1;`
 - `ActivityResumeCmd`: add `optional string session_id = 1;`
-- Regenerate ts-proto stubs into `proto/generated/module_state.ts` (the project's proto:gen npm script).
+- Regenerate ts-proto stubs by running **`npm run proto:gen`** (`package.json:27`). Output goes to `proto/generated/module_state.ts` (the script's `--ts_proto_out=./proto/generated`). Generated field names are camelCase: `clientActivityId`, `sessionId`.
 
 ### Guards / gotchas
 - Preserve existing field numbers; only append. `ActivityStartCmd` field 3 is `reserved` — do not reuse it; next free is 5.
+- All new fields are `optional` (proto3) → additive. ts-proto emits them as `field?: string`, so `module-state.grpc.controller.ts` compiles unchanged and silently ignores them until [[06-state-controller-concurrent-idempotency]].
 - `mind_api/proto/` is the single source of truth. Consumers (`mind_mcp`, `mind_mobile`) copy + regen separately in [[12-mcp-proto-regen]] / [[13-mobile-proto-regen-behavior]] — do **not** touch consumer proto here.
 - No server logic in this task — `module-state.grpc.controller.ts` keeps ignoring the new fields until [[06-state-controller-concurrent-idempotency]].
 
 ### Verify
-- `proto:gen` succeeds; `npm run build` green with the regenerated stubs unused.
+- `npm run proto:gen` succeeds; `npm run build` (`package.json:9`, `nest build`) green with the regenerated stubs unused.
 
 ## Open Questions
 - None.

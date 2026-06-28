@@ -3,6 +3,9 @@
 **Date:** 2026-06-28
 **Source:** conversation context
 
+## Decisions (locked)
+- On `SESSION_REVOKED` (auth logout/token revoke), `handleSessionRevoked` stops **all** the user's children **and** the root (revoke ends the whole "app open" container), then `closeAll(userId)`. Resolves note 16 F-07.
+
 ## Key Findings
 
 - The hard structural keystone: `ActivitySessionStore` is `Map<userId, ActivityState>` — physically one session slot per user. Every `ActivityEngine` method resolves "the" session by `userId`. This must become per-user multi-session, with grace timers keyed by `sessionId`.
@@ -11,35 +14,92 @@
 
 ## Details
 
-### Current state
-- `src/realtime/services/activity-session-store.service.ts` — `activityMap = Map<userId, ActivityState>`, `timers = Map<userId, Timeout>`. `get/set/has/delete(userId)`, `startGraceTimer(userId)`, `cancelGraceTimer(userId)`.
-- `src/realtime/services/activity-engine.service.ts` — `endActivity/stopActivity/pauseActivity/unpauseActivity/resumeActivity/onDisconnect/abandonActivity(userId)` all call `store.get(userId)`. `abandonStale(userId, sessionId)` already takes a sessionId. `handleReconnect` / `handleTransportDisconnect(userId)`.
-- Callers: `src/realtime/module-state.grpc.controller.ts` (`getActiveSession`, all handlers), `src/realtime/services/session-watchdog.service.ts` (`abandonStale`), `handleSessionRevoked` (controller).
+### Current state (exact)
+- `src/realtime/services/activity-session-store.service.ts`:
+  - `activityMap = new Map<string, ActivityState>()` (line 9, keyed by userId), `timers = new Map<string, ReturnType<typeof setTimeout>>()` (line 10, keyed by userId).
+  - `graceMs` resolved in ctor (lines 13-17) from `WS_RECONNECT_GRACE_MS`, default `DEFAULT_GRACE_MS = 30_000` (line 5). **Keep this exact key + default.**
+  - Methods: `get(userId)` (19), `has(userId)` (23), `set(userId, state)` (27), `delete(userId)` (31), `get size` (35), `startGraceTimer(userId, onExpiry)` (39), `cancelGraceTimer(userId)` (48), `hasPendingGraceTimer(userId)` (55).
+- `src/realtime/services/activity-engine.service.ts` — all resolve "the" session via `store.get(userId)`:
+  - `coerceClientTs(...)` (39-55), `startActivity(userId, dto)` (57-96, calls `store.set(userId, state)` at 81), `endActivity(userId, clientTimestampMs?)` (98-167), `onDisconnect(userId)` (169-182), `abandonActivity(userId)` (184-227), `abandonStale(userId, sessionId)` (229-281, already sessionId-scoped), `stopActivity(userId)` (283-335), `pauseActivity(userId)` (337-367), `unpauseActivity(userId)` (369-399), `getActiveSession(userId)` (401-403), `resumeActivity(userId)` (405-429), `handleReconnect(userId, clientSessionId?)` (431-451), `handleTransportDisconnect(userId)` (453-465).
+  - `handleReconnect` currently: `if (store.has(userId)) { store.cancelGraceTimer(userId); return resumeActivity(userId); }` (435-438), else the `clientSessionId` ABANDONED-confirmation branch (439-449).
+  - `handleTransportDisconnect` currently: `await onDisconnect(userId); if (store.has(userId)) store.startGraceTimer(userId, () => abandonActivity(userId)...)` (453-465).
+- Callers (exact file:line):
+  - `module-state.grpc.controller.ts`: `getActiveSession(payload.userId)` in `handleSessionRevoked` (line 201); `stopActivity(payload.userId)` (203); `handleReconnect(userId, clientSessionId)` in `setup()` (110-113); `getActiveSession(userId)` in `handleActivityStart` (281); `startActivity` (306); `endActivity(userId, clientTimestampMs)` (327); `stopActivity(userId)` (345); `pauseActivity(userId)` (363); `unpauseActivity(userId)` (388); `handleTransportDisconnect(userId)` in teardown (185).
+  - `session-watchdog.service.ts`: `abandonStale(row.userId, row.id)` (line 82), followed by `activeStreamRegistry.closeAll(row.userId)` (83).
 
-### Change
-- Store → `Map<userId, UserSessions>` where
-  ```ts
-  interface UserSessions {
-    rootSessionId: string | null;
-    children: Map<string, ActivityState>; // keyed by sessionId
-  }
-  ```
-  Grace timers → `Map<sessionId, Timeout>`. New helpers: `getChild(userId, sessionId)`, `listChildren(userId)`, `addChild`, `removeChild`, `getRoot(userId)`, `setRoot`.
-- Engine methods take explicit `sessionId`: `endActivity(userId, sessionId, ts)`, `stopActivity(userId, sessionId)`, `pauseActivity(userId, sessionId)`, `unpauseActivity(userId, sessionId)`, `resumeActivity(userId, sessionId)`, `onDisconnect`/`abandonActivity(userId, sessionId)`.
-- `handleTransportDisconnect(userId)` now iterates **all** of the user's live sessions (root + children), disconnecting each and starting a per-session grace timer.
-- `handleReconnect(userId)` resumes all `disconnected` sessions for the user.
+### Change — store shape (replaces `Map<userId, ActivityState>`)
+Per note 16 F-05, `activityMap` becomes `Map<userId, UserSessions>`:
+```ts
+interface UserSessions {
+  rootSessionId: string | null;        // the user's root session id, or null until ensureRoot ([[04-lazy-root-creation]])
+  children: Map<string, ActivityState>; // keyed by sessionId (children only — root not in this map)
+}
+```
+Grace timers re-keyed: `timers: Map<string, ReturnType<typeof setTimeout>>` becomes **keyed by sessionId, not userId** (F-04).
+
+New store method signatures (exact — from F-04/F-05). Keep `graceMs` / `WS_RECONNECT_GRACE_MS` / `DEFAULT_GRACE_MS = 30_000` unchanged:
+```ts
+// children + root (F-05)
+setRoot(userId: string, sessionId: string, state?: ActivityState): void;
+getRoot(userId: string): ActivityState | undefined;       // returns root state if tracked, else undefined
+getRootId(userId: string): string | null;                 // convenience: UserSessions.rootSessionId
+addChild(userId: string, sessionId: string, state: ActivityState): void;
+getChild(userId: string, sessionId: string): ActivityState | undefined;
+listChildren(userId: string): ActivityState[];            // children only
+removeChild(userId: string, sessionId: string): boolean;
+getSoleChild(userId: string): ActivityState | undefined;  // the single live child; replaces today's get(userId)
+// per-session grace timers (F-04) — replace the userId-keyed trio
+startGraceTimerForSession(sessionId: string, onExpiry: () => void | Promise<void>): void;
+cancelGraceTimerForSession(sessionId: string): void;
+hasPendingGraceTimerForSession(sessionId: string): boolean;
+```
+Remove the userId-keyed `startGraceTimer`/`cancelGraceTimer`/`hasPendingGraceTimer` (current lines 39-57) once all callers are migrated — they MUST be updated atomically in this same task (single compile unit; see Key Findings).
+
+### Change — engine signatures (thread `sessionId`)
+Per F-01/F-02/F-06, engine methods take explicit `sessionId`:
+```ts
+endActivity(userId: string, sessionId: string, clientTimestampMs?: number): Promise<ModuleSession | null>;
+stopActivity(userId: string, sessionId: string): Promise<ModuleSession | null>;
+pauseActivity(userId: string, sessionId: string): ActivityState;
+unpauseActivity(userId: string, sessionId: string): ActivityState;
+resumeActivity(userId: string, sessionId: string): Promise<ModuleSession | null>;
+onDisconnect(userId: string, sessionId: string): Promise<void>;     // pure "mark DISCONNECTED" only (F-03)
+abandonActivity(userId: string, sessionId: string): Promise<void>;  // grace-timer callback target (F-06)
+abandonStale(userId: string, sessionId: string): Promise<void>;     // signature unchanged; lookups switch to child/root maps (F-07)
+getActiveSession(userId: string): ActivityState | undefined;        // keep — returns getSoleChild(userId)
+```
+- Each method resolves its `ActivityState` via `store.getChild(userId, sessionId)` (or `getRoot`), NOT `store.get(userId)`. Store mutations: `startActivity` uses `addChild`; terminal states (`endActivity`/`stopActivity`/`abandonActivity`/`abandonStale`) use `removeChild(userId, sessionId)` instead of `delete(userId)`.
+
+### Change — disconnect fan-out (F-01)
+`handleTransportDisconnect(userId)` must iterate **all** of the user's live sessions (root + every child) and for EACH:
+1. `await onDisconnect(userId, sessionId)` → `repo.update(sessionId, { status: DISCONNECTED, disconnectedAt: now })`.
+2. `store.startGraceTimerForSession(sessionId, () => abandonActivity(userId, sessionId).catch(...))`.
+"Live" = state present in the store (root + `listChildren`). Grace timer is per-session so each expires independently.
+
+### Change — reconnect fan-out (F-02)
+`handleReconnect(userId, clientSessionId?)` must iterate **all** of the user's sessions currently in `DISCONNECTED` (root + children that are still in the store) and for EACH:
+1. `store.cancelGraceTimerForSession(sessionId)`.
+2. `await resumeActivity(userId, sessionId)` → set `ACTIVE`, clear `disconnectedAt`.
+Preserve the existing `clientSessionId` ABANDONED-confirmation branch (current lines 439-449) for the case where nothing is in the store. Return shape stays `Promise<ModuleSession | { abandoned: true } | null>`; for the multi-session resume, returning the resumed sole-child (or root) preserves the controller's existing `setup()` handling (controller lines 116-137).
 
 ### Behavior preservation (this task only)
-The proto does not yet carry `session_id` (added in [[05-proto-session-id-idempotency]]). So `module-state.grpc.controller.ts` resolves the target child as the single active one (assert exactly one; if zero → existing no-session handling; if >1 cannot happen yet). `getActiveSession(userId)` kept as a convenience that returns the sole child. Net external behavior unchanged.
+The proto does not yet carry `session_id` (added in [[05-proto-session-id-idempotency]]). So `module-state.grpc.controller.ts` resolves the target child as the single active one via `getSoleChild(userId)` (assert exactly one; if zero → existing no-session handling — handlers return early on null/undefined; if >1 cannot happen yet because root creation is [[04-lazy-root-creation]] and concurrent children are [[06-state-controller-concurrent-idempotency]]). Controller call sites to update to pass the resolved `sessionId`:
+- `handleActivityEnd` line 327: `endActivity(userId, sessionId, clientTimestampMs)` where `sessionId = getActiveSession(userId)?.sessionId`.
+- `handleActivityStop` line 345: `stopActivity(userId, sessionId)`.
+- `handleActivityPause` line 363: `pauseActivity(userId, sessionId)`.
+- `handleActivityResume` line 388: `unpauseActivity(userId, sessionId)`.
+- `handleActivityStart` line 281/306: `getActiveSession(userId)` guard unchanged (returns sole child); `startActivity` unchanged signature.
+`getActiveSession(userId)` kept as a convenience that returns the sole child (`= getSoleChild(userId)`). Net external behavior unchanged.
 
 ### Guards / gotchas
-- `handleSessionRevoked` must stop **every** child + the root (loop), then `closeAll`.
-- Watchdog `abandonStale(userId, sessionId)` already sessionId-scoped — just ensure store lookups use the child map.
-- Do not introduce root creation here — that is [[04-lazy-root-creation]]. Root field exists in `UserSessions` but stays null in this task.
+- `handleSessionRevoked` (controller lines 198-214, F-07): today it reads `getActiveSession(payload.userId)?.sessionId` (201) then `stopActivity(payload.userId)` (203). With multi-session it must stop **every** live child + the root in a loop (`for each sessionId in [root, ...children] → stopActivity(userId, sessionId)`), then `activeStreamRegistry.closeAll(payload.userId)` (213). The `SessionEvents.REVOKED` emit on error (210) stays per-sessionId. **Blocking decision below** governs whether the root is also stopped on revoke.
+- Watchdog `abandonStale(userId, sessionId)` (called at `session-watchdog.service.ts:82`) already sessionId-scoped — change its internal store cleanup from `store.get(userId)`/`store.delete(userId)` (engine lines 232-234, 245-247, 265-267) to `store.getChild(userId, sessionId)` / `store.removeChild(userId, sessionId)` (and root equivalent if the stale row is a root). The watchdog `sweep` query (lines 56-63) returns root rows too once they exist — abandonStale must handle a stale root by removing it via the root slot, not `removeChild`.
+- Do not introduce root creation here — that is [[04-lazy-root-creation]]. `UserSessions.rootSessionId` exists but stays `null` in this task; `getRoot` returns undefined until then.
+- Grace-timer leak: teardown of the engine/store must `clearTimeout` all pending per-session timers; the test ([[16-test-session-lifecycle-state-machine]] Gotchas) asserts no leak with fake timers.
 
 ### Verify
 - `npm test` + existing realtime e2e (single-session flows) stay green.
 - Build clean; no `store.get(userId)` singletons remain in the engine.
 
 ## Open Questions
-- None.
+- Revoke scope (root vs children-only) — promoted to **Blocking decisions** above.

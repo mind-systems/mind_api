@@ -10,15 +10,35 @@
 
 ## Details
 
-### Current state
-- `src/realtime/services/activity-engine.service.ts` `startActivity` creates a child directly with no parent. No root concept.
-- `src/realtime/module-state.grpc.controller.ts` `trackActivity` → `setup()` calls `handleReconnect` then subscribes to commands.
+### Current state (exact)
+- `src/realtime/services/activity-engine.service.ts` `startActivity(userId, dto)` (lines 57-96) creates a child via `repo.create({ userId, activityType: dto.activityType, activityRefId: dto.activityRefId, status: SessionStatus.ACTIVE, startedAt, lastActivityAt: now })` (63-70), `repo.save` (71), builds `ActivityState` (73-80), `store.set(userId, state)` (81), pushes `SESSION_EVENT/STARTED` (83-89). No `rootSessionId`, no root concept.
+- `endActivity(userId, ...)` (98-167) resolves `store.get(userId)` (102) — would resolve the root once root becomes the userId slot. Must skip root (F-09).
+- `src/realtime/module-state.grpc.controller.ts` `trackActivity` → `setup()` (lines 109-162) calls `handleReconnect(userId, clientSessionId)` (110-113), checks `subscriber.closed` (114), handles resume/abandoned (116-137), then `request.subscribe(...)` to route commands (141-159).
+- `ActivityState` interface (`src/realtime/interfaces/activity-state.interface.ts`) gains `rootSessionId?: string | null` in [[02-root-session-schema]]; `ActivityType.ROOT = 'root'` and the entity column also land there.
 
 ### Change
-- Add `ActivityEngine.ensureRoot(userId, clientTs?): Promise<ModuleSession>` — idempotent: if `store.getRoot(userId)` exists, return it; else create a `ModuleSession` (`activityType = ROOT`, `status = ACTIVE`, `startedAt = clientTs ?? now`, `rootSessionId = null`), persist, set `store.setRoot(userId, root.id)`. Does **not** push a SESSION_EVENT instruction (root has no instruction stream of its own).
-- Call `ensureRoot` from the state-stream `setup()` on connect (cheapest single point — one root per app session). Also call defensively at the top of `startActivity` so a child never exists without a root.
-- `startActivity` sets the new child's `rootSessionId = root.id` (entity column + `ActivityState`/store metadata as needed).
-- Root lifecycle: on transport disconnect the root goes `disconnected` + grace and is abandoned on expiry, exactly like a child (handled generically by the per-session loop from [[03-multi-session-store-engine]]). The root is never ended via `activity:end` (no client command targets it).
+- Add `ActivityEngine.ensureRoot(userId: string, clientTimestampMs?: number): Promise<ModuleSession>` — idempotent. Use the existing `coerceClientTs` (engine lines 39-55) to derive the timestamp:
+  - If `store.getRoot(userId)` returns a state → re-fetch/return that root (idempotent; no new row, no duplicate). For reconnect-in-grace this is the same root resumed by `handleReconnect` per [[03-multi-session-store-engine]].
+  - Else create and persist:
+    ```ts
+    const now = new Date();
+    const root = this.repo.create({
+      userId,
+      activityType: ActivityType.ROOT,        // 'root' from [[02-root-session-schema]]
+      activityRefId: undefined,               // root has no refId
+      status: SessionStatus.ACTIVE,
+      startedAt: this.coerceClientTs(clientTimestampMs) ?? now,
+      lastActivityAt: now,
+      rootSessionId: null,                     // root points at nothing
+    });
+    const saved = await this.repo.save(root);
+    this.activitySessionStore.setRoot(userId, saved.id, { /* ActivityState w/ rootSessionId: null, isPaused: false */ });
+    ```
+  - Does **NOT** call `streamEngine.push(...)` — root has no instruction/SESSION_EVENT stream of its own (contrast `startActivity` lines 83-89). Does **NOT** emit `SessionEvents.COMPLETED/ABANDONED`-style start events.
+- Call site (exact): in `module-state.grpc.controller.ts` `setup()`, AFTER the `handleReconnect` block resolves and BEFORE `request.subscribe(...)` (i.e. between current lines 137 and 141), guarded by `if (subscriber.closed) return;`. One root per app/state-stream connection. Also call `ensureRoot(userId)` defensively at the top of `startActivity` (before `repo.create`, current line 63) so a child never exists without a root — `await` it first to get `root.id`.
+- `startActivity` child-linking: set `rootSessionId: root.id` in BOTH the `repo.create({...})` object (add to lines 63-70) and the in-memory `ActivityState` (add to lines 73-80, `rootSessionId: root.id`). Store via `addChild(userId, saved.id, state)` ([[03-multi-session-store-engine]]) rather than `set`.
+- Root lifecycle: on transport disconnect the root goes `disconnected` + grace and is abandoned on expiry, exactly like a child (handled generically by the per-session loop in `handleTransportDisconnect`, [[03-multi-session-store-engine]] F-01). The root is never ended via `activity:end`.
+- `endActivity` root-skip (F-09): `endActivity(userId, sessionId, ...)` must resolve the addressed **child**, never the root. With the explicit `sessionId` threaded by [[03-multi-session-store-engine]], resolve via `store.getChild(userId, sessionId)` (which excludes the root, since root lives in the root slot not the children map). If resolution yields nothing or a `activityType === ActivityType.ROOT` state, no-op and `return null` (matches existing null-return contract at engine lines 102-108). Same guard applies to `stopActivity`/`pauseActivity`/`unpauseActivity` — none may target the root.
 
 ### Lazy semantics
 "Lazy" = no separate `root:start` RPC. Root is materialized on stream connect. Empty roots (connect, then disconnect with no child and no bio) are reaped by the janitor in [[08-janitor-empty-roots]] — cheaper than guessing intent at connect time.
