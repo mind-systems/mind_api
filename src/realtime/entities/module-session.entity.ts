@@ -11,6 +11,7 @@ import { SessionStatus } from '../enums/session-status.enum';
 @Entity('module_sessions')
 @Index(['userId'])
 @Index(['status'])
+@Index(['rootSessionId'])
 export class ModuleSession {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -19,6 +20,11 @@ export class ModuleSession {
   // FK constraint enforced in the InitialSchema migration.
   @Column({ type: 'uuid' })
   userId: string;
+
+  // No @ManyToOne — modules stay decoupled at the ORM level (mirrors userId).
+  // Self-referential FK constraint enforced in the migration, not via @ManyToOne.
+  @Column({ type: 'uuid', nullable: true })
+  rootSessionId: string | null;
 
   @Column({ type: 'enum', enum: ActivityType })
   activityType: ActivityType;

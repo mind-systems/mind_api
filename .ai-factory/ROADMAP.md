@@ -22,15 +22,13 @@ TDD test tasks for the continuous-bio-timeline refactor, written **before** thei
 - [x] **Tests: root reaping rule + deleteRun orphan cleanup** — highest blast radius: the reap predicate gates a self-referential `ON DELETE CASCADE`. Asserts reap iff no children (bio no longer protects), never reaps a root with a practice, and deleteRun deletes the root only after its last child. Spec: `.ai-factory/notes/19-test-root-reaping-deleterun.md`. [33m 7s]
 - [x] **Tests: bio ingest bound to root** — guards the silent parts (batch pushed with wrong owner id → bio invisible to the read; flush not firing on root lifecycle → buffered bio lost); loud error paths get only a smoke check. Spec: `.ai-factory/notes/21-test-bio-ingest-to-root.md`. [2026-06-28] [20m 51s]
 
----STOP---
-
 ## Continuous bio timeline — root session + overlapping activities
 
 Bio data decouples from individual activities and lives on a single continuous **root session** (the "app is open" container) created lazily on the first meaningful event of a stream connection. Activities (breath, meditation) become flat **child sessions** overlaid on that timeline — they no longer own bio data, they slice it by time window (`bio WHERE rootSessionId = R AND ts ∈ [child.startedAt, child.endedAt]`). This removes the one-session-per-user constraint, allows concurrent activities (e.g. breathing inside a meditation), and is the precondition for the `pre → event → post` timeline the coach service needs. Strict per-session lifecycle is preserved; only the single-slot assumption is dropped. Two-level model only (`rootSessionId`, no `parentSessionId`); migration is 1:1 (one synthetic root per existing session); FK is `ON DELETE CASCADE`. Tasks below are strictly sequential — each depends only on those above it.
 
 ## Phase 54 — Schema foundation
 
-- [ ] **Add `rootSessionId` + `root` activity type with migration** — `module_sessions` has no parent linkage and `ActivityType` is `breath|meditation`. Add `ROOT='root'` to the TS enum + Postgres enum type, a nullable `rootSessionId uuid` column (`@Index`, FK → `module_sessions(id)` `ON DELETE CASCADE`) on `ModuleSession`, via a CLI-generated migration. Roots have `rootSessionId = null`; children point at their root. Do **not** add `ROOT` to the proto `ActivityType` enum — root is server-internal. Purely additive: nullable column, existing rows valid. Spec: `.ai-factory/notes/02-root-session-schema.md`.
+- [x] **Add `rootSessionId` + `root` activity type with migration** — `module_sessions` has no parent linkage and `ActivityType` is `breath|meditation`. Add `ROOT='root'` to the TS enum + Postgres enum type, a nullable `rootSessionId uuid` column (`@Index`, FK → `module_sessions(id)` `ON DELETE CASCADE`) on `ModuleSession`, via a CLI-generated migration. Roots have `rootSessionId = null`; children point at their root. Do **not** add `ROOT` to the proto `ActivityType` enum — root is server-internal. Purely additive: nullable column, existing rows valid. Spec: `.ai-factory/notes/02-root-session-schema.md`. [2026-06-28] [8m 58s]
 
 ## Phase 55 — Multi-session core
 
@@ -60,3 +58,4 @@ Bio data decouples from individual activities and lives on a single continuous *
 
 _Consumer rollout is out of scope here — handed off to the owning repos later: **mind_mobile** (proto regen + root/child client behavior) gets its own `/aif-plan` inside that repo; **mind_mcp** carries no realtime proto, so it needs no change. Cross-repo contract notes (13 mobile, 12 mcp) are kept as handoff reference, not as roadmap tasks._
 
+---STOP---
