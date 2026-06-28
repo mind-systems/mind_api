@@ -10,7 +10,11 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import { Observable, Subscriber } from 'rxjs';
 import {
+  ActivityEndCmd,
+  ActivityPauseCmd,
+  ActivityResumeCmd,
   ActivityStartCmd,
+  ActivityStopCmd,
   ActivityType as ProtoActivityType,
   StateRequest,
   StateResponse,
@@ -21,12 +25,14 @@ import { ActivityType as InternalActivityType } from './enums/activity-type.enum
 import { ActivityEngine } from './services/activity-engine.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
+import { ActivityIdempotencyStore } from './services/activity-idempotency.store';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
 import { GrpcMetadataValue } from '../grpc/decorators/grpc-metadata-value.decorator';
 import { GRPC_MODULE_SESSION_ID_KEY } from '../grpc/grpc-auth.constants';
 import { RealtimeConfig } from './constants/realtime-config';
+import { WsErrorCode } from './constants/ws-error-codes';
 import { AuthEvents } from '../users/events/auth.events';
 import type { SessionRevokedPayload } from '../users/events/auth.events';
 import { SessionEvents } from './events/session.events';
@@ -66,6 +72,8 @@ export class ModuleStateGrpcController {
 
   private readonly activityStartLimit: number;
   private readonly rateLimitWindowMs: number;
+  private readonly idempotencyWindowMs: number;
+  private readonly idempotency = new ActivityIdempotencyStore();
 
   constructor(
     private readonly activityEngine: ActivityEngine,
@@ -81,6 +89,10 @@ export class ModuleStateGrpcController {
     this.rateLimitWindowMs = configService.get<number>(
       RealtimeConfig.RATE_LIMIT_WINDOW_MS,
       60_000,
+    );
+    this.idempotencyWindowMs = configService.get<number>(
+      RealtimeConfig.IDEMPOTENCY_WINDOW_MS,
+      10_000,
     );
   }
 
@@ -194,22 +206,23 @@ export class ModuleStateGrpcController {
         });
 
         this.rateLimiterService.evict(`activity-start:${userId}`);
+        this.idempotency.evictUser(userId);
       });
     });
   }
 
   @OnEvent(AuthEvents.SESSION_REVOKED)
   async handleSessionRevoked(payload: SessionRevokedPayload): Promise<void> {
-    const sessionId =
-      this.activityEngine.getActiveSession(payload.userId)?.sessionId ?? null;
-    try {
-      await this.activityEngine.stopActivity(payload.userId);
-    } catch (err: unknown) {
-      this.logger.error(
-        `Failed to stop activity on session revoke: userId=${payload.userId}`,
-        err,
-      );
-      if (sessionId !== null) {
+    const liveSessions = this.activityEngine.listLiveSessions(payload.userId);
+    for (const session of liveSessions) {
+      const { sessionId } = session;
+      try {
+        await this.activityEngine.stopActivity(payload.userId, sessionId);
+      } catch (err: unknown) {
+        this.logger.error(
+          `Failed to stop activity on session revoke: userId=${payload.userId} sessionId=${sessionId}`,
+          err,
+        );
         this.eventEmitter.emit(SessionEvents.REVOKED, { sessionId });
       }
     }
@@ -225,17 +238,13 @@ export class ModuleStateGrpcController {
       if (msg.activityStart !== undefined) {
         await this.handleActivityStart(userId, msg.activityStart, subscriber);
       } else if (msg.activityEnd !== undefined) {
-        await this.handleActivityEnd(
-          userId,
-          msg.activityEnd.clientTimestampMs,
-          subscriber,
-        );
+        await this.handleActivityEnd(userId, msg.activityEnd, subscriber);
       } else if (msg.activityStop !== undefined) {
-        await this.handleActivityStop(userId, subscriber);
+        await this.handleActivityStop(userId, msg.activityStop, subscriber);
       } else if (msg.activityPause !== undefined) {
-        this.handleActivityPause(userId, subscriber);
+        await this.handleActivityPause(userId, msg.activityPause, subscriber);
       } else if (msg.activityResume !== undefined) {
-        this.handleActivityResume(userId, subscriber);
+        await this.handleActivityResume(userId, msg.activityResume, subscriber);
       } else {
         subscriber.next({
           sessionError: {
@@ -260,6 +269,49 @@ export class ModuleStateGrpcController {
     }
   }
 
+  /**
+   * Resolves which session a command targets.
+   *
+   * Priority:
+   *  1. Explicit sessionId in the cmd → use it directly.
+   *  2. Sole child (exactly one child) → use its sessionId.
+   *  3. More than one child → emit AMBIGUOUS_SESSION and return { ok: false }.
+   *  4. No children → return { ok: true, sessionId: undefined } so the engine
+   *     returns null / throws no_active_session (preserves current no-session behaviour).
+   */
+  private resolveTargetSession(
+    userId: string,
+    explicitSessionId: string | undefined,
+    subscriber: Subscriber<StateResponse>,
+  ): { ok: true; sessionId: string | undefined } | { ok: false } {
+    if (explicitSessionId !== undefined) {
+      return { ok: true, sessionId: explicitSessionId };
+    }
+
+    const sole = this.activityEngine.getSoleChild(userId);
+    if (sole) {
+      return { ok: true, sessionId: sole.sessionId };
+    }
+
+    const children = this.activityEngine
+      .listLiveSessions(userId)
+      .filter((s) => s.activityType !== InternalActivityType.ROOT);
+
+    if (children.length > 1) {
+      subscriber.next({
+        sessionError: {
+          code: WsErrorCode.AMBIGUOUS_SESSION,
+          message: 'Multiple active sessions — provide sessionId',
+          timestamp: Date.now(),
+        },
+      });
+      return { ok: false };
+    }
+
+    // 0 children — let the engine handle the no-session case
+    return { ok: true, sessionId: undefined };
+  }
+
   private async handleActivityStart(
     userId: string,
     cmd: ActivityStartCmd,
@@ -281,15 +333,21 @@ export class ModuleStateGrpcController {
       return;
     }
 
-    const existing = this.activityEngine.getActiveSession(userId);
-    if (existing) {
-      subscriber.next({
-        sessionState: {
-          moduleSessionId: existing.sessionId,
-          status: ActivityStatus.ACTIVE,
-        },
-      });
-      return;
+    // Idempotency dedup: if clientActivityId is set and the window has not expired,
+    // return the cached session id without calling startActivity again.
+    const clientActivityId = (cmd as any).clientActivityId as string | undefined;
+    if (clientActivityId !== undefined) {
+      const idempotencyKey = `${userId}:${clientActivityId}`;
+      const cachedId = this.idempotency.lookup(idempotencyKey, this.idempotencyWindowMs);
+      if (cachedId !== undefined) {
+        subscriber.next({
+          sessionState: {
+            moduleSessionId: cachedId,
+            status: ActivityStatus.ACTIVE,
+          },
+        });
+        return;
+      }
     }
 
     let activityType: InternalActivityType;
@@ -311,6 +369,13 @@ export class ModuleStateGrpcController {
       activityRefId: cmd.refId,
       clientTimestampMs: cmd.clientTimestampMs,
     });
+
+    // Record the new session id in the idempotency map so retries are deduped.
+    if (clientActivityId !== undefined) {
+      const idempotencyKey = `${userId}:${clientActivityId}`;
+      this.idempotency.record(idempotencyKey, session.id);
+    }
+
     subscriber.next({
       sessionState: {
         moduleSessionId: session.id,
@@ -324,12 +389,19 @@ export class ModuleStateGrpcController {
 
   private async handleActivityEnd(
     userId: string,
-    clientTimestampMs: number | undefined,
+    cmd: ActivityEndCmd,
     subscriber: Subscriber<StateResponse>,
   ): Promise<void> {
+    const resolved = this.resolveTargetSession(
+      userId,
+      (cmd as any).sessionId as string | undefined,
+      subscriber,
+    );
+    if (!resolved.ok) return;
     const session = await this.activityEngine.endActivity(
       userId,
-      clientTimestampMs,
+      resolved.sessionId,
+      cmd.clientTimestampMs,
     );
     if (!session) return;
     subscriber.next({
@@ -343,9 +415,16 @@ export class ModuleStateGrpcController {
 
   private async handleActivityStop(
     userId: string,
+    cmd: ActivityStopCmd,
     subscriber: Subscriber<StateResponse>,
   ): Promise<void> {
-    const session = await this.activityEngine.stopActivity(userId);
+    const resolved = this.resolveTargetSession(
+      userId,
+      (cmd as any).sessionId as string | undefined,
+      subscriber,
+    );
+    if (!resolved.ok) return;
+    const session = await this.activityEngine.stopActivity(userId, resolved.sessionId);
     if (!session) return;
     subscriber.next({
       sessionState: {
@@ -358,12 +437,19 @@ export class ModuleStateGrpcController {
     );
   }
 
-  private handleActivityPause(
+  private async handleActivityPause(
     userId: string,
+    cmd: ActivityPauseCmd,
     subscriber: Subscriber<StateResponse>,
-  ): void {
+  ): Promise<void> {
+    const resolved = this.resolveTargetSession(
+      userId,
+      (cmd as any).sessionId as string | undefined,
+      subscriber,
+    );
+    if (!resolved.ok) return;
     try {
-      const state = this.activityEngine.pauseActivity(userId);
+      const state = this.activityEngine.pauseActivity(userId, resolved.sessionId);
       subscriber.next({
         sessionState: {
           moduleSessionId: state.sessionId,
@@ -383,12 +469,19 @@ export class ModuleStateGrpcController {
     }
   }
 
-  private handleActivityResume(
+  private async handleActivityResume(
     userId: string,
+    cmd: ActivityResumeCmd,
     subscriber: Subscriber<StateResponse>,
-  ): void {
+  ): Promise<void> {
+    const resolved = this.resolveTargetSession(
+      userId,
+      (cmd as any).sessionId as string | undefined,
+      subscriber,
+    );
+    if (!resolved.ok) return;
     try {
-      const state = this.activityEngine.unpauseActivity(userId);
+      const state = this.activityEngine.unpauseActivity(userId, resolved.sessionId);
       subscriber.next({
         sessionState: {
           moduleSessionId: state.sessionId,

@@ -36,6 +36,10 @@ function makeActivityEngine() {
     stopActivity: jest.fn().mockResolvedValue(null),
     pauseActivity: jest.fn(),
     unpauseActivity: jest.fn(),
+    getSoleChild: jest.fn().mockReturnValue(undefined),
+    listLiveSessions: jest
+      .fn()
+      .mockReturnValue([{ sessionId: 'session-1', activityType: 'breath' }]),
   };
 }
 
@@ -567,7 +571,10 @@ describe('ModuleStateGrpcController', () => {
   describe('handleSessionRevoked', () => {
     it('should call activityEngine.stopActivity(payload.userId)', async () => {
       await controller.handleSessionRevoked({ userId: 'user-1' });
-      expect(activityEngine.stopActivity).toHaveBeenCalledWith('user-1');
+      expect(activityEngine.stopActivity).toHaveBeenCalledWith(
+        'user-1',
+        'session-1',
+      );
     });
 
     it('should call activeStreamRegistry.closeAll(payload.userId)', async () => {
@@ -642,31 +649,6 @@ describe('ModuleStateGrpcController', () => {
 
       it('should not call activityEngine.startActivity when rate limit is exceeded', async () => {
         rateLimiterService.consume.mockReturnValueOnce(false);
-        const { request$ } = await setupRoutingStream();
-
-        request$.next({ activityStart: { activityType: ActivityType.BREATH } });
-        await flushMicrotasks();
-
-        expect(activityEngine.startActivity).not.toHaveBeenCalled();
-      });
-
-      it('should emit sessionState ACTIVE with existing moduleSessionId when activityEngine.getActiveSession returns a session', async () => {
-        activityEngine.getActiveSession.mockReturnValue(
-          makeActivityState({ sessionId: 'session-1' }),
-        );
-        const { request$, values } = await setupRoutingStream();
-
-        request$.next({ activityStart: { activityType: ActivityType.BREATH } });
-        await flushMicrotasks();
-
-        expect(values[0]?.sessionState?.status).toBe(ActivityStatus.ACTIVE);
-        expect(values[0]?.sessionState?.moduleSessionId).toBe('session-1');
-      });
-
-      it('should not call activityEngine.startActivity when an active session already exists', async () => {
-        activityEngine.getActiveSession.mockReturnValue(
-          makeActivityState({ sessionId: 'session-1' }),
-        );
         const { request$ } = await setupRoutingStream();
 
         request$.next({ activityStart: { activityType: ActivityType.BREATH } });
@@ -758,18 +740,6 @@ describe('ModuleStateGrpcController', () => {
         expect('isPaused' in values[0].sessionState!).toBe(false);
       });
 
-      it('should omit the isPaused field from the emitted sessionState when returning an existing session', async () => {
-        activityEngine.getActiveSession.mockReturnValue(
-          makeActivityState({ sessionId: 'session-1' }),
-        );
-        const { request$, values } = await setupRoutingStream();
-
-        request$.next({ activityStart: { activityType: ActivityType.BREATH } });
-        await flushMicrotasks();
-
-        expect(values[0]?.sessionState).toBeDefined();
-        expect('isPaused' in values[0].sessionState!).toBe(false);
-      });
     });
 
     // ── Task 2: ActivityEnd ─────────────────────────────────────────────────
@@ -783,6 +753,7 @@ describe('ModuleStateGrpcController', () => {
 
         expect(activityEngine.endActivity).toHaveBeenCalledWith(
           'user-1',
+          undefined,
           undefined,
         );
       });
@@ -833,7 +804,10 @@ describe('ModuleStateGrpcController', () => {
         request$.next({ activityStop: {} });
         await flushMicrotasks();
 
-        expect(activityEngine.stopActivity).toHaveBeenCalledWith('user-1');
+        expect(activityEngine.stopActivity).toHaveBeenCalledWith(
+          'user-1',
+          undefined,
+        );
       });
 
       it('should emit sessionState INTERRUPTED with moduleSessionId from the returned session', async () => {
@@ -889,7 +863,10 @@ describe('ModuleStateGrpcController', () => {
         request$.next({ activityPause: {} });
         await flushMicrotasks();
 
-        expect(activityEngine.pauseActivity).toHaveBeenCalledWith('user-1');
+        expect(activityEngine.pauseActivity).toHaveBeenCalledWith(
+          'user-1',
+          undefined,
+        );
       });
 
       it('should emit sessionState ACTIVE with isPaused: true and moduleSessionId from the returned state on success', async () => {
@@ -955,7 +932,10 @@ describe('ModuleStateGrpcController', () => {
         request$.next({ activityResume: {} });
         await flushMicrotasks();
 
-        expect(activityEngine.unpauseActivity).toHaveBeenCalledWith('user-1');
+        expect(activityEngine.unpauseActivity).toHaveBeenCalledWith(
+          'user-1',
+          undefined,
+        );
       });
 
       it('should emit sessionState ACTIVE with isPaused: false and moduleSessionId from the returned state on success', async () => {

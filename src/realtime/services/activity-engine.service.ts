@@ -163,12 +163,12 @@ export class ActivityEngine {
     return saved;
   }
 
-  /** clientTimestampMs is the 2nd positional arg (unchanged).
-   *  sessionId is appended LAST so existing 2-arg call sites are unaffected. */
+  /** sessionId is the 2nd positional arg; clientTimestampMs is 3rd.
+   *  Reordered so session_id routing can be threaded without breaking the timestamp slot. */
   async endActivity(
     userId: string,
-    clientTimestampMs?: number | { toNumber?: () => number } | string,
     sessionId?: string,
+    clientTimestampMs?: number | { toNumber?: () => number } | string,
   ): Promise<ModuleSession | null> {
     const sid =
       sessionId ?? this.activitySessionStore.getSoleChild(userId)?.sessionId;
@@ -539,6 +539,16 @@ export class ActivityEngine {
 
   getActiveSession(userId: string): ActivityState | undefined {
     return this.activitySessionStore.getSoleChild(userId);
+  }
+
+  getSoleChild(userId: string): ActivityState | undefined {
+    return this.activitySessionStore.getSoleChild(userId);
+  }
+
+  listLiveSessions(userId: string): ActivityState[] {
+    const root = this.activitySessionStore.getRoot(userId);
+    const children = this.activitySessionStore.listChildren(userId);
+    return root ? [root, ...children] : [...children];
   }
 
   async resumeActivity(

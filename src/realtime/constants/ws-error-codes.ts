@@ -3,6 +3,7 @@ export const WsErrorCode = {
   NO_SESSION: 'NO_SESSION',
   NO_ROOT_SESSION: 'NO_ROOT_SESSION',
   SESSION_MISMATCH: 'SESSION_MISMATCH',
+  AMBIGUOUS_SESSION: 'AMBIGUOUS_SESSION',
   NO_ACTIVE_SESSION: 'no_active_session',
   ALREADY_PAUSED: 'already_paused',
   NOT_PAUSED: 'not_paused',

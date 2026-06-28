@@ -224,7 +224,7 @@ describe('ActivityEngine', () => {
       );
 
       const clientEndTs = startedAt.getTime() + 8_000;
-      await engine.endActivity('user-1', clientEndTs);
+      await engine.endActivity('user-1', undefined, clientEndTs);
 
       expect(session.endedAt).toEqual(new Date(clientEndTs));
       expect(session.endedAt!.getTime() - session.startedAt.getTime()).toBe(
@@ -250,7 +250,7 @@ describe('ActivityEngine', () => {
       // client end is 2s before startedAt — invalid
       const clientEndTs = startedAt.getTime() - 2_000;
       const before = Date.now();
-      await engine.endActivity('user-1', clientEndTs);
+      await engine.endActivity('user-1', undefined, clientEndTs);
       const after = Date.now();
 
       expect(session.endedAt).toEqual(expect.any(Date));
@@ -279,7 +279,7 @@ describe('ActivityEngine', () => {
       );
 
       const before = Date.now();
-      await engine.endActivity('user-1', 0);
+      await engine.endActivity('user-1', undefined, 0);
       const after = Date.now();
 
       expect(session.endedAt!.getTime()).toBeGreaterThanOrEqual(before);

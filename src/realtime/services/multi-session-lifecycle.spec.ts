@@ -106,7 +106,7 @@ function makeHelpers(engine: ActivityEngine) {
     start: (userId: string, dto: ActivityStartDto) =>
       engine.startActivity(userId, dto),
     end: (userId: string, clientTimestampMs?: number) =>
-      engine.endActivity(userId, clientTimestampMs),
+      engine.endActivity(userId, undefined, clientTimestampMs),
     stop: (userId: string) => engine.stopActivity(userId),
     disconnect: (userId: string) => engine.handleTransportDisconnect(userId),
     reconnect: (userId: string, clientSessionId?: string) =>
