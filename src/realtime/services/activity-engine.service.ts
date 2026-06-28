@@ -54,6 +54,16 @@ export class ActivityEngine {
     return new Date(ms);
   }
 
+  /** Remove a session from the store, using root or child removal as
+   *  appropriate. Dormant root branch is correct for future phases. */
+  private removeSessionFromStore(userId: string, sessionId: string): void {
+    if (sessionId === this.activitySessionStore.getRootId(userId)) {
+      this.activitySessionStore.removeRoot(userId);
+    } else {
+      this.activitySessionStore.removeChild(userId, sessionId);
+    }
+  }
+
   async startActivity(
     userId: string,
     dto: ActivityStartDto,
@@ -78,7 +88,7 @@ export class ActivityEngine {
       lastActivityAt: saved.lastActivityAt,
       isPaused: false,
     };
-    this.activitySessionStore.set(userId, state);
+    this.activitySessionStore.addChild(userId, saved.id, state);
 
     this.streamEngine.push(saved.id, {
       timestamp: Date.now(),
@@ -95,11 +105,23 @@ export class ActivityEngine {
     return saved;
   }
 
+  /** clientTimestampMs is the 2nd positional arg (unchanged).
+   *  sessionId is appended LAST so existing 2-arg call sites are unaffected. */
   async endActivity(
     userId: string,
-    clientTimestampMs?: number,
+    clientTimestampMs?: number | { toNumber?: () => number } | string,
+    sessionId?: string,
   ): Promise<ModuleSession | null> {
-    const state = this.activitySessionStore.get(userId);
+    const sid =
+      sessionId ?? this.activitySessionStore.getSoleChild(userId)?.sessionId;
+    if (!sid) {
+      this.logger.warn(
+        `endActivity: no active session in memory for userId=${userId}`,
+      );
+      return null;
+    }
+
+    const state = this.activitySessionStore.getSession(userId, sid);
     if (!state) {
       this.logger.warn(
         `endActivity: no active session in memory for userId=${userId}`,
@@ -108,16 +130,16 @@ export class ActivityEngine {
     }
 
     this.logger.debug(
-      `endActivity: found state for userId=${userId} sessionId=${state.sessionId}`,
+      `endActivity: found state for userId=${userId} sessionId=${sid}`,
     );
 
     const now = new Date();
-    const session = await this.repo.findOne({ where: { id: state.sessionId } });
+    const session = await this.repo.findOne({ where: { id: sid } });
     if (!session) {
       this.logger.warn(
-        `endActivity: sessionId=${state.sessionId} not found in DB — clearing state`,
+        `endActivity: sessionId=${sid} not found in DB — clearing state`,
       );
-      this.activitySessionStore.delete(userId);
+      this.removeSessionFromStore(userId, sid);
       return null;
     }
 
@@ -135,7 +157,7 @@ export class ActivityEngine {
     session.endedAt = endedAt;
     const saved = await this.repo.save(session);
 
-    this.streamEngine.push(state.sessionId, {
+    this.streamEngine.push(sid, {
       timestamp: Date.now(),
       data: {
         dataType: StreamDataType.SESSION_EVENT,
@@ -143,7 +165,7 @@ export class ActivityEngine {
       },
     });
 
-    this.activitySessionStore.delete(userId);
+    this.removeSessionFromStore(userId, sid);
     const durationMs = saved.endedAt
       ? saved.endedAt.getTime() - saved.startedAt.getTime()
       : 0;
@@ -166,36 +188,44 @@ export class ActivityEngine {
     return saved;
   }
 
-  async onDisconnect(userId: string): Promise<void> {
-    const state = this.activitySessionStore.get(userId);
+  async onDisconnect(userId: string, sessionId?: string): Promise<void> {
+    const sid =
+      sessionId ?? this.activitySessionStore.getSoleChild(userId)?.sessionId;
+    if (!sid) return;
+
+    const state = this.activitySessionStore.getSession(userId, sid);
     if (!state) return;
 
     const now = new Date();
-    await this.repo.update(state.sessionId, {
+    await this.repo.update(sid, {
       status: SessionStatus.DISCONNECTED,
       disconnectedAt: now,
     });
     this.logger.log(
-      `Session disconnected: userId=${userId} sessionId=${state.sessionId}`,
+      `Session disconnected: userId=${userId} sessionId=${sid}`,
     );
     // Entry stays in activitySessionStore — grace timer + abandon handled by handleTransportDisconnect
   }
 
-  async abandonActivity(userId: string): Promise<void> {
-    const state = this.activitySessionStore.get(userId);
+  async abandonActivity(userId: string, sessionId?: string): Promise<void> {
+    const sid =
+      sessionId ?? this.activitySessionStore.getSoleChild(userId)?.sessionId;
+    if (!sid) return;
+
+    const state = this.activitySessionStore.getSession(userId, sid);
     if (!state) return;
 
     const now = new Date();
-    const session = await this.repo.findOne({ where: { id: state.sessionId } });
+    const session = await this.repo.findOne({ where: { id: sid } });
     if (!session) {
-      this.activitySessionStore.delete(userId);
+      this.removeSessionFromStore(userId, sid);
       return;
     }
 
     // Guard: if the session was already resumed (ACTIVE) before the grace timer
     // fired, do not overwrite it — the user reconnected in time.
     if (session.status !== SessionStatus.DISCONNECTED) {
-      this.activitySessionStore.delete(userId);
+      this.removeSessionFromStore(userId, sid);
       return;
     }
 
@@ -203,7 +233,7 @@ export class ActivityEngine {
     session.endedAt = now;
     const saved = await this.repo.save(session);
 
-    this.streamEngine.push(state.sessionId, {
+    this.streamEngine.push(sid, {
       timestamp: Date.now(),
       data: {
         dataType: StreamDataType.SESSION_EVENT,
@@ -211,7 +241,7 @@ export class ActivityEngine {
       },
     });
 
-    this.activitySessionStore.delete(userId);
+    this.removeSessionFromStore(userId, sid);
     this.logger.log(
       `Session abandoned: userId=${userId} sessionId=${saved.id} durationMs=${saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0}`,
     );
@@ -229,9 +259,8 @@ export class ActivityEngine {
   async abandonStale(userId: string, sessionId: string): Promise<void> {
     const session = await this.repo.findOne({ where: { id: sessionId } });
     if (!session) {
-      const storedState = this.activitySessionStore.get(userId);
-      if (storedState?.sessionId === sessionId) {
-        this.activitySessionStore.delete(userId);
+      if (this.activitySessionStore.getSession(userId, sessionId)) {
+        this.removeSessionFromStore(userId, sessionId);
       }
       return;
     }
@@ -242,9 +271,8 @@ export class ActivityEngine {
       SessionStatus.ABANDONED,
     ];
     if (finalStatuses.includes(session.status)) {
-      const storedState = this.activitySessionStore.get(userId);
-      if (storedState?.sessionId === sessionId) {
-        this.activitySessionStore.delete(userId);
+      if (this.activitySessionStore.getSession(userId, sessionId)) {
+        this.removeSessionFromStore(userId, sessionId);
       }
       return;
     }
@@ -262,9 +290,8 @@ export class ActivityEngine {
       },
     });
 
-    const storedState = this.activitySessionStore.get(userId);
-    if (storedState?.sessionId === sessionId) {
-      this.activitySessionStore.delete(userId);
+    if (this.activitySessionStore.getSession(userId, sessionId)) {
+      this.removeSessionFromStore(userId, sessionId);
     }
     this.logger.log(
       `Session abandoned (stale): userId=${userId} sessionId=${saved.id} durationMs=${saved.endedAt ? saved.endedAt.getTime() - saved.startedAt.getTime() : 0}`,
@@ -280,8 +307,20 @@ export class ActivityEngine {
     });
   }
 
-  async stopActivity(userId: string): Promise<ModuleSession | null> {
-    const state = this.activitySessionStore.get(userId);
+  async stopActivity(
+    userId: string,
+    sessionId?: string,
+  ): Promise<ModuleSession | null> {
+    const sid =
+      sessionId ?? this.activitySessionStore.getSoleChild(userId)?.sessionId;
+    if (!sid) {
+      this.logger.warn(
+        `stopActivity: no active session in memory for userId=${userId}`,
+      );
+      return null;
+    }
+
+    const state = this.activitySessionStore.getSession(userId, sid);
     if (!state) {
       this.logger.warn(
         `stopActivity: no active session in memory for userId=${userId}`,
@@ -290,12 +329,12 @@ export class ActivityEngine {
     }
 
     const now = new Date();
-    const session = await this.repo.findOne({ where: { id: state.sessionId } });
+    const session = await this.repo.findOne({ where: { id: sid } });
     if (!session) {
       this.logger.warn(
-        `stopActivity: sessionId=${state.sessionId} not found in DB — clearing state`,
+        `stopActivity: sessionId=${sid} not found in DB — clearing state`,
       );
-      this.activitySessionStore.delete(userId);
+      this.removeSessionFromStore(userId, sid);
       return null;
     }
 
@@ -304,7 +343,7 @@ export class ActivityEngine {
       session.endedAt = now;
       const saved = await this.repo.save(session);
 
-      this.streamEngine.push(state.sessionId, {
+      this.streamEngine.push(sid, {
         timestamp: Date.now(),
         data: {
           dataType: StreamDataType.SESSION_EVENT,
@@ -330,12 +369,17 @@ export class ActivityEngine {
 
       return saved;
     } finally {
-      this.activitySessionStore.delete(userId);
+      this.removeSessionFromStore(userId, sid);
     }
   }
 
-  pauseActivity(userId: string): ActivityState {
-    const state = this.activitySessionStore.get(userId);
+  pauseActivity(userId: string, sessionId?: string): ActivityState {
+    const sid =
+      sessionId ?? this.activitySessionStore.getSoleChild(userId)?.sessionId;
+    if (!sid) {
+      throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
+    }
+    const state = this.activitySessionStore.getSession(userId, sid);
     if (!state) {
       throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
     }
@@ -346,7 +390,7 @@ export class ActivityEngine {
     state.isPaused = true;
     state.lastActivityAt = new Date();
 
-    this.streamEngine.push(state.sessionId, {
+    this.streamEngine.push(sid, {
       timestamp: Date.now(),
       data: {
         dataType: StreamDataType.SESSION_EVENT,
@@ -355,19 +399,24 @@ export class ActivityEngine {
     });
 
     this.eventEmitter.emit(MODULE_SESSION_PAUSED, {
-      sessionId: state.sessionId,
+      sessionId: sid,
       userId,
     });
 
     this.logger.log(
-      `Session paused: userId=${userId} sessionId=${state.sessionId}`,
+      `Session paused: userId=${userId} sessionId=${sid}`,
     );
 
     return state;
   }
 
-  unpauseActivity(userId: string): ActivityState {
-    const state = this.activitySessionStore.get(userId);
+  unpauseActivity(userId: string, sessionId?: string): ActivityState {
+    const sid =
+      sessionId ?? this.activitySessionStore.getSoleChild(userId)?.sessionId;
+    if (!sid) {
+      throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
+    }
+    const state = this.activitySessionStore.getSession(userId, sid);
     if (!state) {
       throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
     }
@@ -378,7 +427,7 @@ export class ActivityEngine {
     state.isPaused = false;
     state.lastActivityAt = new Date();
 
-    this.streamEngine.push(state.sessionId, {
+    this.streamEngine.push(sid, {
       timestamp: Date.now(),
       data: {
         dataType: StreamDataType.SESSION_EVENT,
@@ -387,28 +436,35 @@ export class ActivityEngine {
     });
 
     this.eventEmitter.emit(MODULE_SESSION_UNPAUSED, {
-      sessionId: state.sessionId,
+      sessionId: sid,
       userId,
     });
 
     this.logger.log(
-      `Session unpaused: userId=${userId} sessionId=${state.sessionId}`,
+      `Session unpaused: userId=${userId} sessionId=${sid}`,
     );
 
     return state;
   }
 
   getActiveSession(userId: string): ActivityState | undefined {
-    return this.activitySessionStore.get(userId);
+    return this.activitySessionStore.getSoleChild(userId);
   }
 
-  async resumeActivity(userId: string): Promise<ModuleSession | null> {
-    const state = this.activitySessionStore.get(userId);
+  async resumeActivity(
+    userId: string,
+    sessionId?: string,
+  ): Promise<ModuleSession | null> {
+    const sid =
+      sessionId ?? this.activitySessionStore.getSoleChild(userId)?.sessionId;
+    if (!sid) return null;
+
+    const state = this.activitySessionStore.getSession(userId, sid);
     if (!state) return null;
 
-    const session = await this.repo.findOne({ where: { id: state.sessionId } });
+    const session = await this.repo.findOne({ where: { id: sid } });
     if (!session) {
-      this.activitySessionStore.delete(userId);
+      this.removeSessionFromStore(userId, sid);
       return null;
     }
 
@@ -432,10 +488,31 @@ export class ActivityEngine {
     userId: string,
     clientSessionId?: string,
   ): Promise<ModuleSession | { abandoned: true } | null> {
-    if (this.activitySessionStore.has(userId)) {
-      this.activitySessionStore.cancelGraceTimer(userId);
-      return this.resumeActivity(userId);
+    const rootId = this.activitySessionStore.getRootId(userId);
+    const childIds = this.activitySessionStore
+      .listChildren(userId)
+      .map((c) => c.sessionId);
+    const sessionIds = ([rootId, ...childIds] as (string | null)[]).filter(
+      (id): id is string => Boolean(id),
+    );
+
+    if (sessionIds.length > 0) {
+      let soleChildResult: ModuleSession | null = null;
+      let rootResult: ModuleSession | null = null;
+
+      for (const sid of sessionIds) {
+        this.activitySessionStore.cancelGraceTimerForSession(sid);
+        const resumed = await this.resumeActivity(userId, sid);
+        if (sid === rootId) {
+          rootResult = resumed;
+        } else {
+          soleChildResult = resumed;
+        }
+      }
+
+      return soleChildResult ?? rootResult ?? null;
     }
+
     if (clientSessionId) {
       const row = await this.repo.findOne({
         where: { id: clientSessionId, userId },
@@ -451,12 +528,20 @@ export class ActivityEngine {
   }
 
   async handleTransportDisconnect(userId: string): Promise<void> {
-    await this.onDisconnect(userId);
-    if (this.activitySessionStore.has(userId)) {
-      this.activitySessionStore.startGraceTimer(userId, () => {
-        this.abandonActivity(userId).catch((err: unknown) => {
+    const rootId = this.activitySessionStore.getRootId(userId);
+    const childIds = this.activitySessionStore
+      .listChildren(userId)
+      .map((c) => c.sessionId);
+    const sessionIds = ([rootId, ...childIds] as (string | null)[]).filter(
+      (id): id is string => Boolean(id),
+    );
+
+    for (const sid of sessionIds) {
+      await this.onDisconnect(userId, sid);
+      this.activitySessionStore.startGraceTimerForSession(sid, () => {
+        this.abandonActivity(userId, sid).catch((err: unknown) => {
           this.logger.error(
-            `Failed to abandon session after grace: userId=${userId}`,
+            `Failed to abandon session after grace: userId=${userId} sessionId=${sid}`,
             err,
           );
         });
