@@ -16,6 +16,13 @@
 - `aggregateBiometrics` SQL path filters by `b."moduleSessionId" = ${sessionParam}` where `sessionParam = p(session.id)` (`sessions.service.ts:267` builds the param, `:276` uses it in the `conditions` array).
 - `listInstructions` (`sessions.service.ts:352-423`) filters `session_stream_samples` by `moduleSessionId: sessionId` at `:365-367` — **UNCHANGED** by this task. Instructions stay strictly per-child (confirmed: do not add the id-set or default-window logic here).
 
+### Inlined contracts (this note is self-contained — do not open other notes)
+The `ModuleSession` entity (`src/realtime/entities/module-session.entity.ts`) returned by `assertSessionOwnership` exposes the fields this note's code reads:
+- **`id: string`** — the uuid primary key (`@PrimaryGeneratedColumn('uuid')`).
+- **`rootSessionId: string | null`** — nullable uuid column (`@Column({ type: 'uuid', nullable: true })`); `null` for legacy/un-migrated sessions. Added to the entity by the root-session schema task; if absent when this task runs, that schema task must land first.
+- **`startedAt: Date`** — non-null session start (`@Column()`).
+- **`endedAt?: Date`** — nullable session end (`@Column({ nullable: true })`); `undefined`/`null` for an in-flight session.
+
 ### Change — bio reads only
 
 **Resolve the id set (both paths).** After `assertSessionOwnership`, build:
@@ -79,3 +86,14 @@ Verification is **manual** — no automated test (the test task was dropped). Ex
 
 ## Open Questions
 - None — depends only on the `rootSessionId` column from [[02-root-session-schema]] (must be merged first so `session.rootSessionId` exists on the entity).
+
+## Test reconciliation (committed tests)
+
+**NO automated test** — verification is manual (§Verify; the test task was dropped). No committed `describe/it` case exercises `listBiometrics`/`aggregateBiometrics` for the tolerant read, so nothing flips RED→GREEN and there is nothing to invert or delete.
+
+The tolerant-read contract is internally complete and self-consistent:
+- **Id set:** `In([session.id, session.rootSessionId])` when `rootSessionId != null`, else `In([session.id])` (raw path); `= ANY($n)` with the same array (SQL path). Never includes a null (§Change).
+- **Window:** half-open `[startedAt, endedAt)` defaulted onto the per-sample timestamp filter only when the caller omits `from`/`to`; `endedAt` null → open upper bound. The coarse `flushedAt` filter stays driven by the original request `fromDate`/`toDate`, not the defaulted window — this separation is load-bearing and complete.
+- **No double counting:** bio owns exactly one row-owner per era (child pre-migration, root post-[[11-migration-backfill-roots]]); the union id-set only ever matches one.
+
+Depends only on note [[02-root-session-schema]] (the `rootSessionId`/`startedAt`/`endedAt` fields on the entity). No forward-coupling gap. Confirmed complete.

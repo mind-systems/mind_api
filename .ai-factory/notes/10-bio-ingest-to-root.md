@@ -24,12 +24,17 @@
 - `ActivityEngine.ensureRoot(userId, clientTs?)` is added by [[04-lazy-root-creation]]; it returns the existing root or lazily creates one.
 - `src/realtime/services/biometric-stream-engine.service.ts` buffers per the `sessionId` argument of `pushBatch` (`:77-133`, `this.buffers` keyed by `sessionId` at `:86,:104`) and flushes on `@OnEvent` `COMPLETED` (`:204`), `ABANDONED` (`:216`), `INTERRUPTED` (`:228`), `REVOKED` (`:240`) — each keyed by `payload.sessionId`.
 
+### Inlined contracts (this note is self-contained — do not open other notes)
+- **`activityEngine.ensureRoot(userId: string, clientTs?: number): Promise<ModuleSession | undefined>`** — a method on `ActivityEngine` (`src/realtime/services/activity-engine.service.ts`). Returns the user's existing root `ModuleSession` or lazily **creates** one and returns it. Async (DB write on creation). The result is `undefined` only in the unexpected case where creation yields nothing — that is the sole trigger for `NO_ROOT_SESSION`. (If `ensureRoot` is not yet present on `ActivityEngine` when this task runs, add it as part of root resolution: persist a `ModuleSession` row with `activityType = 'root'` for the user and return it.)
+- **`ModuleSession` shape** (`src/realtime/entities/module-session.entity.ts`) — owner field is **`id: string`** (the uuid primary key, `@PrimaryGeneratedColumn('uuid')`). There is **no `sessionId` field** on this entity. Use `root.id` everywhere bio needs the owner id.
+- **`WsErrorCode.NO_ROOT_SESSION`** (`src/realtime/constants/ws-error-codes.ts`) — a const object; `WsErrorCode.NO_ROOT_SESSION === 'NO_ROOT_SESSION'` and `WsErrorCode.SESSION_MISMATCH === 'SESSION_MISMATCH'` (literal string values).
+- **Controller `handleBatch` step structure** (`module-biometric-stream.grpc.controller.ts:81-171`, private method): ordered guards — Step 1 empty batch → Step 2 missing sessionId (`samples[0].sessionId === ''`) → Step 3 inconsistent sessionId → Step 4 missing sampleType — each calls a local `emitError(code, message)` (`(code, message) => subscriber.next({ error: { code, message, timestamp } })`) then `return`. Steps 1–4 emit the literal `'INVALID_ARGUMENT'` and are **unchanged** by this task. Steps 5 (session resolution) and 6 (id comparison) are what this task rewrites; the happy path then maps samples and calls `this.streamEngine.pushBatch(ownerId, mapped)` and acks `sessionId: ownerId`.
+
 ### Change
-- **Controller step 5** (`module-biometric-stream.grpc.controller.ts:116-121`): replace `getActiveSession` with root resolution.
-  - If the bio-only-ensureRoot fork (see Blocking decisions) is **yes**: `const root = await this.activityEngine.ensureRoot(userId, /* clientTs */);` (handleBatch becomes async / returns the promise) — never null.
-  - If **no**: `const root = this.activityEngine.getRoot(userId); if (!root) { emitError(WsErrorCode.NO_ROOT_SESSION, 'No root session'); return; }`.
-  - The new error code `NO_ROOT_SESSION` is already added: `WsErrorCode.NO_ROOT_SESSION = 'NO_ROOT_SESSION'` (`src/realtime/constants/ws-error-codes.ts:4`). Import `WsErrorCode` into this controller and emit `WsErrorCode.NO_ROOT_SESSION` (replacing the old literal `'NO_SESSION'`).
-- **Controller step 6** (`:123-130`): keep `SESSION_MISMATCH` but compare against the root id: `if (root.id !== batch.samples[0].sessionId) emitError(WsErrorCode.SESSION_MISMATCH, 'Session ID does not match root session'); return;`. (`root.id` for an `ensureRoot` `ModuleSession`, or `root.sessionId` if `getRoot` returns the store `ActivityState` — match whichever shape [[03-multi-session-store-engine]] exposes.)
+- **Controller step 5** (`module-biometric-stream.grpc.controller.ts:116-121`): replace `getActiveSession` with root resolution via `ensureRoot` — the **only** path (the locked decision is that a bio-only connection *creates* a root):
+  - `const root = await this.activityEngine.ensureRoot(userId, /* clientTs */);` — `handleBatch` becomes **async**. `ensureRoot` is (almost) never null; `NO_ROOT_SESSION` is reserved for the unexpected case where it yields nothing: `if (!root) { emitError(WsErrorCode.NO_ROOT_SESSION, 'No root session'); return; }`.
+  - **Note 10 OWNS** the `WsErrorCode` wiring: the code `WsErrorCode.NO_ROOT_SESSION = 'NO_ROOT_SESSION'` already exists (`src/realtime/constants/ws-error-codes.ts:4`), but `WsErrorCode` is imported nowhere in this controller today. This task imports `WsErrorCode` and emits `WsErrorCode.NO_ROOT_SESSION` where step 5 emits the literal `'NO_SESSION'` today (`:119`). The committed test asserts the literal `'NO_ROOT_SESSION'` (spec `:396`) — value-equal, so emitting via `WsErrorCode.NO_ROOT_SESSION` stays GREEN.
+- **Controller step 6** (`:123-130`): keep `SESSION_MISMATCH` but compare against **`root.id`, NOT `session.sessionId`**: `if (root.id !== batch.samples[0].sessionId) emitError(WsErrorCode.SESSION_MISMATCH, 'Session ID does not match root session'); return;`. `ensureRoot` returns a `ModuleSession` whose owner field is `.id`; the committed `makeRoot()` fixture has **no `sessionId` field** (`module-biometric-stream.grpc.controller.spec.ts:50-61`), so reading `session.sessionId` here yields `undefined` → SESSION_MISMATCH on every batch. Compare `root.id`.
 - **Happy path** (`:132-141`): push with the root id — `this.streamEngine.pushBatch(root.id, mapped)` (replacing `batchSessionId` at `:141`). The ack `sessionId` (`:145`) should also be the root id.
 - **Engine**: no structural change — `pushBatch` (`biometric-stream-engine.service.ts:77`) is keyed by an arbitrary `sessionId`, so passing `root.id` makes the buffer per-root automatically.
 
@@ -53,3 +58,31 @@
 
 ## Open Questions
 - None remaining (the bio-only `ensureRoot` fork is promoted to Blocking decisions above).
+
+## Test reconciliation (committed tests)
+
+The committed bio tests stub **`ensureRoot`** (not `getRoot`) — matching the locked decision (§Decisions). Implementing this note's §Change (the `ensureRoot` path, `await` → `handleBatch` async) flips the four controller target cases RED→GREEN. There is no `getRoot` fork to implement — it has been dropped from §Change.
+
+### GREEN list — `module-biometric-stream.grpc.controller.spec.ts`
+`describe('streamData — bio bound to root')`:
+- `[RED until spec 10] should resolve the user root and call pushBatch(root.id, …)` (`:342-362`) — asserts `frame.ack.sessionId === 'root-1'` and `pushBatch('root-1', any[])`.
+- `[RED until spec 10] should reject a batch whose session_id is a child id with SESSION_MISMATCH` (`:364-380`) — `ensureRoot→root-1`, batch carries `child-9`, expects `frame.error.code === 'SESSION_MISMATCH'`, `pushBatch` NOT called.
+- `[RED until spec 10] should emit NO_ROOT_SESSION when ensureRoot yields nothing` (`:382-397`) — `ensureRoot→undefined`, expects `frame.error.code === 'NO_ROOT_SESSION'`.
+- `[RED until spec 10] should accept a batch for a paused root (pause does not block bio — P5 forward invariant)` (`:399-417`) — `ensureRoot→root(isPaused:true)`, expects `frame.ack` defined, `frame.error` undefined, `pushBatch` called.
+
+### GREEN list — `biometric-stream-engine.service.spec.ts` (characterization — must STAY GREEN)
+The engine is structurally unchanged (§Engine); these guard against breaking the id-agnostic flush — do NOT alter the `@OnEvent` handlers or the buffer key:
+- `describe('root lifecycle flush (characterization — must stay GREEN)')`: `flushes and clears the per-root buffer on root ABANDONED` (`:267-280`); `… on REVOKED` (`:282-294`); `child COMPLETED is a harmless no-op when the child owns no buffer` (`:296-309`).
+- `describe('root ABANDONED — flush coexistence')` → `should still flush the bio buffer on a root ABANDONED` (`:254-258`).
+- `describe('overflow temporal density …')` → mid-batch oversized drop preserves neighbours (`:318-343`).
+
+### Forward-couplings this note OWNS (pinned)
+1. **Step 6 compares `root.id`, not `session.sessionId`** (§Change above). The committed `makeRoot()` fixture (`spec :50-61`) has no `sessionId` field; the current controller reads `session.sessionId` (`controller :124`) → `undefined` → SESSION_MISMATCH on every batch. **HIGH** (silent: blocks all 4 target GREEN cases).
+2. **Retire the legacy pause pass-through chars.** `describe('streamData — pause pass-through')` (`spec :155-263`, four `it` at `:156, :180, :204, :228`) stub `activityEngine.getActiveSession` and send a child sessionId. Swapping step 5 to `ensureRoot` makes `getActiveSession` dead → those false-RED. The forward pause invariant is already re-expressed against a live root at `spec :399-417`, so **retire the legacy four** (delete them). **MEDIUM**.
+3. **OWN the `WsErrorCode` import + `NO_ROOT_SESSION` emission** (§Change above). Code value exists at `ws-error-codes.ts:4`; `WsErrorCode` is imported nowhere in the controller and step 5 emits literal `'NO_SESSION'` (`:119`). **MEDIUM** (target case `:382-397` stays RED until done).
+
+### handleBatch async
+`ensureRoot` is awaited → `handleBatch` is `async`. The `request.subscribe` next-handler fire-and-forgets it (`controller :66-67`); `void`-ing the returned promise is fine. The test helper `firstNonReadyFrame` (`spec :70-87`) captures the first non-ready frame whenever it emits — no hang.
+
+### ANTI-TARGETS
+None to invert. The legacy pause pass-through four (`spec :155-263`) are **retired** (deleted), not inverted — superseded by the live-root paused case at `spec :399-417`.

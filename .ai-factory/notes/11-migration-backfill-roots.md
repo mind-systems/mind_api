@@ -21,6 +21,12 @@
 - NOT NULL columns on `module_sessions` that the synthetic root INSERT must populate (from `module-session.entity.ts`): `userId` (`:20-21`), `activityType` (`:23-24`), `status` (`:29-30`, has default `'active'`), `startedAt` (`:32-33`), `lastActivityAt` (`:41-42`), `createdAt` (`@CreateDateColumn`, DB default `now()`). Nullable: `activityRefId`, `disconnectedAt`, `endedAt` (`:38-39`), `metadata`, `rootSessionId`.
 - Postgres enum type is `"public"."activity_type_enum"`; the `'root'` value is added by [[02-root-session-schema]]'s `ALTER TYPE ... ADD VALUE IF NOT EXISTS 'root'` (mirrors `1780146744056-AddMeditationActivityType.ts:5-7`).
 
+### Inlined contracts (this note is self-contained — do not open other notes)
+The schema prerequisites this migration's SQL touches (provided by an earlier schema task; must be committed before this migration runs):
+- **`module_sessions."rootSessionId"`** — nullable uuid column with self-referential FK `FK_module_sessions_rootSessionId` `ON DELETE CASCADE`. `up()` writes it (link child→root); `down()` nulls it before deleting roots (cascade ordering — see down()).
+- **`"public"."activity_type_enum"` value `'root'`** — added via `ALTER TYPE ... ADD VALUE IF NOT EXISTS 'root'` in a **separate, earlier** migration (Postgres forbids using a newly-added enum value in the same transaction that adds it). This migration only INSERTs `activityType = 'root'` rows; it must NOT contain the `ADD VALUE` statement.
+- **`bio_session_samples."moduleSessionId"`** — uuid FK to `module_sessions(id)`, `ON DELETE CASCADE` (`FK_bio_session_samples_moduleSessionId`); `up()` repoints it child→root, `down()` repoints root→child.
+
 ### Dependency / ordering (HARD constraint)
 Postgres forbids using a newly-added enum value in the **same transaction** that adds it (this is exactly why `AddMeditationActivityType` is a single-statement migration). TypeORM runs each migration in its own transaction (`migrationsTransactionMode` defaults to `"all"`). Therefore:
 - The `ALTER TYPE ... ADD VALUE 'root'` migration from [[02-root-session-schema]] **must be committed in an earlier, separate migration** before this backfill migration runs (this migration INSERTs `activityType = 'root'` rows).
@@ -96,3 +102,14 @@ Instruction samples (`session_stream_samples`) stay on the child — instruction
 
 ## Open Questions
 - Synthetic-root `status` — see Blocking decisions. Cosmetic; default in the SQL above mirrors the child's status. Pick `'completed'` for closed (`endedAt` not null) sessions if the product wants roots to read as terminal.
+
+## Test reconciliation (committed tests)
+
+**NO automated DB/integration test** — verification is manual (§Decisions, §Verify; the test task was dropped). Validate by restoring a prod snapshot onto dev and running `up()`/`down()` (§Verify). No committed case flips RED→GREEN; nothing to invert or delete.
+
+The migration contract is internally complete and self-consistent:
+- **1:1 synthetic root per qualifying child**, INSERT populates all NOT NULL columns; idempotent guard skips already-migrated children (`rootSessionId IS NOT NULL`).
+- **`down()` ordering** (repoint bio back → null child `rootSessionId` → delete roots) is load-bearing against the self-referential `ON DELETE CASCADE`.
+- **Bio repointed to root** so the tolerant read ([[09-analytics-tolerant-bio-read]]) returns it via the root branch — instructions stay on the child.
+
+Depends only on note [[02-root-session-schema]] (the `'root'` enum value committed in a prior migration + the `rootSessionId` column); runs after [[10-bio-ingest-to-root]] so the target model is final. No forward-coupling gap. Confirmed complete.

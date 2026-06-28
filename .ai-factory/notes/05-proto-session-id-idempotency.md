@@ -34,3 +34,21 @@
 
 ## Open Questions
 - None.
+
+## Test reconciliation (committed tests)
+
+### GREEN list — proto fields the committed tests access via cast
+`src/realtime/concurrency-idempotency.spec.ts` accesses these not-yet-existing fields via `(cmd as any)` so it compiles before regen. Spec 05 must make each a real proto field (ts-proto camelCase shown):
+- `activityStart()` sets `(cmd as any).clientActivityId` (spec:148) → `ActivityStartCmd.client_activity_id = 5` (`clientActivityId`). ✓ note line 19.
+- `activityEnd()` sets `(cmd as any).sessionId` (spec:162) → `ActivityEndCmd.session_id = 2` (`sessionId`). ✓ note line 20.
+- `activityStop()` sets `(cmd as any).sessionId` (spec:173) → `ActivityStopCmd.session_id = 1`. ✓ note line 21.
+- `activityPause()` sets `(cmd as any).sessionId` (spec:181) → `ActivityPauseCmd.session_id = 1`. ✓ note line 22.
+- `activityResume()` sets `(cmd as any).sessionId` (spec:189) → `ActivityResumeCmd.session_id = 1`. ✓ note line 23.
+
+All five field numbers/names and the `reserved 3` skip match the note. The spec is compile-stable across this change because every new field is accessed via cast.
+
+### Anti-targets
+None. This task is proto-only/additive; no committed test asserts the OLD proto shape, and `(cmd as any)` casts compile both before and after regen.
+
+### Gaps
+None. Note 05 fully honors the field contract the committed tests pin.

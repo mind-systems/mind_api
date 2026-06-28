@@ -61,5 +61,18 @@ Do **not** add `ROOT` to the proto `ActivityType` enum (`proto/module_state.prot
 - Existing rows: `rootSessionId IS NULL`.
 - Can insert a row with `activityType = 'root'` and another referencing it.
 
+## Test reconciliation (committed tests)
+
+Target file: `src/realtime/services/multi-session-lifecycle.spec.ts`.
+
+This note is **schema/type foundation only** — it flips no `it` GREEN by itself, but it is a hard **compile/type precondition** for the `target — ensureRoot / linking` block (701-854) and for notes 03/04 production code:
+- `ModuleSession.rootSessionId` column (§Change step 3) — the spec builds sessions with `rootSessionId: null` via `makeSession` overrides typed `Partial<ModuleSession>` (lines 64, 734, 766, 772, 808). Without the column these literals fail to type-check → the whole spec fails to compile → every case RED for the wrong reason. Precondition for all three `ensureRoot / linking` cases.
+- `ActivityType.ROOT = 'root'` (§Change step 1) — the spec deliberately uses the **string literal** `'root' as any` (730, 744, 766, 779, 802, 815) and asserts `toBe('root')`, so the assertions pass without the enum member; but note 04's production code sets `activityType: ActivityType.ROOT`, which will not compile unless this member exists. Compile gate for note 04, not a direct test assertion.
+- `ActivityState.rootSessionId?: string | null` (§In-memory interface) — the spec reads `(storedState as any).rootSessionId` (794) behind an `as any` cast, so it runs without the field; but note 04's `startActivity` writes `state.rootSessionId`, needing the field to compile.
+
+**ANTI-TARGETS:** none. Phase 55 is purely additive at the schema layer — this note deletes/inverts no committed test.
+
+**GAPS:** none. The note is complete for test reconciliation; the only nuance (tests use the `'root'` literal, not `ActivityType.ROOT`) is already consistent with the §Proto note keeping `'root'` an internal discriminator.
+
 ## Open Questions
 - None — decisions locked (cascade, 1:1 model, no proto enum change).
