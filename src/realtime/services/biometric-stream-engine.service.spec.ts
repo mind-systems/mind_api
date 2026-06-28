@@ -246,6 +246,20 @@ describe('BiometricStreamEngine', () => {
     });
   });
 
+  describe('root ABANDONED — flush coexistence', () => {
+    // Characterization / invariant (GREEN now, must stay GREEN through spec 07).
+    // The bio engine subscribes to ABANDONED independently of StatsWorker and flushes via
+    // { sessionId } payload — the stats guard must touch only the StatsWorker path.
+    // If this goes RED after spec 07, the guard wrongly reached into the bio path → Class-B → escalate.
+    it('should still flush the bio buffer on a root ABANDONED — invariant guarding spec 07 against over-guard', async () => {
+      const flushSpy = jest
+        .spyOn(engine, 'flush')
+        .mockResolvedValue(undefined);
+      await engine.onSessionAbandoned({ sessionId: 'root-1' });
+      expect(flushSpy).toHaveBeenCalledWith('root-1');
+    });
+  });
+
   describe('maxSamplesPerSecond', () => {
     it('returns value from config', () => {
       expect(engine.maxSamplesPerSecond).toBe(50);

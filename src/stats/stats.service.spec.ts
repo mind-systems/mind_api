@@ -96,6 +96,7 @@ describe('StatsService', () => {
   }
 
   describe('finalise — short session skipped', () => {
+    // Characterization invariant (spec-18 min-duration guard): guards that spec 07's root early return does not accidentally bypass or duplicate this min-duration gate for ordinary practices. A RED here after spec 07 = Class-B bug → escalate, do not patch the test.
     it('skips session shorter than WS_MIN_SESSION_DURATION_S', async () => {
       const { service: svc, repo } = makeService();
       const start = new Date(NOW.getTime());
@@ -103,6 +104,28 @@ describe('StatsService', () => {
       await svc.finalise(makeEvent(start, end));
       expect(repo.manager.transaction).not.toHaveBeenCalled();
     });
+  });
+
+  describe('finalise — root excluded', () => {
+    // Target: RED now — no root guard exists, so finalise runs the full transaction for any
+    // activityType. Flips GREEN after spec 07 adds an ActivityType.ROOT early return at the top
+    // of StatsService.finalise (not the worker — the worker forwards every event type
+    // unconditionally, so a worker-spy assertion would be permanently RED regardless of spec 07).
+    it('should NOT write user_stats for a root session — RED until spec 07-exclude-root-from-stats', async () => {
+      const { service: svc, repo } = makeService();
+      const start = new Date(NOW.getTime());
+      // 20s is above the 10s min-duration threshold — ensures the min-duration gate does NOT
+      // pre-empt this assertion and mask whether the root guard fired.
+      const end = new Date(NOW.getTime() + 20_000);
+      await svc.finalise(makeEvent(start, end, { activityType: 'root' as any }));
+      expect(repo.manager.transaction).not.toHaveBeenCalled();
+    });
+
+    // Non-root write invariant: the "a non-root session DOES write user_stats" counterpart is
+    // already covered by the breath cases in 'finalise — first session', 'finalise — same day
+    // session', 'finalise — consecutive day (yesterday)', etc. (lines ~108–257 below). A RED
+    // there after spec 07 = guard caught the wrong type → Class-B bug → escalate to spec 07,
+    // do not patch the test.
   });
 
   describe('finalise — first session (no existing row)', () => {
