@@ -142,8 +142,19 @@ export class SessionsService {
         'Cannot delete a session that is still active',
       );
     }
+    const rootId = session.rootSessionId;
     await this.moduleSessionRepo.delete({ id: sessionId });
     this.logger.log(`Deleted module session ${sessionId} for user ${userId}`);
+    if (rootId == null) {
+      return;
+    }
+    const remaining = await this.moduleSessionRepo.count({
+      where: { rootSessionId: rootId },
+    });
+    if (remaining === 0) {
+      await this.moduleSessionRepo.delete({ id: rootId });
+      this.logger.log(`Deleted orphaned root session ${rootId}`);
+    }
   }
 
   async listBiometrics(
