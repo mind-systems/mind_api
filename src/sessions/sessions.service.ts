@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   And,
   FindOptionsWhere,
+  In,
   LessThan,
   MoreThanOrEqual,
   Repository,
@@ -167,11 +168,20 @@ export class SessionsService {
   ): Promise<Record<string, unknown>[]> {
     const session = await this.assertSessionOwnership(userId, sessionId);
 
+    // Build the id set once: a child whose bio was stored under its root id will
+    // match either its own id (legacy writes) or the root id (post-ingest-flip writes).
+    // The set always contains 1 or 2 UUIDs and never contains a null.
+    const bioSessionIds =
+      session.rootSessionId != null
+        ? [session.id, session.rootSessionId]
+        : [session.id];
+
     if (bucketSec !== undefined) {
       const mode: AggMode = (agg ?? 'minmax') as AggMode;
       const strategy = AGG_REGISTRY[mode];
       const rows = await this.aggregateBiometrics(
         session,
+        bioSessionIds,
         bucketSec,
         mode,
         from,
@@ -182,11 +192,15 @@ export class SessionsService {
 
     const fromDate = from ? new Date(from) : undefined;
     const toDate = to ? new Date(to) : undefined;
-    const fromMs = fromDate?.getTime();
-    const toMs = toDate?.getTime();
+    // Per-sample window: default to the activity's own time window when the caller
+    // omits a bound. This trims root-bound bio rows to just this child's interval.
+    // An in-flight session (endedAt null) keeps an open upper bound so live samples
+    // are still returned.
+    const fromMs = fromDate?.getTime() ?? session.startedAt.getTime();
+    const toMs = toDate?.getTime() ?? session.endedAt?.getTime();
 
     const where: FindOptionsWhere<BioSessionSample> = {
-      moduleSessionId: sessionId,
+      moduleSessionId: In(bioSessionIds),
     };
     // Coarse flushedAt filter: lower bound drops batches that definitely predate the window.
     // Upper bound is padded by FLUSHED_AT_PAD_MS so batches flushed slightly after `to` are
@@ -257,6 +271,7 @@ export class SessionsService {
   // The strategy is determined by AGG_REGISTRY[agg].
   private async aggregateBiometrics(
     session: ModuleSession,
+    bioSessionIds: string[],
     bucketSec: number,
     agg: AggMode,
     from?: string,
@@ -264,8 +279,11 @@ export class SessionsService {
   ): Promise<Record<string, unknown>[]> {
     const fromDate = from ? new Date(from) : undefined;
     const toDate = to ? new Date(to) : undefined;
-    const fromMs = fromDate?.getTime();
-    const toMs = toDate?.getTime();
+    // Per-sample window: default to the activity's own time window when the caller
+    // omits a bound, so root-bound bio rows are trimmed to just this child's interval.
+    // An in-flight session (endedAt null) keeps an open upper bound (toMs undefined).
+    const fromMs = fromDate?.getTime() ?? session.startedAt.getTime();
+    const toMs = toDate?.getTime() ?? session.endedAt?.getTime();
 
     const strategy = AGG_REGISTRY[agg];
 
@@ -276,7 +294,7 @@ export class SessionsService {
       return `$${++n}`;
     };
 
-    const sessionParam = p(session.id);
+    const sessionIdsParam = p(bioSessionIds);
     const garbageBoundParam = p(
       session.startedAt.getTime() - GARBAGE_TS_SLACK_MS,
     );
@@ -285,7 +303,7 @@ export class SessionsService {
     // Shared WHERE conditions — identical for grouped and points paths.
     // This guarantees that 'lttb' filters the same samples as 'avg'/'minmax'.
     const conditions: string[] = [
-      `b."moduleSessionId" = ${sessionParam}`,
+      `b."moduleSessionId" = ANY(${sessionIdsParam})`,
       `jsonb_typeof(elem->'timestamp') = 'number'`,
       `jsonb_typeof(elem->'data') = 'object'`,
       `jsonb_typeof(kv.value) = 'number'`,
