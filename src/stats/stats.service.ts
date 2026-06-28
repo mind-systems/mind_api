@@ -38,6 +38,8 @@ export class StatsService {
       `finalise called: userId=${event.userId} sessionId=${event.sessionId} startedAt=${event.startedAt.toISOString()} endedAt=${event.endedAt.toISOString()}`,
     );
 
+    if (event.activityType === ActivityType.ROOT) return;
+
     const durationSeconds = Math.floor(
       (event.endedAt.getTime() - event.startedAt.getTime()) / 1000,
     );

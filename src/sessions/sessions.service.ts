@@ -87,6 +87,7 @@ export class SessionsService {
       .addSelect('bs.complexity', 'bs_complexity')
       .where('ms.userId = :userId', { userId })
       .andWhere('ms.endedAt IS NOT NULL')
+      .andWhere('ms.activityType != :root', { root: ActivityType.ROOT })
       .orderBy('ms.startedAt', 'DESC');
 
     const total = await baseQuery.getCount();
