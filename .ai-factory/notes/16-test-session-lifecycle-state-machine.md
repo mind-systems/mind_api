@@ -39,4 +39,148 @@ NestJS Testing module (or direct `new`) for `ActivitySessionStore` (needs `Confi
 - `coerceClientTs` accepts number/Long/string — cover the Long `.toNumber()` branch.
 
 ## Findings
-_(fill during test-writing; escalate to the feature task before implementing it)_
+
+_(Recorded during test-writing pass for `02-tests-multi-session-lifecycle-state-machine`.
+Flag each gap to the owning Phase 55 feature task before implementing it.)_
+
+### [F-01] `handleTransportDisconnect` moves only one session (→ `03-multi-session-store-engine`)
+
+**Current code:** `handleTransportDisconnect(userId)` calls `onDisconnect(userId)` once, which resolves
+`activityMap.get(userId)` — a single `ActivityState`. It then starts a single grace timer keyed to `userId`
+in `timers: Map<userId, …>`.
+
+**Gap:** When a user has a root session + N child sessions (the target multi-session model), only the
+session currently stored under `userId` in the `Map<userId, ActivityState>` is disconnected and gets a
+grace timer. The remaining live sessions are not touched — they stay `ACTIVE` in the DB and never get a
+grace timer. If the grace fires only for one session, the others remain silently stale.
+
+**Required contract (target test `transport disconnect moves EVERY live session`):**
+`handleTransportDisconnect` must iterate over all of the user's live sessions (root + children) and:
+- call `repo.update(sessionId, { status: DISCONNECTED, disconnectedAt })` for each, and
+- start a per-sessionId grace timer (timer map keyed by `sessionId`, not `userId`) for each.
+
+**Owns:** `03-multi-session-store-engine` (store fan-out + per-session timer map).
+
+---
+
+### [F-02] `handleReconnect` resumes only one session (→ `03-multi-session-store-engine`)
+
+**Current code:** `handleReconnect(userId)` checks `activitySessionStore.has(userId)`, cancels a
+single `userId`-keyed grace timer, and calls `resumeActivity(userId)` which resolves `get(userId)` →
+one session.
+
+**Gap:** With a root + N children, only one session (whichever is currently under the `userId` slot) is
+resumed. The remaining `DISCONNECTED` sessions are never resumed and their per-session grace timers are
+never cancelled — they will eventually fire and abandon those sessions silently.
+
+**Required contract (target test `reconnect in grace resumes EVERY disconnected session`):**
+`handleReconnect` must iterate over all of the user's sessions that are in the `DISCONNECTED` state and:
+- cancel the per-sessionId grace timer for each, and
+- call `resumeActivity` (or equivalent) to set each back to `ACTIVE`, clear `disconnectedAt`.
+
+**Owns:** `03-multi-session-store-engine`.
+
+---
+
+### [F-03] `onDisconnect` never schedules a grace timer (design note, not a gap) (→ `03-multi-session-store-engine`)
+
+`onDisconnect` intentionally only marks `DISCONNECTED` — the grace timer is started by the caller
+`handleTransportDisconnect`. This delegation is correct. When Phase 55 introduces a per-session fan-out,
+`handleTransportDisconnect` must be the place that iterates and starts per-session timers; `onDisconnect`
+(or its successor) should remain a pure "mark disconnected" step.
+
+---
+
+### [F-04] Grace timer map must be re-keyed from `userId` to `sessionId` (→ `03-multi-session-store-engine`)
+
+**Current code:** `ActivitySessionStore.timers: Map<userId, ReturnType<typeof setTimeout>>`.
+
+**Gap:** With multiple concurrent sessions per user, `startGraceTimer(userId, cb)` overwrites the previous
+timer for the same `userId`, cancelling the grace period for any earlier session. The new model requires
+`timers: Map<sessionId, …>` so each session's grace countdown is independent.
+
+**New API the store must expose:** `startGraceTimerForSession(sessionId, cb)`,
+`cancelGraceTimerForSession(sessionId)`, `hasPendingGraceTimerForSession(sessionId)`.
+
+The existing `startGraceTimer(userId, …)` / `cancelGraceTimer(userId)` / `hasPendingGraceTimer(userId)`
+may be kept for backward compat during the migration or removed if all callers are updated atomically.
+
+**Owns:** `03-multi-session-store-engine`.
+
+---
+
+### [F-05] Store needs per-user children map + `addChild` / `getChild` / `listChildren` / `setRoot` / `getSoleChild` (→ `03-multi-session-store-engine`)
+
+**Current code:** `activityMap: Map<userId, ActivityState>` — one slot per user.
+
+**Gap:** The target model needs a `Map<userId, Map<sessionId, ActivityState>>` (children map) alongside
+a `Map<userId, { sessionId, state }>` root slot. Required new methods:
+- `setRoot(userId, sessionId, state)` — store the root session
+- `addChild(userId, sessionId, state)` — add a child session
+- `getChild(userId, sessionId)` — retrieve a specific child
+- `listChildren(userId)` — all children for a user
+- `getSoleChild(userId)` — convenience for callers that still assume one live child (replaces `get(userId)`)
+
+**Owns:** `03-multi-session-store-engine`.
+
+---
+
+### [F-06] `abandonActivity` only addresses one session (→ `03-multi-session-store-engine`)
+
+**Current code:** `abandonActivity(userId)` calls `activitySessionStore.get(userId)` — one state — and
+sets it to `ABANDONED`.
+
+**Gap:** When a per-session grace timer fires for `sessionId`, the callback must target that specific
+session, not whatever happens to be stored under `userId` at that moment. Phase 55 must change the
+abandon callback signature to `abandonActivity(userId, sessionId)` (or equivalent) so the right session
+is abandoned even when multiple sessions coexist.
+
+**Owns:** `03-multi-session-store-engine`.
+
+---
+
+### [F-07] `handleSessionRevoked` and watchdog `abandonStale` — per-session scope unclear (→ `03-multi-session-store-engine`)
+
+**`handleSessionRevoked` (if present):** Currently stops the single active session by userId. With
+multi-session, revoke must target a specific sessionId, or stop all of the user's live sessions
+(root + children). The spec does not yet define the revoke scope — clarify before implementing.
+
+**`abandonStale(userId, sessionId)`** already takes a `sessionId` so it is closer to correct, but it
+clears the store via `activitySessionStore.delete(userId)` (the per-user slot). After Phase 55,
+it must remove the specific child or root entry from the children/root maps by `sessionId`.
+
+**Owns:** `03-multi-session-store-engine`.
+
+---
+
+### [F-08] `ensureRoot` and `rootSessionId` linkage not defined in any existing service or entity (→ `04-lazy-root-creation`)
+
+**Current code:** `ActivityEngine` has no `ensureRoot` method. `ModuleSession` entity has no
+`rootSessionId` column. `ActivityState` interface has no `rootSessionId` field.
+
+**Required changes (target tests `ensureRoot idempotency` + `child rootSessionId`):**
+1. Add `rootSessionId: string | null` column to `ModuleSession` entity + migration.
+2. Add `rootSessionId?: string` to `ActivityState` interface.
+3. Implement `ActivityEngine.ensureRoot(userId)`:
+   - If a root session for `userId` already exists in the store → return it (idempotent).
+   - Otherwise create a new `ModuleSession` with `activityType = 'root'`, `rootSessionId = null`,
+     `status = ACTIVE`, persist, store via `setRoot`, return.
+4. `startActivity` must call `ensureRoot` internally (or the caller does), then set
+   `session.rootSessionId = root.id` on the new child row before persisting.
+
+**Owns:** `04-lazy-root-creation`.
+
+---
+
+### [F-09] `activity:end` must never target the root session (→ `04-lazy-root-creation`)
+
+**Current code:** `endActivity(userId)` resolves `activitySessionStore.get(userId)` — whatever is
+stored. If Phase 55 makes the root the primary slot under `userId`, calling `endActivity` would end
+the root.
+
+**Required contract (target test `should never end the root via activity:end`):**
+`endActivity` must resolve the *addressed child* for the user, not the root. The resolution logic must
+skip any session whose `activityType === 'root'`. If the sole session is a root (no child started yet),
+`endActivity` should no-op or return `null`.
+
+**Owns:** `04-lazy-root-creation`.
