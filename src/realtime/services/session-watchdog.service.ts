@@ -9,6 +9,7 @@ import { Repository, In, LessThan } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { ModuleSession } from '../entities/module-session.entity';
 import { SessionStatus } from '../enums/session-status.enum';
+import { ActivityType } from '../enums/activity-type.enum';
 import { ActivityEngine } from './activity-engine.service';
 import { ActiveStreamRegistry } from './active-stream-registry.service';
 import { RealtimeConfig } from '../constants/realtime-config';
@@ -20,6 +21,7 @@ export class SessionWatchdogService
   private readonly logger = new Logger(SessionWatchdogService.name);
   private readonly maxIdleMs: number;
   private readonly sweepIntervalMs: number;
+  private readonly emptyRootTtlMs: number;
   private sweepTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
@@ -37,12 +39,19 @@ export class SessionWatchdogService
       RealtimeConfig.SESSION_SWEEP_INTERVAL_MS,
       60_000,
     );
+    this.emptyRootTtlMs = this.configService.get<number>(
+      RealtimeConfig.EMPTY_ROOT_TTL_MS,
+      600_000,
+    );
   }
 
   onApplicationBootstrap(): void {
     this.sweepTimer = setInterval(() => {
       this.sweep().catch((err: unknown) => {
         this.logger.error('Periodic watchdog sweep failed', err);
+      });
+      this.sweepEmptyRoots().catch((err: unknown) => {
+        this.logger.error('Periodic empty-root sweep failed', err);
       });
     }, this.sweepIntervalMs);
   }
@@ -88,5 +97,38 @@ export class SessionWatchdogService
     }
 
     this.logger.warn(`Watchdog swept ${reaped} stale sessions`);
+  }
+
+  async sweepEmptyRoots(): Promise<void> {
+    const threshold = new Date(Date.now() - this.emptyRootTtlMs);
+    const staleRoots = await this.repo.find({
+      where: {
+        activityType: ActivityType.ROOT,
+        status: In([SessionStatus.ACTIVE, SessionStatus.DISCONNECTED]),
+        lastActivityAt: LessThan(threshold),
+      },
+    });
+
+    if (staleRoots.length === 0) {
+      return;
+    }
+
+    for (const row of staleRoots) {
+      if (this.activeStreamRegistry.hasLiveSubscriber(row.userId)) {
+        continue;
+      }
+      const childCount = await this.repo.count({ where: { rootSessionId: row.id } });
+      if (childCount !== 0) {
+        continue;
+      }
+      try {
+        this.logger.warn(
+          `Janitor reaping childless root: sessionId=${row.id} userId=${row.userId}`,
+        );
+        await this.repo.delete({ id: row.id });
+      } catch (err: unknown) {
+        this.logger.error(`Janitor failed to reap root sessionId=${row.id}`, err);
+      }
+    }
   }
 }
