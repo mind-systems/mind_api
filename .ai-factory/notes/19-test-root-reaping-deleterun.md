@@ -51,4 +51,73 @@ The reap rule changed mid-design from "no children AND no bio" to "**no children
 - Use fake timers for the TTL sweep; stub the threshold via injected `WS_EMPTY_ROOT_TTL_MS` config, not `Date.now()` in the test.
 
 ## Findings
-_(fill during test-writing; escalate to the feature task before implementing it)_
+
+### Pinned cross-spec decisions — agreed contract (escalate to spec 08 / spec 15 before feature implementation)
+
+**P1 — spec 08 root-sweep entrypoint (escalate to spec 08)**
+Spec 08 must expose root reaping as a **separate public method `sweepEmptyRoots()`** on `SessionWatchdogService`, scheduled by the cron alongside `sweep()` — it must NOT fold root discovery into the existing `sweep()` body.
+Rationale: (a) target tests drive a stable public surface — `(watchdog as any).sweepEmptyRoots()` (cast for compile-now since the method does not exist yet) — never a guessed private name, so a missing feature is RED-for-feature-absent, not a `TypeError` harness artifact; (b) leaving `sweep()` untouched keeps the protected `:52-110` query-construction characterization block green (see P2).
+If spec 08 must instead extend `sweep()`, re-pin both the entrypoint and P2 here before writing the feature.
+
+**P2 — protect the existing watchdog query-construction chars (escalate to spec 08)**
+The block `session-watchdog.service.spec.ts:52-110` ("sweep — query construction and empty result") asserts `expect(repo.find).toHaveBeenCalledTimes(1)` and that an empty result calls nothing. This block is in the **protected-characterization set**: it must stay GREEN.
+P1 guarantees this — because root discovery lives in a separate `sweepEmptyRoots()` that the `sweep()`-only chars never invoke, the `toHaveBeenCalledTimes(1)` assertion is unaffected. A RED there after spec 08 = the feature wrongly folded a second `repo.find` query into `sweep()` → escalate, do not patch.
+
+**P3 — spec 08 reap mechanism must be mock-observable (escalate to spec 08)**
+`sweepEmptyRoots()` must determine childless-ness via a **mock-visible count** — `moduleSessionRepo.count({ where: { rootSessionId: root.id } })` returning a stubbed number — and reap **per-root** via `moduleSessionRepo.delete({ id: root.id })` and/or `activityEngine.abandonStale(root.userId, root.id)`. NOT a single bulk `createQueryBuilder().delete()…execute()` (a mocked QB ignores the WHERE — the spec-07 `listRuns` trap documented in note 18 — and hides which root was targeted).
+Carve-out: if spec 08 insists on a bulk delete, the "≥1 child → not reaped" data-loss-guard case drops to a **builder-contract assertion** (assert the delete WHERE carries the childless + TTL predicate).
+
+**P5 — spec 08 TTL predicate must land at the query layer (escalate to spec 08)**
+`sweepEmptyRoots()` must apply the TTL predicate in `repo.find`'s WHERE clause as `lastActivityAt: LessThan(new Date(Date.now() - emptyRootTtlMs))`, mirroring the existing `sweep()` pattern at `session-watchdog.service.ts:57-63`. JS-side filtering (fetch all, then filter in code) is NOT permitted — it would diverge from `sweep()`, allow a no-op implementation to pass, and make the query-contract assertion below unverifiable.
+Rationale: the original "force-fresh-root-via-mock, assert no reap" approach is fragile under query-side filtering — the mock ignores WHERE and returns the row unconditionally, so the feature reaps it → test is permanently RED after spec 08 ships. The builder-contract assertion ("assert `repo.find` was called with `lastActivityAt: LessThan(threshold)`") is the correct observability layer for this predicate.
+
+**P4 — spec 15 deleteRun mechanism must be mock-observable (escalate to spec 15)**
+`deleteRun` must count remaining siblings via `moduleSessionRepo.count({ where: { rootSessionId } })` **after** deleting the target child; both deletes must be discrete `moduleSessionRepo.delete({ id })` calls (extending `sessions.service.ts:144`), not a bulk delete — so the "one delete vs two, child-then-root order" outcome stays observable in unit tests.
+
+**P6 — spec 08 candidate query must be ROOT-SCOPED, and the P5 query-contract test must assert it (escalate to spec 08)**
+`sweepEmptyRoots()`'s `repo.find` WHERE must scope to roots — `activityType: 'root'` (`ActivityType.ROOT` once spec 02 lands) — **alongside** the P5 TTL predicate. The single query-contract case must therefore assert **BOTH** `where.lastActivityAt = LessThan(threshold)` **AND** `where.activityType === 'root'`. Asserting only the TTL half leaves a symmetric silent-cascade hole: the model is two-level (`rootSessionId` points child→root; children never have children), so a sweep that filters TTL but forgets the root scope picks up a disconnected **practice child** past TTL, finds `count({ where: { rootSessionId: child.id } }) === 0` ("childless"), and reaps a real practice session + its bio via the self-referential cascade. Every other suite case stays GREEN (the non-root char only drives `sweep()`), so the bug ships green unless this assertion pins the root scope.
+Marker form: if spec 08 scopes roots by `rootSessionId IS NULL` (an `IsNull()` operator) rather than `activityType='root'`, assert that operator instead — pin the chosen form here before authoring the feature. This is the round-3 finding folded back into the contract: doing only the TTL half is the exact failure mode to avoid.
+
+### TDD signal — run results (milestone 05)
+
+Ran: `npx jest src/realtime/services/session-watchdog.service.spec.ts src/sessions/sessions.service.spec.ts`
+
+**Watchdog spec** (`session-watchdog.service.spec.ts`)
+
+| Case | Status | Reason |
+|---|---|---|
+| `[RED until spec 08]` reap childless root past TTL | RED | `TypeError: service.sweepEmptyRoots is not a function` — feature absent ✓ |
+| `[RED until spec 08]` NOT reap root with ≥1 child | RED | `TypeError: service.sweepEmptyRoots is not a function` — feature absent ✓ |
+| `[RED until spec 08]` NOT reap root with live subscriber | RED | `TypeError: service.sweepEmptyRoots is not a function` — feature absent ✓ |
+| `[RED until spec 08]` query with lastActivityAt LessThan(TTL threshold) — builder contract (P5) | RED | `TypeError: service.sweepEmptyRoots is not a function` — feature absent ✓ |
+| `[char — must stay GREEN]` non-root stale reaping unchanged | GREEN | sweep() still reaps stale practice sessions ✓ |
+| Protected block :52-110 query-construction chars | GREEN | repo.find called once per sweep() invocation ✓ |
+| All other existing sweep() characterization cases | GREEN | ✓ |
+
+**Sessions spec** (`sessions.service.spec.ts`)
+
+| Case | Status | Reason |
+|---|---|---|
+| `[RED until spec 15]` delete root after last child | RED | `Expected 2 calls, received 1` — no root cleanup in current code ✓ |
+| `[RED until spec 15]` keep root when sibling remains | GREEN (accidental) | See Finding F1 below |
+| `[RED until spec 15]` count siblings after delete | RED | `count never called` / `typeof countOrder = 'undefined'` ✓ |
+| `[char — must stay GREEN]` legacy null rootSessionId | GREEN | 1 delete fires (existing behavior) ✓ |
+| Pre-existing spec 07 RED (activityType filter in listRuns) | RED | Pre-existing, not from this milestone |
+
+**Finding F1 — "keep root when sibling remains" is accidentally GREEN before spec 15 (non-blocking)**
+
+The test asserts "only 1 delete fires (the child)". Before spec 15 lands, `deleteRun` already makes only 1 delete (it has no root cleanup). So the assertion passes for the wrong reason — not because the code checked `count = 1` and decided to keep the root, but because root cleanup doesn't exist yet. This is a known L1 observability artifact: for "should NOT do X", the test passes both when the feature is absent (the accidental GREEN) and when the feature is correctly implemented with count=1 → keep root (the intentional GREEN post-spec-15).
+
+Impact: non-blocking. The test will correctly gate a regression if spec 15 ever accidentally deletes the root when a sibling exists. The RED-until label is retained as documentation of intent.
+
+### Root-state derivation table
+
+| activityType | rootSessionId | children | lastActivityAt | live subscriber | Expected outcome |
+|---|---|---|---|---|---|
+| root | null | 0 | past TTL | no | REAP (childless + TTL met) |
+| root | null | 0 | past TTL, has bio | no | REAP (bio no longer protects) |
+| root | null | ≥1 | any | no | KEEP (data-loss guard) |
+| root | null | 0 | fresh (< TTL) | no | KEEP (TTL not met; bio flush refreshed lastActivityAt) |
+| root | null | 0 | past TTL | yes | KEEP (live subscriber skip) |
+| non-root (BREATH etc.) | any | — | past max-idle | no | REAP via sweep() (unchanged) |
+| non-root practice child | set (points at root) | — | past TTL | no | **`sweepEmptyRoots()` must NOT touch it** — root-scoping guard (P6); only `sweep()` reaps practices. A sweep missing `activityType='root'` would mis-reap this as "childless". |

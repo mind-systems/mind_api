@@ -5,6 +5,8 @@ import { ActivityType } from '../enums/activity-type.enum';
 import { ModuleSession } from '../entities/module-session.entity';
 
 const FIXED_NOW = 1_700_000_000_000;
+// Default TTL for empty-root reaping used across root-sweep cases.
+const DEFAULT_EMPTY_ROOT_TTL_MS = 300_000;
 
 function makeSession(
   overrides: Partial<Pick<ModuleSession, 'id' | 'userId' | 'status' | 'lastActivityAt'>> = {},
@@ -21,21 +23,54 @@ function makeSession(
   } as ModuleSession;
 }
 
+// Fixture helper for root sessions (activityType = 'root', rootSessionId = null).
+// Uses `as any` casts for fields that don't exist on the entity yet (spec 02 adds them).
+let _rootIdCounter = 0;
+function makeRoot(overrides: Record<string, unknown> = {}): ModuleSession {
+  _rootIdCounter++;
+  return {
+    id: `root-${_rootIdCounter}`,
+    userId: `user-root-${_rootIdCounter}`,
+    activityType: 'root' as any,
+    rootSessionId: null as any,
+    status: SessionStatus.DISCONNECTED,
+    startedAt: new Date(FIXED_NOW - 700_000),
+    // Default: past the TTL threshold so it would be reaped if childless
+    lastActivityAt: new Date(FIXED_NOW - DEFAULT_EMPTY_ROOT_TTL_MS - 1_000),
+    createdAt: new Date(FIXED_NOW - 700_000),
+    ...overrides,
+  } as unknown as ModuleSession;
+}
+
 describe('SessionWatchdogService', () => {
   let service: SessionWatchdogService;
-  let repo: { find: jest.Mock };
+  // repo now includes count and delete mocks for the root-sweep path.
+  // The existing sweep() cases only use repo.find, so adding these mocks is non-breaking.
+  let repo: { find: jest.Mock; count: jest.Mock; delete: jest.Mock };
   let activityEngine: { abandonStale: jest.Mock };
   let activeStreamRegistry: { hasLiveSubscriber: jest.Mock; closeAll: jest.Mock };
   let configService: { get: jest.Mock };
 
   beforeEach(() => {
-    repo = { find: jest.fn() };
+    _rootIdCounter = 0;
+    repo = {
+      find: jest.fn(),
+      count: jest.fn(),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
     activityEngine = { abandonStale: jest.fn().mockResolvedValue(undefined) };
     activeStreamRegistry = {
       hasLiveSubscriber: jest.fn().mockReturnValue(false),
       closeAll: jest.fn(),
     };
-    configService = { get: jest.fn((_key: string, def: unknown) => def) };
+    // configService returns defaults for all keys EXCEPT WS_EMPTY_ROOT_TTL_MS and
+    // WS_SESSION_MAX_IDLE_MS when branched — existing sweep() tests only rely on defaults.
+    configService = {
+      get: jest.fn((key: string, def: unknown) => {
+        if (key === 'WS_EMPTY_ROOT_TTL_MS') return DEFAULT_EMPTY_ROOT_TTL_MS;
+        return def;
+      }),
+    };
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     service = new SessionWatchdogService(
       repo as any,
@@ -236,6 +271,146 @@ describe('SessionWatchdogService', () => {
       activityEngine.abandonStale.mockRejectedValue(new Error('engine error'));
 
       await expect(service.sweep()).resolves.toBeUndefined();
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // sweepEmptyRoots — root reaping rule (target: RED until spec 08-janitor-empty-roots)
+  //
+  // Design decisions recorded in .ai-factory/notes/19-test-root-reaping-deleterun.md:
+  //   P1: sweepEmptyRoots() is a SEPARATE public method, not folded into sweep().
+  //   P2: The protected :52-110 query-construction chars must stay GREEN.
+  //   P3: Per-root delete/count must be mock-visible (not a bulk QB delete).
+  //
+  // L2 compile-now: sweepEmptyRoots() does not exist yet → call via (service as any).
+  // L1 two-state: assert the OUTCOME (was delete/abandonStale fired for this root?) not the SQL.
+  // ─────────────────────────────────────────────────────────────────────────────
+  describe('sweepEmptyRoots — root reaping rule', () => {
+    beforeEach(() => {
+      jest.spyOn(Date, 'now').mockReturnValue(FIXED_NOW);
+      // Provide an empty root list by default; individual cases override as needed.
+      repo.find.mockResolvedValue([]);
+      // Default: no children — override to 1 for the data-loss-guard case.
+      repo.count.mockResolvedValue(0);
+    });
+
+    // [RED until spec 08-janitor-empty-roots]
+    // Corrected rule: childless + past TTL → reap, EVEN if bio exists (bio no longer protects).
+    it('[RED until spec 08-janitor-empty-roots] should reap a childless root past TTL even if it has bio', async () => {
+      const root = makeRoot({ id: 'root-reap-bio', userId: 'user-reap-bio' });
+      repo.find.mockResolvedValue([root]);
+      repo.count.mockResolvedValue(0); // no children
+
+      // L2: method does not exist yet → TypeError until spec 08 adds it → RED for feature-absent.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await (service as any).sweepEmptyRoots();
+
+      // P3: per-root observable outcome — either delete({ id }) or abandonStale(userId, id) must fire.
+      const wasDeleted = repo.delete.mock.calls.some(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        ([arg]: [any]) => (arg as { id: string })?.id === root.id,
+      );
+      const wasAbandoned = activityEngine.abandonStale.mock.calls.some(
+        ([uid, sid]: [string, string]) => uid === root.userId && sid === root.id,
+      );
+      expect(wasDeleted || wasAbandoned).toBe(true);
+    });
+
+    // [RED until spec 08-janitor-empty-roots]
+    // Data-loss guard: ≥1 child present → NEVER reap, regardless of bio or age.
+    // A wrong predicate here silently cascades and deletes children + bio via FK ON DELETE CASCADE.
+    it('[RED until spec 08-janitor-empty-roots] should NOT reap a root that has ≥1 child regardless of bio or age', async () => {
+      const root = makeRoot({ id: 'root-has-child', userId: 'user-has-child' });
+      repo.find.mockResolvedValue([root]);
+      repo.count.mockResolvedValue(1); // has a child sibling — must not be reaped
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await (service as any).sweepEmptyRoots();
+
+      // Guard: no delete or abandon must target this root.
+      const wasDeleted = repo.delete.mock.calls.some(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        ([arg]: [any]) => (arg as { id: string })?.id === root.id,
+      );
+      const wasAbandoned = activityEngine.abandonStale.mock.calls.some(
+        ([uid, sid]: [string, string]) => uid === root.userId && sid === root.id,
+      );
+      expect(wasDeleted || wasAbandoned).toBe(false);
+    });
+
+    // [RED until spec 08-janitor-empty-roots]
+    // Live-subscriber skip — reuses hasLiveSubscriber (session-watchdog.service.ts:71).
+    it('[RED until spec 08-janitor-empty-roots] should NOT reap a childless root that has a live subscriber', async () => {
+      const root = makeRoot({ id: 'root-live', userId: 'user-live' });
+      repo.find.mockResolvedValue([root]);
+      repo.count.mockResolvedValue(0);
+      activeStreamRegistry.hasLiveSubscriber.mockReturnValue(true);
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await (service as any).sweepEmptyRoots();
+
+      const wasDeleted = repo.delete.mock.calls.some(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        ([arg]: [any]) => (arg as { id: string })?.id === root.id,
+      );
+      const wasAbandoned = activityEngine.abandonStale.mock.calls.some(
+        ([uid, sid]: [string, string]) => uid === root.userId && sid === root.id,
+      );
+      expect(wasDeleted || wasAbandoned).toBe(false);
+    });
+
+    // [RED until spec 08-janitor-empty-roots]
+    // TTL guard — builder-contract assertion (P5).
+    //
+    // Bio-stream flush refreshes lastActivityAt (biometric-stream-engine.service.ts:183-184);
+    // the TTL predicate must therefore be applied at the QUERY layer (LessThan in repo.find WHERE),
+    // mirroring sweep() at session-watchdog.service.ts:57-63.
+    //
+    // The force-fresh-row outcome approach ("feed a fresh root via mock, assert no reap") is fragile
+    // under query-side filtering: the mock ignores WHERE and returns the fresh root regardless, so the
+    // loop reaps it → permanent RED after spec 08 ships — the exact "guard deeper than the mock sees"
+    // trap (note 18 / L1). The builder-contract assertion here is the robust alternative (P5).
+    it('[RED until spec 08-janitor-empty-roots] should query for empty roots scoped to activityType=root with a lastActivityAt LessThan(WS_EMPTY_ROOT_TTL_MS threshold)', async () => {
+      repo.find.mockResolvedValue([]);
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await (service as any).sweepEmptyRoots();
+
+      expect(repo.find).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const [callArg] = repo.find.mock.calls[0] as [any];
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const lastActivityAt: unknown = callArg?.where?.lastActivityAt;
+
+      const expectedThreshold = new Date(FIXED_NOW - DEFAULT_EMPTY_ROOT_TTL_MS);
+      expect(lastActivityAt).toBeInstanceOf(FindOperator);
+      expect((lastActivityAt as any).value).toEqual(expectedThreshold);
+
+      // P6 — root-scoping predicate. Without `activityType: 'root'` in the candidate
+      // query, sweepEmptyRoots() would pick up a disconnected practice CHILD past TTL
+      // (its count({ rootSessionId: child.id }) is 0 → read as "childless") and
+      // cascade-delete a real practice session + its bio. Pin the root scope at the
+      // query layer alongside the TTL predicate.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      expect(callArg?.where?.activityType).toBe('root');
+    });
+
+    // [characterization — must stay GREEN]
+    // sweep() non-root stale-session reaping is unperturbed by the addition of sweepEmptyRoots().
+    // P2: The protected sweep() query-construction chars already cover toHaveBeenCalledTimes(1).
+    // This case verifies the behavioural outcome (abandonStale + closeAll) still fires for a
+    // stale practice session when only sweep() is invoked — sweepEmptyRoots() is NOT called here.
+    it('[characterization — must stay GREEN] should leave non-root stale-session reaping behavior unchanged', async () => {
+      const staleSession = makeSession({ userId: 'user-nrt', id: 'session-nrt' });
+      repo.find.mockResolvedValue([staleSession]);
+
+      await service.sweep();
+
+      // The sweep() reap loop (session-watchdog.service.ts:82-83) must still fire.
+      expect(activityEngine.abandonStale).toHaveBeenCalledWith('user-nrt', 'session-nrt');
+      expect(activeStreamRegistry.closeAll).toHaveBeenCalledWith('user-nrt');
+      // sweepEmptyRoots() was NOT called — no root-level delete must have fired.
+      expect(repo.delete).not.toHaveBeenCalled();
     });
   });
 

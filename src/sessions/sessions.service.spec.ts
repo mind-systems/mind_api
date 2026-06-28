@@ -125,6 +125,135 @@ describe('SessionsService.deleteRun', () => {
       expect(moduleSessionRepo.delete).not.toHaveBeenCalled();
     });
   });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Orphan root cleanup (target: RED until spec 15-deleterun-orphan-root-cleanup)
+  //
+  // Design decisions recorded in .ai-factory/notes/19-test-root-reaping-deleterun.md:
+  //   P4: count remaining siblings AFTER deleting child via discrete delete({ id }) calls.
+  //
+  // L2 compile-now: rootSessionId is not on ModuleSession yet (added in spec 02).
+  //   → pass via makeSession({ ... } as any) or use `rootSessionId: 'root-id' as any`.
+  // L1 two-state: assert the outcome (one vs two deletes, child-then-root order).
+  // ─────────────────────────────────────────────────────────────────────────────
+  describe('orphan root cleanup', () => {
+    // Separate repo mock that includes count — added without touching the outer beforeEach
+    // so the existing deleteRun cases above are unaffected.
+    let repoWithCount: jest.Mocked<any>;
+    let serviceWithCount: SessionsService;
+
+    beforeEach(() => {
+      repoWithCount = {
+        findOne: jest.fn(),
+        delete: jest.fn().mockResolvedValue({ affected: 1 }),
+        createQueryBuilder: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
+      };
+      serviceWithCount = new SessionsService(
+        repoWithCount,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        { delete: jest.fn() } as any,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        { delete: jest.fn() } as any,
+      );
+    });
+
+    // [RED until spec 15-deleterun-orphan-root-cleanup]
+    // Last child deleted → spec 15 must also delete the root (cascade removes shared bio).
+    // P4: count after child delete; if 0 siblings → delete root.
+    it('[RED until spec 15-deleterun-orphan-root-cleanup] should delete the root after its last child is deleted', async () => {
+      const ROOT_ID = 'root-session-id';
+      const child = makeSession({
+        id: 'child-session-id',
+        userId: 'user-1',
+        endedAt: new Date(),
+        // L2: rootSessionId not on entity yet — set via as any.
+        ...({ rootSessionId: ROOT_ID } as any),
+      });
+      repoWithCount.findOne.mockResolvedValue(child);
+      repoWithCount.count.mockResolvedValue(0); // no siblings remain after child delete
+
+      await serviceWithCount.deleteRun('user-1', 'child-session-id');
+
+      // Outcome: two deletes must fire — child first, then root.
+      expect(repoWithCount.delete).toHaveBeenCalledTimes(2);
+      expect(repoWithCount.delete).toHaveBeenNthCalledWith(1, { id: 'child-session-id' });
+      expect(repoWithCount.delete).toHaveBeenNthCalledWith(2, { id: ROOT_ID });
+    });
+
+    // [RED until spec 15-deleterun-orphan-root-cleanup]
+    // Sibling remains → root MUST be kept (shared bio is still in use; cascade would delete it).
+    // P4: the keep decision must be driven by a sibling count, not short-circuited.
+    it('[RED until spec 15-deleterun-orphan-root-cleanup] should keep the root when a sibling child remains', async () => {
+      const ROOT_ID = 'root-session-id';
+      const child = makeSession({
+        id: 'child-session-id',
+        userId: 'user-2',
+        endedAt: new Date(),
+        ...({ rootSessionId: ROOT_ID } as any),
+      });
+      repoWithCount.findOne.mockResolvedValue(child);
+      repoWithCount.count.mockResolvedValue(1); // one sibling still exists
+
+      await serviceWithCount.deleteRun('user-2', 'child-session-id');
+
+      // Outcome: only one delete (the child). Root must NOT be touched.
+      expect(repoWithCount.delete).toHaveBeenCalledTimes(1);
+      expect(repoWithCount.delete).toHaveBeenCalledWith({ id: 'child-session-id' });
+      expect(repoWithCount.delete).not.toHaveBeenCalledWith({ id: ROOT_ID });
+      // P4: the keep-path must consult the sibling count — not short-circuit.
+      // This assertion is RED now (current code never calls count) and GREEN after spec 15
+      // implements the count-then-keep logic.
+      expect(repoWithCount.count).toHaveBeenCalledWith({ where: { rootSessionId: ROOT_ID } });
+    });
+
+    // [RED until spec 15-deleterun-orphan-root-cleanup]
+    // The deleted child must NOT be counted in the sibling count — spec 15 must count AFTER delete.
+    // Assert via invocation order: delete fires before count.
+    it('[RED until spec 15-deleterun-orphan-root-cleanup] should count siblings after deleting the child (deleted child not counted)', async () => {
+      const ROOT_ID = 'root-session-id';
+      const child = makeSession({
+        id: 'child-order-id',
+        userId: 'user-3',
+        endedAt: new Date(),
+        ...({ rootSessionId: ROOT_ID } as any),
+      });
+      repoWithCount.findOne.mockResolvedValue(child);
+      repoWithCount.count.mockResolvedValue(0);
+
+      await serviceWithCount.deleteRun('user-3', 'child-order-id');
+
+      // P4: the child delete invocation order must precede the count invocation order.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const deleteOrder: number = repoWithCount.delete.mock.invocationCallOrder[0] as number;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const countOrder: number = repoWithCount.count.mock.invocationCallOrder[0] as number;
+      expect(typeof countOrder).toBe('number'); // count must have been called
+      expect(deleteOrder).toBeLessThan(countOrder);
+    });
+
+    // [characterization — must stay GREEN]
+    // Legacy session with rootSessionId = null → behaves exactly as today:
+    // only one delete fires (the session itself), no root cleanup.
+    // This case must stay GREEN now AND after spec 15 lands.
+    it('[characterization — must stay GREEN] should behave as today for a legacy session with rootSessionId null', async () => {
+      const legacySession = makeSession({
+        id: 'legacy-session-id',
+        userId: 'user-legacy',
+        endedAt: new Date(),
+        // L2: rootSessionId not on entity yet — null means no root parent.
+        ...({ rootSessionId: null } as any),
+      });
+      repoWithCount.findOne.mockResolvedValue(legacySession);
+
+      await serviceWithCount.deleteRun('user-legacy', 'legacy-session-id');
+
+      // Only the single session delete fires — no root delete, no count query.
+      expect(repoWithCount.delete).toHaveBeenCalledTimes(1);
+      expect(repoWithCount.delete).toHaveBeenCalledWith({ id: 'legacy-session-id' });
+      expect(repoWithCount.count).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('SessionsService.listRuns', () => {
