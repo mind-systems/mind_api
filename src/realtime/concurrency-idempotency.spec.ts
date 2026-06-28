@@ -61,6 +61,7 @@ function makeActivityEngine() {
   let sessionCounter = 0;
   return {
     handleReconnect: jest.fn().mockResolvedValue(null),
+    ensureRoot: jest.fn().mockResolvedValue({ id: 'root-session-1' }),
     getActiveSession: jest.fn().mockReturnValue(undefined),
     handleTransportDisconnect: jest.fn().mockResolvedValue(undefined),
     startActivity: jest.fn().mockImplementation(() => {

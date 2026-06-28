@@ -138,6 +138,9 @@ export class ModuleStateGrpcController {
 
         connectedAt = Date.now();
 
+        if (subscriber.closed) return;
+        await this.activityEngine.ensureRoot(userId);
+
         const cmdSub = request.subscribe({
           next: (msg: StateRequest) => {
             this.routeCommand(userId, msg, subscriber).catch((err: unknown) => {

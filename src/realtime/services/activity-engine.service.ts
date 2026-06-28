@@ -6,6 +6,7 @@ import { ModuleSession } from '../entities/module-session.entity';
 import { ActivitySessionStore } from './activity-session-store.service';
 import { ActivityState } from '../interfaces/activity-state.interface';
 import { ActivityStartDto } from '../dto/activity-start.dto';
+import { ActivityType } from '../enums/activity-type.enum';
 import { SessionStatus } from '../enums/session-status.enum';
 import { StreamEngine } from './stream-engine.service';
 import {
@@ -64,10 +65,64 @@ export class ActivityEngine {
     }
   }
 
+  /**
+   * Materialize a lazy root ModuleSession for a user connection.
+   * Idempotent: if a root is already in the store, returns a synthesized
+   * ModuleSession with no DB access (no repo.create, no repo.save).
+   * On first call, persists a new root row and registers it in the store.
+   */
+  async ensureRoot(
+    userId: string,
+    clientTimestampMs?: number | { toNumber?: () => number } | string,
+  ): Promise<ModuleSession> {
+    const existingRootState = this.activitySessionStore.getRoot(userId);
+    if (existingRootState) {
+      const rootId = this.activitySessionStore.getRootId(userId)!;
+      return {
+        id: rootId,
+        userId,
+        activityType: ActivityType.ROOT,
+        activityRefId: undefined,
+        rootSessionId: null,
+        status: SessionStatus.ACTIVE,
+        startedAt: existingRootState.startedAt,
+        lastActivityAt: existingRootState.lastActivityAt,
+      } as ModuleSession;
+    }
+
+    const now = new Date();
+    const session = this.repo.create({
+      userId,
+      activityType: ActivityType.ROOT,
+      activityRefId: undefined,
+      status: SessionStatus.ACTIVE,
+      startedAt: this.coerceClientTs(clientTimestampMs) ?? now,
+      lastActivityAt: now,
+      rootSessionId: null,
+    });
+    const saved = await this.repo.save(session);
+
+    this.activitySessionStore.setRoot(userId, saved.id, {
+      sessionId: saved.id,
+      activityType: ActivityType.ROOT,
+      startedAt: saved.startedAt,
+      lastActivityAt: saved.lastActivityAt,
+      isPaused: false,
+      rootSessionId: null,
+    });
+
+    this.logger.log(
+      `Root session created: userId=${userId} rootSessionId=${saved.id}`,
+    );
+
+    return saved;
+  }
+
   async startActivity(
     userId: string,
     dto: ActivityStartDto,
   ): Promise<ModuleSession> {
+    const rootId = this.activitySessionStore.getRootId(userId);
     const now = new Date();
     const startedAt = this.coerceClientTs(dto.clientTimestampMs) ?? now;
     const session = this.repo.create({
@@ -77,7 +132,9 @@ export class ActivityEngine {
       status: SessionStatus.ACTIVE,
       startedAt,
       lastActivityAt: now,
+      rootSessionId: rootId,
     });
+    session.rootSessionId = rootId;
     const saved = await this.repo.save(session);
 
     const state: ActivityState = {
@@ -87,6 +144,7 @@ export class ActivityEngine {
       startedAt: saved.startedAt,
       lastActivityAt: saved.lastActivityAt,
       isPaused: false,
+      rootSessionId: rootId,
     };
     this.activitySessionStore.addChild(userId, saved.id, state);
 
@@ -125,6 +183,16 @@ export class ActivityEngine {
     if (!state) {
       this.logger.warn(
         `endActivity: no active session in memory for userId=${userId}`,
+      );
+      return null;
+    }
+
+    if (
+      sid === this.activitySessionStore.getRootId(userId) ||
+      state.activityType === ActivityType.ROOT
+    ) {
+      this.logger.warn(
+        `endActivity: cannot end root session for userId=${userId} sessionId=${sid}`,
       );
       return null;
     }
@@ -328,6 +396,16 @@ export class ActivityEngine {
       return null;
     }
 
+    if (
+      sid === this.activitySessionStore.getRootId(userId) ||
+      state.activityType === ActivityType.ROOT
+    ) {
+      this.logger.warn(
+        `stopActivity: cannot stop root session for userId=${userId} sessionId=${sid}`,
+      );
+      return null;
+    }
+
     const now = new Date();
     const session = await this.repo.findOne({ where: { id: sid } });
     if (!session) {
@@ -383,6 +461,12 @@ export class ActivityEngine {
     if (!state) {
       throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
     }
+    if (
+      sid === this.activitySessionStore.getRootId(userId) ||
+      state.activityType === ActivityType.ROOT
+    ) {
+      throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
+    }
     if (state.isPaused) {
       throw new Error(WsErrorCode.ALREADY_PAUSED);
     }
@@ -418,6 +502,12 @@ export class ActivityEngine {
     }
     const state = this.activitySessionStore.getSession(userId, sid);
     if (!state) {
+      throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
+    }
+    if (
+      sid === this.activitySessionStore.getRootId(userId) ||
+      state.activityType === ActivityType.ROOT
+    ) {
       throw new Error(WsErrorCode.NO_ACTIVE_SESSION);
     }
     if (!state.isPaused) {

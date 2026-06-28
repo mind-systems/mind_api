@@ -28,6 +28,7 @@ function makeSession(overrides?: Partial<{ id: string }>) {
 function makeActivityEngine() {
   return {
     handleReconnect: jest.fn().mockResolvedValue(null),
+    ensureRoot: jest.fn().mockResolvedValue(makeSession()),
     getActiveSession: jest.fn().mockReturnValue(undefined),
     handleTransportDisconnect: jest.fn().mockResolvedValue(undefined),
     startActivity: jest.fn().mockResolvedValue(makeSession()),
