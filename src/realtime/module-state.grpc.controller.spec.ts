@@ -361,7 +361,9 @@ describe('ModuleStateGrpcController', () => {
     const ROOT_ACTIVITY_TYPE = 3 as ActivityType;
 
     it('should emit an ACTIVE sessionState frame with activityType === ROOT (3) when activity:start ROOT is received', async () => {
-      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+      activityEngine.ensureRoot.mockResolvedValue(
+        makeSession({ id: 'root-1' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -388,7 +390,9 @@ describe('ModuleStateGrpcController', () => {
     });
 
     it('should route activity:start ROOT through ensureRoot, not startActivity', async () => {
-      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+      activityEngine.ensureRoot.mockResolvedValue(
+        makeSession({ id: 'root-1' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -412,7 +416,9 @@ describe('ModuleStateGrpcController', () => {
     });
 
     it('should be idempotent — two activity:start ROOT commands both emit sessionState with moduleSessionId root-1', async () => {
-      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+      activityEngine.ensureRoot.mockResolvedValue(
+        makeSession({ id: 'root-1' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -440,7 +446,9 @@ describe('ModuleStateGrpcController', () => {
     });
 
     it('should emit a sessionState frame with activityType !== ROOT (3) for a child BREATH activity', async () => {
-      activityEngine.startActivity.mockResolvedValue(makeSession({ id: 'child-1' }));
+      activityEngine.startActivity.mockResolvedValue(
+        makeSession({ id: 'child-1' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -485,7 +493,9 @@ describe('ModuleStateGrpcController', () => {
       expect(values).toHaveLength(1);
       expect(values[0]?.sessionError?.code).toBe('CANNOT_END_ROOT');
       expect(activityEngine.endActivity).not.toHaveBeenCalled();
-      expect(values[0]?.sessionState?.status).not.toBe(ActivityStatus.COMPLETED);
+      expect(values[0]?.sessionState?.status).not.toBe(
+        ActivityStatus.COMPLETED,
+      );
 
       sub.unsubscribe();
     });
@@ -514,7 +524,9 @@ describe('ModuleStateGrpcController', () => {
       expect(values).toHaveLength(1);
       expect(values[0]?.sessionError?.code).toBe('CANNOT_END_ROOT');
       expect(activityEngine.stopActivity).not.toHaveBeenCalled();
-      expect(values[0]?.sessionState?.status).not.toBe(ActivityStatus.INTERRUPTED);
+      expect(values[0]?.sessionState?.status).not.toBe(
+        ActivityStatus.INTERRUPTED,
+      );
 
       sub.unsubscribe();
     });

@@ -75,24 +75,16 @@ export class ModuleInstructionStreamGrpcController {
               return;
             }
 
-            const session = this.activityEngine.getActiveSession(userId);
+            const session = this.activityEngine.getSession(
+              userId,
+              msg.sessionId,
+            );
 
             if (!session) {
               subscriber.next({
                 error: {
-                  code: 'NO_SESSION',
-                  message: 'No active session found',
-                  timestamp: Date.now(),
-                },
-              });
-              return;
-            }
-
-            if (session.sessionId !== msg.sessionId) {
-              subscriber.next({
-                error: {
-                  code: 'SESSION_MISMATCH',
-                  message: 'Session ID does not match active session',
+                  code: 'SESSION_NOT_FOUND',
+                  message: 'No live session with this id for this user',
                   timestamp: Date.now(),
                 },
               });

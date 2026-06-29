@@ -72,7 +72,9 @@ function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
  * produce a safe sentinel rather than throwing and replacing a valid frame with
  * INTERNAL_ERROR.
  */
-function mapInternalActivityType(internal: InternalActivityType): ProtoActivityType {
+function mapInternalActivityType(
+  internal: InternalActivityType,
+): ProtoActivityType {
   switch (internal) {
     case InternalActivityType.BREATH:
       return ProtoActivityType.BREATH;

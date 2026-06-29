@@ -534,6 +534,10 @@ export class ActivityEngine {
     return this.activitySessionStore.getSoleChild(userId);
   }
 
+  getSession(userId: string, sessionId: string): ActivityState | undefined {
+    return this.activitySessionStore.getSession(userId, sessionId);
+  }
+
   getSoleChild(userId: string): ActivityState | undefined {
     return this.activitySessionStore.getSoleChild(userId);
   }
