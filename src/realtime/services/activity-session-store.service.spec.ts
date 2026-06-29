@@ -41,7 +41,7 @@ describe('ActivitySessionStore', () => {
     it('should use the default grace period of 30000ms when ConfigService.get returns undefined', () => {
       store = makeActivitySessionStore(undefined);
       const cb = jest.fn();
-      store.startGraceTimer('user-1', cb);
+      store.startGraceTimerForSession('session-1', cb);
 
       jest.advanceTimersByTime(29_999);
       expect(cb).not.toHaveBeenCalled();
@@ -53,7 +53,7 @@ describe('ActivitySessionStore', () => {
     it('should use the custom grace period from ConfigService when WS_RECONNECT_GRACE_MS is set', () => {
       store = makeActivitySessionStore(5_000);
       const cb = jest.fn();
-      store.startGraceTimer('user-1', cb);
+      store.startGraceTimerForSession('session-1', cb);
 
       jest.advanceTimersByTime(4_999);
       expect(cb).not.toHaveBeenCalled();
@@ -74,9 +74,9 @@ describe('ActivitySessionStore', () => {
       expect(store.size).toBe(0);
     });
 
-    it('should return false from hasPendingGraceTimer("any-user") immediately after construction', () => {
+    it('should return false from hasPendingGraceTimerForSession("any-session") immediately after construction', () => {
       store = makeActivitySessionStore();
-      expect(store.hasPendingGraceTimer('any-user')).toBe(false);
+      expect(store.hasPendingGraceTimerForSession('any-session')).toBe(false);
     });
   });
 
@@ -130,10 +130,10 @@ describe('ActivitySessionStore', () => {
 
     it('should not start, cancel, or otherwise affect a pending grace timer when set() is called', () => {
       const cb = jest.fn();
-      store.startGraceTimer('user-1', cb);
+      store.startGraceTimerForSession('session-1', cb);
       store.set('user-1', makeActivityState());
 
-      expect(store.hasPendingGraceTimer('user-1')).toBe(true);
+      expect(store.hasPendingGraceTimerForSession('session-1')).toBe(true);
 
       jest.advanceTimersByTime(1_000);
       expect(cb).toHaveBeenCalledTimes(1);
@@ -161,24 +161,24 @@ describe('ActivitySessionStore', () => {
 
     it('should not cancel a pending grace timer when delete() is called (timers are independent of state)', () => {
       const cb = jest.fn();
-      store.set('user-1', makeActivityState());
-      store.startGraceTimer('user-1', cb);
+      store.set('user-1', makeActivityState({ sessionId: 'session-1' }));
+      store.startGraceTimerForSession('session-1', cb);
       store.delete('user-1');
 
-      expect(store.hasPendingGraceTimer('user-1')).toBe(true);
+      expect(store.hasPendingGraceTimerForSession('session-1')).toBe(true);
 
       jest.advanceTimersByTime(1_000);
       expect(cb).toHaveBeenCalledTimes(1);
     });
 
-    it('should leave hasPendingGraceTimer(otherUser) unchanged when delete(userA) is called', () => {
+    it('should leave hasPendingGraceTimerForSession(sessionB) unchanged when delete(userA) is called', () => {
       const cbB = jest.fn();
-      store.set('user-a', makeActivityState());
-      store.startGraceTimer('user-b', cbB);
+      store.set('user-a', makeActivityState({ sessionId: 'session-a' }));
+      store.startGraceTimerForSession('session-b', cbB);
 
       store.delete('user-a');
 
-      expect(store.hasPendingGraceTimer('user-b')).toBe(true);
+      expect(store.hasPendingGraceTimerForSession('session-b')).toBe(true);
     });
   });
 
@@ -221,63 +221,36 @@ describe('ActivitySessionStore', () => {
     });
   });
 
-  // ── Phase 6: startGraceTimer() — happy path firing ───────────────────────
+  // Phase 6 (userId-keyed happy-path firing) removed:
+  // Grace-period config assertions (default 30000ms, custom WS_RECONNECT_GRACE_MS)
+  // are preserved by the rewritten constructor cases above.
 
-  describe('startGraceTimer() — happy path firing', () => {
-    it('should invoke the onExpiry callback exactly once after the default grace period elapses (advance by graceMs)', () => {
-      store = makeActivitySessionStore(undefined); // falls back to 30 000 ms
-      const cb = jest.fn();
-      store.startGraceTimer('user-1', cb);
+  // ── Phase 6: startGraceTimerForSession() — replacing an existing timer ───
 
-      jest.advanceTimersByTime(30_000);
-      expect(cb).toHaveBeenCalledTimes(1);
-    });
-
-    it('should invoke the onExpiry callback after the custom grace period when ConfigService returned a custom value', () => {
-      store = makeActivitySessionStore(5_000);
-      const cb = jest.fn();
-      store.startGraceTimer('user-1', cb);
-
-      jest.advanceTimersByTime(5_000);
-      expect(cb).toHaveBeenCalledTimes(1);
-    });
-
-    it('should not invoke the onExpiry callback before the grace period elapses (advance by graceMs - 1)', () => {
-      store = makeActivitySessionStore(5_000);
-      const cb = jest.fn();
-      store.startGraceTimer('user-1', cb);
-
-      jest.advanceTimersByTime(4_999);
-      expect(cb).not.toHaveBeenCalled();
-    });
-  });
-
-  // ── Phase 7: startGraceTimer() — replacing an existing timer ─────────────
-
-  describe('startGraceTimer() — replacing an existing timer for the same userId', () => {
+  describe('startGraceTimerForSession() — replacing an existing timer for the same sessionId', () => {
     beforeEach(() => {
       store = makeActivitySessionStore(1_000);
     });
 
-    it('should cancel the previous timer so its callback never fires when startGraceTimer() is called twice for the same userId', () => {
+    it('should cancel the previous timer so its callback never fires when startGraceTimerForSession() is called twice for the same sessionId', () => {
       const cb1 = jest.fn();
       const cb2 = jest.fn();
 
-      store.startGraceTimer('user-1', cb1);
-      store.startGraceTimer('user-1', cb2);
+      store.startGraceTimerForSession('session-1', cb1);
+      store.startGraceTimerForSession('session-1', cb2);
 
       jest.advanceTimersByTime(2_000);
       expect(cb1).not.toHaveBeenCalled();
       expect(cb2).toHaveBeenCalledTimes(1);
     });
 
-    it('should fire only the most recent callback after graceMs elapses from the second startGraceTimer() call', () => {
+    it('should fire only the most recent callback after graceMs elapses from the second startGraceTimerForSession() call', () => {
       const cb1 = jest.fn();
       const cb2 = jest.fn();
 
-      store.startGraceTimer('user-1', cb1);
+      store.startGraceTimerForSession('session-1', cb1);
       jest.advanceTimersByTime(500); // halfway through first timer
-      store.startGraceTimer('user-1', cb2); // replaces; fires 1000ms from now
+      store.startGraceTimerForSession('session-1', cb2); // replaces; fires 1000ms from now
 
       jest.advanceTimersByTime(1_000);
       expect(cb1).not.toHaveBeenCalled();
@@ -285,27 +258,27 @@ describe('ActivitySessionStore', () => {
     });
   });
 
-  // ── Phase 8: startGraceTimer() — post-expiry cleanup ─────────────────────
+  // ── Phase 7: startGraceTimerForSession() — post-expiry cleanup ──────────
 
-  describe('startGraceTimer() — post-expiry cleanup', () => {
+  describe('startGraceTimerForSession() — post-expiry cleanup', () => {
     beforeEach(() => {
       store = makeActivitySessionStore(1_000);
     });
 
-    it('should remove the timer from the internal map after expiry so hasPendingGraceTimer() returns false', () => {
-      store.startGraceTimer('user-1', jest.fn());
+    it('should remove the timer from the internal map after expiry so hasPendingGraceTimerForSession() returns false', () => {
+      store.startGraceTimerForSession('session-1', jest.fn());
       jest.advanceTimersByTime(1_000);
-      expect(store.hasPendingGraceTimer('user-1')).toBe(false);
+      expect(store.hasPendingGraceTimerForSession('session-1')).toBe(false);
     });
 
-    it('should allow a new grace timer to be started for the same userId after the previous one expired', () => {
+    it('should allow a new grace timer to be started for the same sessionId after the previous one expired', () => {
       const cb1 = jest.fn();
       const cb2 = jest.fn();
 
-      store.startGraceTimer('user-1', cb1);
+      store.startGraceTimerForSession('session-1', cb1);
       jest.advanceTimersByTime(1_000);
 
-      store.startGraceTimer('user-1', cb2);
+      store.startGraceTimerForSession('session-1', cb2);
       jest.advanceTimersByTime(1_000);
 
       expect(cb1).toHaveBeenCalledTimes(1);
@@ -313,87 +286,104 @@ describe('ActivitySessionStore', () => {
     });
   });
 
-  // ── Phase 9: startGraceTimer() — Promise-returning callback (void semantics)
+  // ── Phase 8: startGraceTimerForSession() — Promise-returning callback (void semantics)
 
-  describe('startGraceTimer() — Promise-returning callback (void semantics)', () => {
+  describe('startGraceTimerForSession() — Promise-returning callback (void semantics)', () => {
     beforeEach(() => {
       store = makeActivitySessionStore(1_000);
     });
 
     it('should invoke onExpiry exactly once and remove the timer entry when onExpiry returns a resolved Promise (after flushing microtasks)', async () => {
       const cb = jest.fn().mockResolvedValue(undefined);
-      store.startGraceTimer('user-1', cb);
+      store.startGraceTimerForSession('session-1', cb);
 
       jest.advanceTimersByTime(1_000);
       await Promise.resolve(); // flush microtasks
 
       expect(cb).toHaveBeenCalledTimes(1);
-      expect(store.hasPendingGraceTimer('user-1')).toBe(false);
+      expect(store.hasPendingGraceTimerForSession('session-1')).toBe(false);
     });
 
-    it('should not block subsequent timer scheduling for the same userId on the un-awaited Promise returned by onExpiry', async () => {
+    it('should not block subsequent timer scheduling for the same sessionId on the un-awaited Promise returned by onExpiry', async () => {
       const cb1 = jest.fn().mockResolvedValue(undefined);
       const cb2 = jest.fn();
 
-      store.startGraceTimer('user-1', cb1);
+      store.startGraceTimerForSession('session-1', cb1);
       jest.advanceTimersByTime(1_000);
       await Promise.resolve(); // flush microtasks
 
       // cb1 ran and the timer entry was removed — a new timer can be registered
-      store.startGraceTimer('user-1', cb2);
+      store.startGraceTimerForSession('session-1', cb2);
       jest.advanceTimersByTime(1_000);
 
       expect(cb2).toHaveBeenCalledTimes(1);
     });
   });
 
-  // ── Phase 10: startGraceTimer() — concurrent independence between userIds ─
+  // Phase 9 (userId-keyed concurrent independence) removed:
+  // The firing-independence and expiry-independence invariants are covered by
+  // 'should key grace timers by sessionId, not userId: two children expire independently'
+  // in multi-session-lifecycle.spec.ts. The cancel-independence invariant is
+  // carried forward below as part of cancelGraceTimerForSession().
 
-  describe('startGraceTimer() — concurrent independence between userIds', () => {
+  // ── Phase 9: cancelGraceTimerForSession() ───────────────────────────────
+
+  describe('cancelGraceTimerForSession()', () => {
     beforeEach(() => {
       store = makeActivitySessionStore(1_000);
     });
 
-    it("should fire each userId's callback independently when concurrent timers are started for different userIds", () => {
-      const cbA = jest.fn();
-      const cbB = jest.fn();
+    it('should prevent the pending callback from firing when cancelGraceTimerForSession() is called before graceMs elapses', () => {
+      const cb = jest.fn();
+      store.startGraceTimerForSession('session-1', cb);
+      store.cancelGraceTimerForSession('session-1');
 
-      store.startGraceTimer('user-a', cbA);
-      store.startGraceTimer('user-b', cbB);
+      jest.advanceTimersByTime(1_000);
+      expect(cb).not.toHaveBeenCalled();
+    });
+
+    it('should remove the timer entry so hasPendingGraceTimerForSession() returns false after cancelGraceTimerForSession()', () => {
+      store.startGraceTimerForSession('session-1', jest.fn());
+      store.cancelGraceTimerForSession('session-1');
+      expect(store.hasPendingGraceTimerForSession('session-1')).toBe(false);
+    });
+
+    it('should be a no-op (no throw) when cancelGraceTimerForSession() is called for a sessionId with no pending timer', () => {
+      expect(() => store.cancelGraceTimerForSession('session-1')).not.toThrow();
+    });
+
+    it('should not modify the stored ActivityState when cancelGraceTimerForSession() is called', () => {
+      const state = makeActivityState();
+      store.set('user-1', state);
+      store.startGraceTimerForSession('session-1', jest.fn());
+      store.cancelGraceTimerForSession('session-1');
+      expect(store.get('user-1')).toBe(state);
+    });
+
+    it('should allow a new grace timer to be started for the same sessionId after cancelGraceTimerForSession()', () => {
+      const cb1 = jest.fn();
+      const cb2 = jest.fn();
+
+      store.startGraceTimerForSession('session-1', cb1);
+      store.cancelGraceTimerForSession('session-1');
+      store.startGraceTimerForSession('session-1', cb2);
 
       jest.advanceTimersByTime(1_000);
 
-      expect(cbA).toHaveBeenCalledTimes(1);
-      expect(cbB).toHaveBeenCalledTimes(1);
+      expect(cb1).not.toHaveBeenCalled();
+      expect(cb2).toHaveBeenCalledTimes(1);
     });
 
-    it("should leave userB's pending timer intact when userA's timer expires", () => {
+    it("should leave sessionB's pending timer intact when sessionA's timer is cancelled via cancelGraceTimerForSession()", () => {
       const cbA = jest.fn();
       const cbB = jest.fn();
 
-      // userA's timer starts at t=0, fires at t=1000
-      store.startGraceTimer('user-a', cbA);
-      jest.advanceTimersByTime(500);
-      // userB's timer starts at t=500, fires at t=1500
-      store.startGraceTimer('user-b', cbB);
+      store.startGraceTimerForSession('session-a', cbA);
+      store.startGraceTimerForSession('session-b', cbB);
 
-      jest.advanceTimersByTime(500); // now at t=1000: userA fires
+      store.cancelGraceTimerForSession('session-a');
 
-      expect(cbA).toHaveBeenCalledTimes(1);
-      expect(store.hasPendingGraceTimer('user-b')).toBe(true);
-      expect(cbB).not.toHaveBeenCalled();
-    });
-
-    it("should leave userB's pending timer intact when userA's timer is cancelled via cancelGraceTimer()", () => {
-      const cbA = jest.fn();
-      const cbB = jest.fn();
-
-      store.startGraceTimer('user-a', cbA);
-      store.startGraceTimer('user-b', cbB);
-
-      store.cancelGraceTimer('user-a');
-
-      expect(store.hasPendingGraceTimer('user-b')).toBe(true);
+      expect(store.hasPendingGraceTimerForSession('session-b')).toBe(true);
 
       jest.advanceTimersByTime(1_000);
       expect(cbA).not.toHaveBeenCalled();
@@ -401,87 +391,38 @@ describe('ActivitySessionStore', () => {
     });
   });
 
-  // ── Phase 11: cancelGraceTimer() ─────────────────────────────────────────
+  // ── Phase 10: hasPendingGraceTimerForSession() ──────────────────────────
 
-  describe('cancelGraceTimer()', () => {
+  describe('hasPendingGraceTimerForSession()', () => {
     beforeEach(() => {
       store = makeActivitySessionStore(1_000);
     });
 
-    it('should prevent the pending callback from firing when cancelGraceTimer() is called before graceMs elapses', () => {
-      const cb = jest.fn();
-      store.startGraceTimer('user-1', cb);
-      store.cancelGraceTimer('user-1');
-
-      jest.advanceTimersByTime(1_000);
-      expect(cb).not.toHaveBeenCalled();
+    it('should return false when no timer has been started for the sessionId', () => {
+      expect(store.hasPendingGraceTimerForSession('session-1')).toBe(false);
     });
 
-    it('should remove the timer entry so hasPendingGraceTimer() returns false after cancelGraceTimer()', () => {
-      store.startGraceTimer('user-1', jest.fn());
-      store.cancelGraceTimer('user-1');
-      expect(store.hasPendingGraceTimer('user-1')).toBe(false);
-    });
-
-    it('should be a no-op (no throw) when cancelGraceTimer() is called for a userId with no pending timer', () => {
-      expect(() => store.cancelGraceTimer('user-1')).not.toThrow();
-    });
-
-    it('should not modify the stored ActivityState when cancelGraceTimer() is called', () => {
-      const state = makeActivityState();
-      store.set('user-1', state);
-      store.startGraceTimer('user-1', jest.fn());
-      store.cancelGraceTimer('user-1');
-      expect(store.get('user-1')).toBe(state);
-    });
-
-    it('should allow a new grace timer to be started for the same userId after cancelGraceTimer()', () => {
-      const cb1 = jest.fn();
-      const cb2 = jest.fn();
-
-      store.startGraceTimer('user-1', cb1);
-      store.cancelGraceTimer('user-1');
-      store.startGraceTimer('user-1', cb2);
-
-      jest.advanceTimersByTime(1_000);
-
-      expect(cb1).not.toHaveBeenCalled();
-      expect(cb2).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  // ── Phase 12: hasPendingGraceTimer() ─────────────────────────────────────
-
-  describe('hasPendingGraceTimer()', () => {
-    beforeEach(() => {
-      store = makeActivitySessionStore(1_000);
-    });
-
-    it('should return false when no timer has been started for the userId', () => {
-      expect(store.hasPendingGraceTimer('user-1')).toBe(false);
-    });
-
-    it('should return true immediately after startGraceTimer() is called', () => {
-      store.startGraceTimer('user-1', jest.fn());
-      expect(store.hasPendingGraceTimer('user-1')).toBe(true);
+    it('should return true immediately after startGraceTimerForSession() is called', () => {
+      store.startGraceTimerForSession('session-1', jest.fn());
+      expect(store.hasPendingGraceTimerForSession('session-1')).toBe(true);
     });
 
     it('should return false after the grace period elapses and the timer fires', () => {
-      store.startGraceTimer('user-1', jest.fn());
+      store.startGraceTimerForSession('session-1', jest.fn());
       jest.advanceTimersByTime(1_000);
-      expect(store.hasPendingGraceTimer('user-1')).toBe(false);
+      expect(store.hasPendingGraceTimerForSession('session-1')).toBe(false);
     });
 
-    it('should return false after cancelGraceTimer() is called', () => {
-      store.startGraceTimer('user-1', jest.fn());
-      store.cancelGraceTimer('user-1');
-      expect(store.hasPendingGraceTimer('user-1')).toBe(false);
+    it('should return false after cancelGraceTimerForSession() is called', () => {
+      store.startGraceTimerForSession('session-1', jest.fn());
+      store.cancelGraceTimerForSession('session-1');
+      expect(store.hasPendingGraceTimerForSession('session-1')).toBe(false);
     });
 
-    it('should distinguish between different userIds (true for one, false for another)', () => {
-      store.startGraceTimer('user-1', jest.fn());
-      expect(store.hasPendingGraceTimer('user-1')).toBe(true);
-      expect(store.hasPendingGraceTimer('user-2')).toBe(false);
+    it('should distinguish between different sessionIds (true for one, false for another)', () => {
+      store.startGraceTimerForSession('session-1', jest.fn());
+      expect(store.hasPendingGraceTimerForSession('session-1')).toBe(true);
+      expect(store.hasPendingGraceTimerForSession('session-2')).toBe(false);
     });
   });
 });
