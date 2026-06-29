@@ -54,7 +54,7 @@ Bio data decouples from individual activities and lives on a single continuous *
 
 ## Phase 59 — Docs
 
-- [ ] **Update realtime docs to root/child model** — `docs/realtime/*` (overview, session-lifecycle, instruction-model, biometric-stream, database, protocol) + `docs/stats/stats.md` describe the old single-session model. Rewrite to the root timeline + overlapping children, windowed time-join, lazy root, `session_id`/idempotency, root stats exclusion. Russian, behavior-not-code, current-state-only, no file trees / See-Also. Spec: `.ai-factory/notes/14-realtime-docs-update.md`.
+- [x] **Update realtime docs to root/child model** — `docs/realtime/*` (overview, session-lifecycle, instruction-model, biometric-stream, database, protocol) + `docs/stats/stats.md` describe the old single-session model. Rewrite to the root timeline + overlapping children, windowed time-join, lazy root, `session_id`/idempotency, root stats exclusion. Ground-truth every behavioral claim against code per-file (no stale carry-over; the server does not filter `breath_phase` during pause — client-owned; instruction stream targets the sole active child, not N concurrent). Russian, behavior-not-code, current-state-only, no file trees / See-Also. Spec: `.ai-factory/notes/14-realtime-docs-update.md`. [30m 29s]
 
 _Consumer rollout is out of scope here — handed off to the owning repos later: **mind_mobile** (proto regen + root/child client behavior) gets its own `/aif-plan` inside that repo; **mind_mcp** carries no realtime proto, so it needs no change. Cross-repo contract notes (13 mobile, 12 mcp) are kept as handoff reference, not as roadmap tasks._
 

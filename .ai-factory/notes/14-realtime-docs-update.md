@@ -28,6 +28,8 @@
 
 ### Verify
 - Each doc reflects the shipped behavior from notes [[02-root-session-schema]] through [[11-migration-backfill-roots]].
+- **Exhaustive per-file claim audit.** For EVERY in-scope file, ground-truth each behavioral assertion against the actual code path that implements it (controller/engine/service), file by file — not only the sections the refactor touched. Stale carry-over sentences in lightly-edited files are the dominant failure mode here: a claim describing server-side behavior must name the real code location and match it, or be removed. Specifically, do not assert the server filters/blocks instruction samples (e.g. `breath_phase`) during pause — it does not; pause acceptance policy belongs to the client (`module-instruction-stream.grpc.controller.ts` has no `isPaused`/phase filter), and the server only stamps `paused`/`resumed` lifecycle markers. Cross-check that no two docs contradict each other on the same behavior (instruction-model.md ↔ biometric-stream.md pause semantics).
+- **Scope honesty for concurrency claims.** The "one root + N concurrent children" model is a bio-timeline property. The instruction stream resolves its target via the sole active child (`getSoleChild`, undefined when >1 child) — do not imply instruction streaming routes among several overlapping children by `session_id`.
 
 ## Open Questions
 - None.
