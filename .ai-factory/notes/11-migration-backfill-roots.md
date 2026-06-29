@@ -28,8 +28,8 @@ The schema prerequisites this migration's SQL touches (provided by an earlier sc
 - **`bio_session_samples."moduleSessionId"`** — uuid FK to `module_sessions(id)`, `ON DELETE CASCADE` (`FK_bio_session_samples_moduleSessionId`); `up()` repoints it child→root, `down()` repoints root→child.
 
 ### Dependency / ordering (HARD constraint)
-Postgres forbids using a newly-added enum value in the **same transaction** that adds it (this is exactly why `AddMeditationActivityType` is a single-statement migration). TypeORM runs each migration in its own transaction (`migrationsTransactionMode` defaults to `"all"`). Therefore:
-- The `ALTER TYPE ... ADD VALUE 'root'` migration from [[02-root-session-schema]] **must be committed in an earlier, separate migration** before this backfill migration runs (this migration INSERTs `activityType = 'root'` rows).
+Postgres forbids using a newly-added enum value in the **same transaction** that adds it (this is exactly why `AddMeditationActivityType` is a single-statement migration). **CORRECTION (plan-review-1):** the TypeORM default `migrationsTransactionMode: "all"` wraps **all pending migrations in ONE shared transaction** — it does NOT give each migration its own transaction (that is `"each"`). So putting `ALTER TYPE ... ADD VALUE 'root'` in a *separate file* is **not sufficient** when both migrations are pending in the same `migration:run` (fresh CI / e2e / first prod deploy of this branch): they share one `BEGIN…COMMIT` and the `'root'` reference raises `55P04 unsafe use of new value`. The real fix is to set `migrationsTransactionMode: 'each'` so `AddRootActivityType` commits before this migration starts (see plan Task 1). With that in place:
+- The `ALTER TYPE ... ADD VALUE 'root'` migration from [[02-root-session-schema]] commits in its own transaction strictly before this backfill migration runs (this migration INSERTs `activityType = 'root'` rows).
 - This backfill migration must **not** itself contain the `ADD VALUE` statement. Linear migration sequence enforces the order.
 
 ### Change — one CLI-generated migration (raw SQL, single transaction)
@@ -89,7 +89,7 @@ Instruction samples (`session_stream_samples`) stay on the child — instruction
 ### Guards / gotchas
 - Generate via CLI: `npx typeorm migration:create src/migrations/BackfillRootSessions` — never hand-craft the timestamp ([[feedback_migrations]]).
 - Run **after** [[10-bio-ingest-to-root]] so the target model is final, and **after** [[02-root-session-schema]]'s `ADD VALUE 'root'` is committed (separate prior migration — see Dependency / ordering above). Ordering is enforced by the linear migration sequence.
-- Everything in `up()`/`down()` runs in one transaction (TypeORM default `migrationsTransactionMode: "all"`).
+- Everything in `up()`/`down()` runs in one transaction. **CORRECTION (plan-review-1):** this requires `migrationsTransactionMode: 'each'` (set as part of this task) — under the `"all"` default the body would still be atomic, but the `'root'` enum usage would fail (see Dependency / ordering above). Under `'each'` each migration is its own transaction, so this migration's `up()`/`down()` body remains atomic.
 - **Batch size for the bio UPDATE: recommend 10 000 rows per batch.** `bio_session_samples` holds the bulk of all rows (one row per flushed batch of samples). A single set-based UPDATE locks/rewrites the whole table; chunking by `ctid` or by a `LIMIT`-driven loop keeps lock duration and WAL bounded. Locked at **10_000 rows/batch**; raise toward 50 000 if prod volume is modest, lower if lock contention shows up.
 - `ON DELETE CASCADE` on `rootSessionId` is self-referential — see down() ordering above.
 - Idempotent guard: `up()` only selects rows with `"activityType" != 'root' AND "rootSessionId" IS NULL` (the `_root_map` populate query), so a re-run creates no duplicate roots — already-migrated children have a non-null `rootSessionId` and are skipped.

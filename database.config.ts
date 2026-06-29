@@ -13,6 +13,7 @@ export const getDatabaseConfig = (
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/src/migrations/*{.ts,.js}'],
   migrationsRun: true,
+  migrationsTransactionMode: 'each',
   synchronize: false,
   logging: ['error', 'warn', 'migration'],
   ssl: false,

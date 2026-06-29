@@ -12,6 +12,7 @@ export default new DataSource({
   database: process.env.POSTGRES_DB || 'auth_db',
   entities: ['src/**/*.entity.ts'],
   migrations: ['src/migrations/*.ts'],
+  migrationsTransactionMode: 'each',
   synchronize: false,
   extra: {
     options: '-c timezone=UTC',
