@@ -5,7 +5,10 @@
  * so it adds no constructor parameter and stays invisible to DI.
  */
 export class ActivityIdempotencyStore {
-  private readonly map = new Map<string, { sessionId: string; storedAt: number }>();
+  private readonly map = new Map<
+    string,
+    { sessionId: string; storedAt: number }
+  >();
 
   /**
    * Returns the cached sessionId if the entry exists and is still within

@@ -732,7 +732,7 @@ describe('target — ensureRoot / linking [RED until Phase 55 — lazy-root-crea
       // rootSessionId must be null (not undefined) — the entity column is nullable,
       // and expect(…).toBeNull() distinguishes null from undefined.
       rootSessionId: null,
-    } as any);
+    });
     repo.create.mockReturnValue(rootRow);
     repo.save.mockResolvedValue(rootRow);
 
@@ -764,13 +764,13 @@ describe('target — ensureRoot / linking [RED until Phase 55 — lazy-root-crea
       activityType: 'root' as any,
       status: SessionStatus.ACTIVE,
       rootSessionId: null,
-    } as any);
+    });
     const childRow = makeSession({
       id: 'child-session-1',
       activityType: ActivityType.BREATH,
       status: SessionStatus.ACTIVE,
       rootSessionId: null, // Phase 55 sets this to 'root-session-1' before save
-    } as any);
+    });
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     (store as any).setRoot(
@@ -785,13 +785,13 @@ describe('target — ensureRoot / linking [RED until Phase 55 — lazy-root-crea
     await engine.startActivity('user-1', { activityType: ActivityType.BREATH });
 
     // The persisted child row must have rootSessionId = root's id
-    const savedChild = repo.save.mock.calls[0][0] as any;
+    const savedChild = repo.save.mock.calls[0][0];
     expect(savedChild.rootSessionId).toBe('root-session-1');
 
     // The stored ActivityState must also carry rootSessionId
     const storedState =
       store.get('user-1') ?? (store as any).getSoleChild('user-1');
-    expect((storedState as any).rootSessionId).toBe('root-session-1');
+    expect(storedState.rootSessionId).toBe('root-session-1');
   });
 
   it('should never end the root via activity:end — only the addressed child ends, root stays active', async () => {
@@ -800,13 +800,13 @@ describe('target — ensureRoot / linking [RED until Phase 55 — lazy-root-crea
       activityType: 'root' as any,
       status: SessionStatus.ACTIVE,
       rootSessionId: null,
-    } as any);
+    });
     const childRow = makeSession({
       id: 'child-session-1',
       activityType: ActivityType.BREATH,
       status: SessionStatus.ACTIVE,
       rootSessionId: 'root-session-1',
-    } as any);
+    });
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     (store as any).setRoot(

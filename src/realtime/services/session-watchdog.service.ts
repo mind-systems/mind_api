@@ -117,7 +117,9 @@ export class SessionWatchdogService
       if (this.activeStreamRegistry.hasLiveSubscriber(row.userId)) {
         continue;
       }
-      const childCount = await this.repo.count({ where: { rootSessionId: row.id } });
+      const childCount = await this.repo.count({
+        where: { rootSessionId: row.id },
+      });
       if (childCount !== 0) {
         continue;
       }
@@ -127,7 +129,10 @@ export class SessionWatchdogService
         );
         await this.repo.delete({ id: row.id });
       } catch (err: unknown) {
-        this.logger.error(`Janitor failed to reap root sessionId=${row.id}`, err);
+        this.logger.error(
+          `Janitor failed to reap root sessionId=${row.id}`,
+          err,
+        );
       }
     }
   }

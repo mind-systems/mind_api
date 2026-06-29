@@ -48,7 +48,7 @@ function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
     case ProtoActivityType.UNRECOGNIZED:
       throw new RpcException({
         code: GrpcStatus.INVALID_ARGUMENT,
-        message: `Unsupported activity type: ${proto as number}`,
+        message: `Unsupported activity type: ${proto}`,
       });
     default: {
       // Compile-time exhaustiveness check: TypeScript errors here when a new
@@ -335,10 +335,15 @@ export class ModuleStateGrpcController {
 
     // Idempotency dedup: if clientActivityId is set and the window has not expired,
     // return the cached session id without calling startActivity again.
-    const clientActivityId = (cmd as any).clientActivityId as string | undefined;
+    const clientActivityId = (cmd as any).clientActivityId as
+      | string
+      | undefined;
     if (clientActivityId !== undefined) {
       const idempotencyKey = `${userId}:${clientActivityId}`;
-      const cachedId = this.idempotency.lookup(idempotencyKey, this.idempotencyWindowMs);
+      const cachedId = this.idempotency.lookup(
+        idempotencyKey,
+        this.idempotencyWindowMs,
+      );
       if (cachedId !== undefined) {
         subscriber.next({
           sessionState: {
@@ -424,7 +429,10 @@ export class ModuleStateGrpcController {
       subscriber,
     );
     if (!resolved.ok) return;
-    const session = await this.activityEngine.stopActivity(userId, resolved.sessionId);
+    const session = await this.activityEngine.stopActivity(
+      userId,
+      resolved.sessionId,
+    );
     if (!session) return;
     subscriber.next({
       sessionState: {
@@ -449,7 +457,10 @@ export class ModuleStateGrpcController {
     );
     if (!resolved.ok) return;
     try {
-      const state = this.activityEngine.pauseActivity(userId, resolved.sessionId);
+      const state = this.activityEngine.pauseActivity(
+        userId,
+        resolved.sessionId,
+      );
       subscriber.next({
         sessionState: {
           moduleSessionId: state.sessionId,
@@ -481,7 +492,10 @@ export class ModuleStateGrpcController {
     );
     if (!resolved.ok) return;
     try {
-      const state = this.activityEngine.unpauseActivity(userId, resolved.sessionId);
+      const state = this.activityEngine.unpauseActivity(
+        userId,
+        resolved.sessionId,
+      );
       subscriber.next({
         sessionState: {
           moduleSessionId: state.sessionId,

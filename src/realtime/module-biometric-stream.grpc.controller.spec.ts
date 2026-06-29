@@ -19,14 +19,6 @@ function makeUser(overrides?: Partial<JwtPayload>): JwtPayload {
   };
 }
 
-function makePausedSession(overrides?: Partial<{ sessionId: string }>) {
-  return {
-    sessionId: 'session-1',
-    isPaused: true,
-    ...overrides,
-  } as any;
-}
-
 function makeStreamEngine() {
   return {
     maxSamplesPerSecond: 50,
@@ -41,8 +33,6 @@ function makeStreamEngine() {
 
 function makeActivityEngine() {
   return {
-    getActiveSession: jest.fn().mockReturnValue(undefined),
-    // ensureRoot does not exist yet on ActivityEngine — accessed as (engine as any).ensureRoot (P1, L2 compile-now)
     ensureRoot: jest.fn().mockResolvedValue(undefined),
   };
 }
@@ -150,87 +140,10 @@ describe('ModuleBiometricStreamGrpcController', () => {
     });
   });
 
-  // ── Pause pass-through (regression) ───────────────────────────────────────
+  // ── Connection / registry ─────────────────────────────────────────────────
 
-  describe('streamData — pause pass-through', () => {
-    it('should call streamEngine.pushBatch when session is paused and sessionId matches', (done) => {
-      const sessionId = 'session-1';
-      activityEngine.getActiveSession.mockReturnValue(
-        makePausedSession({ sessionId }),
-      );
-
-      const request$ = new Subject<BioSampleBatch>();
-      const values: BioStreamResponse[] = [];
-
-      const sub = controller.streamData(request$, makeUser()).subscribe({
-        next: (v) => {
-          values.push(v);
-          if (v.ack) {
-            expect(streamEngine.pushBatch).toHaveBeenCalled();
-            sub.unsubscribe();
-            done();
-          }
-        },
-        error: done,
-      });
-
-      request$.next(makeBatch(sessionId));
-    });
-
-    it('should respond with ack (not SESSION_PAUSED error) when session is paused', (done) => {
-      const sessionId = 'session-1';
-      activityEngine.getActiveSession.mockReturnValue(
-        makePausedSession({ sessionId }),
-      );
-
-      const request$ = new Subject<BioSampleBatch>();
-
-      const sub = controller.streamData(request$, makeUser()).subscribe({
-        next: (v) => {
-          // Skip the ready frame
-          if (v.ready) return;
-
-          expect(v.error?.code).not.toBe('SESSION_PAUSED');
-          expect(v.ack).toBeDefined();
-          sub.unsubscribe();
-          done();
-        },
-        error: done,
-      });
-
-      request$.next(makeBatch(sessionId));
-    });
-
-    it('should not emit an error frame for a paused session with a valid batch', (done) => {
-      const sessionId = 'session-1';
-      activityEngine.getActiveSession.mockReturnValue(
-        makePausedSession({ sessionId }),
-      );
-
-      const request$ = new Subject<BioSampleBatch>();
-      const errorFrames: BioStreamResponse[] = [];
-
-      const sub = controller.streamData(request$, makeUser()).subscribe({
-        next: (v) => {
-          if (v.error) errorFrames.push(v);
-          if (v.ack) {
-            expect(errorFrames).toHaveLength(0);
-            sub.unsubscribe();
-            done();
-          }
-        },
-        error: done,
-      });
-
-      request$.next(makeBatch(sessionId));
-    });
-
-    it('should still emit ready frame on connection even when session is paused', () => {
-      const sessionId = 'session-1';
-      activityEngine.getActiveSession.mockReturnValue(
-        makePausedSession({ sessionId }),
-      );
-
+  describe('streamData — connection', () => {
+    it('should still emit ready frame on connection', () => {
       const request$ = new Subject<BioSampleBatch>();
       const values: BioStreamResponse[] = [];
 
@@ -340,7 +253,6 @@ describe('ModuleBiometricStreamGrpcController', () => {
 
   describe('streamData — bio bound to root', () => {
     it('[RED until spec 10-bio-ingest-to-root] should resolve the user root and call pushBatch(root.id, …)', async () => {
-      // P1: stub ensureRoot (not getActiveSession)
       activityEngine.ensureRoot.mockResolvedValue(makeRoot({ id: 'root-1' }));
 
       const request$ = new Subject<BioSampleBatch>();

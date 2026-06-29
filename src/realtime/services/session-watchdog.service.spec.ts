@@ -76,7 +76,7 @@ describe('SessionWatchdogService', () => {
         return def;
       }),
     };
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
     service = new SessionWatchdogService(
       repo as any,
       activityEngine as any,
@@ -126,7 +126,7 @@ describe('SessionWatchdogService', () => {
           key === 'WS_SESSION_MAX_IDLE_MS' ? customIdleMs : def,
         ),
       };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
       const customService = new SessionWatchdogService(
         repo as any,
         activityEngine as any,
@@ -337,7 +337,6 @@ describe('SessionWatchdogService', () => {
 
       // P3: per-root observable outcome — either delete({ id }) or abandonStale(userId, id) must fire.
       const wasDeleted = repo.delete.mock.calls.some(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         ([arg]: [any]) => (arg as { id: string })?.id === root.id,
       );
       const wasAbandoned = activityEngine.abandonStale.mock.calls.some(
@@ -360,7 +359,6 @@ describe('SessionWatchdogService', () => {
 
       // Guard: no delete or abandon must target this root.
       const wasDeleted = repo.delete.mock.calls.some(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         ([arg]: [any]) => (arg as { id: string })?.id === root.id,
       );
       const wasAbandoned = activityEngine.abandonStale.mock.calls.some(
@@ -382,7 +380,6 @@ describe('SessionWatchdogService', () => {
       await (service as any).sweepEmptyRoots();
 
       const wasDeleted = repo.delete.mock.calls.some(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         ([arg]: [any]) => (arg as { id: string })?.id === root.id,
       );
       const wasAbandoned = activityEngine.abandonStale.mock.calls.some(

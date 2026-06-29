@@ -16,9 +16,7 @@ export class AddRootSessionLink1782658936664 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX "IDX_module_sessions_rootSessionId"`,
-    );
+    await queryRunner.query(`DROP INDEX "IDX_module_sessions_rootSessionId"`);
     await queryRunner.query(
       `ALTER TABLE "module_sessions" DROP CONSTRAINT "FK_module_sessions_rootSessionId"`,
     );

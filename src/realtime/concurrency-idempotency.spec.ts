@@ -146,7 +146,7 @@ function activityStart(
   };
   if (opts.clientActivityId !== undefined) {
     // Not-yet-existing proto field — accessed via (cmd as any) to compile before spec 05
-    (cmd as any).clientActivityId = opts.clientActivityId;
+    cmd.clientActivityId = opts.clientActivityId;
   }
   if (opts.clientTimestampMs !== undefined) {
     cmd.clientTimestampMs = opts.clientTimestampMs;
@@ -160,7 +160,7 @@ function activityEnd(
   const cmd: any = {};
   if (opts.sessionId !== undefined) {
     // Not-yet-existing proto field
-    (cmd as any).sessionId = opts.sessionId;
+    cmd.sessionId = opts.sessionId;
   }
   if (opts.clientTimestampMs !== undefined) {
     cmd.clientTimestampMs = opts.clientTimestampMs;
@@ -171,7 +171,7 @@ function activityEnd(
 function activityStop(opts: { sessionId?: string } = {}): StateRequest {
   const cmd: any = {};
   if (opts.sessionId !== undefined) {
-    (cmd as any).sessionId = opts.sessionId;
+    cmd.sessionId = opts.sessionId;
   }
   return { activityStop: cmd };
 }
@@ -179,7 +179,7 @@ function activityStop(opts: { sessionId?: string } = {}): StateRequest {
 function activityPause(opts: { sessionId?: string } = {}): StateRequest {
   const cmd: any = {};
   if (opts.sessionId !== undefined) {
-    (cmd as any).sessionId = opts.sessionId;
+    cmd.sessionId = opts.sessionId;
   }
   return { activityPause: cmd };
 }
@@ -187,7 +187,7 @@ function activityPause(opts: { sessionId?: string } = {}): StateRequest {
 function activityResume(opts: { sessionId?: string } = {}): StateRequest {
   const cmd: any = {};
   if (opts.sessionId !== undefined) {
-    (cmd as any).sessionId = opts.sessionId;
+    cmd.sessionId = opts.sessionId;
   }
   return { activityResume: cmd };
 }

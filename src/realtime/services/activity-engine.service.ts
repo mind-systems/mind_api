@@ -45,8 +45,7 @@ export class ActivityEngine {
     }
     const ms =
       typeof clientTimestampMs === 'object' &&
-      typeof (clientTimestampMs as { toNumber?: () => number }).toNumber ===
-        'function'
+      typeof clientTimestampMs.toNumber === 'function'
         ? (clientTimestampMs as { toNumber: () => number }).toNumber()
         : Number(clientTimestampMs);
     if (!ms || !isFinite(ms)) {
@@ -269,9 +268,7 @@ export class ActivityEngine {
       status: SessionStatus.DISCONNECTED,
       disconnectedAt: now,
     });
-    this.logger.log(
-      `Session disconnected: userId=${userId} sessionId=${sid}`,
-    );
+    this.logger.log(`Session disconnected: userId=${userId} sessionId=${sid}`);
     // Entry stays in activitySessionStore — grace timer + abandon handled by handleTransportDisconnect
   }
 
@@ -487,9 +484,7 @@ export class ActivityEngine {
       userId,
     });
 
-    this.logger.log(
-      `Session paused: userId=${userId} sessionId=${sid}`,
-    );
+    this.logger.log(`Session paused: userId=${userId} sessionId=${sid}`);
 
     return state;
   }
@@ -530,9 +525,7 @@ export class ActivityEngine {
       userId,
     });
 
-    this.logger.log(
-      `Session unpaused: userId=${userId} sessionId=${sid}`,
-    );
+    this.logger.log(`Session unpaused: userId=${userId} sessionId=${sid}`);
 
     return state;
   }

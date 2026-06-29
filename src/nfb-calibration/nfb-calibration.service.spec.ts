@@ -154,7 +154,7 @@ describe('NfbCalibrationService.record — failReason mapping', () => {
   });
 
   it('should set failReason to null when request failReason is undefined', async () => {
-    const req = makeReq({ failReason: undefined as any });
+    const req = makeReq({ failReason: undefined });
     const entity = makeRecord();
     repo.create.mockReturnValue(entity);
     repo.save.mockResolvedValue(entity);

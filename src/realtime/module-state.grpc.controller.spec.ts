@@ -739,7 +739,6 @@ describe('ModuleStateGrpcController', () => {
         expect(values[0]?.sessionState).toBeDefined();
         expect('isPaused' in values[0].sessionState!).toBe(false);
       });
-
     });
 
     // ── Task 2: ActivityEnd ─────────────────────────────────────────────────

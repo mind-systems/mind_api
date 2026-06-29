@@ -18,6 +18,7 @@ import { ActiveStreamRegistry } from './services/active-stream-registry.service'
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
+import { WsErrorCode } from './constants/ws-error-codes';
 import { BioSampleInternal } from './interfaces/bio-session-buffer.interface';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
 
@@ -64,7 +65,7 @@ export class ModuleBiometricStreamGrpcController {
 
       const sub = request.subscribe({
         next: (batch: BioSampleBatch) => {
-          this.handleBatch(userId, batch, subscriber);
+          void this.handleBatch(userId, batch, subscriber);
         },
         error: (err: unknown) => subscriber.error(err),
         complete: () => subscriber.complete(),
@@ -78,11 +79,11 @@ export class ModuleBiometricStreamGrpcController {
     });
   }
 
-  private handleBatch(
+  private async handleBatch(
     userId: string,
     batch: BioSampleBatch,
     subscriber: Subscriber<BioStreamResponse>,
-  ): void {
+  ): Promise<void> {
     try {
       const emitError = (code: string, message: string) =>
         subscriber.next({ error: { code, message, timestamp: Date.now() } });
@@ -113,36 +114,34 @@ export class ModuleBiometricStreamGrpcController {
         return;
       }
 
-      // Step 5: no active session for this user
-      const session = this.activityEngine.getActiveSession(userId);
-      if (!session) {
-        emitError('NO_SESSION', 'No active session found');
+      // Step 5: resolve root session for this user
+      const root = await this.activityEngine.ensureRoot(userId);
+      if (!root) {
+        emitError(WsErrorCode.NO_ROOT_SESSION, 'No root session');
         return;
       }
 
-      // Step 6: session ID mismatch
-      if (session.sessionId !== batch.samples[0].sessionId) {
+      // Step 6: session ID must match root session id
+      if (root.id !== batch.samples[0].sessionId) {
         emitError(
-          'SESSION_MISMATCH',
-          'Session ID does not match active session',
+          WsErrorCode.SESSION_MISMATCH,
+          'Session ID does not match root session',
         );
         return;
       }
 
       // Happy path
-      const batchSessionId = batch.samples[0].sessionId;
-
       const mapped: BioSampleInternal[] = batch.samples.map((s) => ({
         timestamp: Number(s.timestamp),
         sampleType: s.sampleType,
         data: s.data,
       }));
 
-      const result = this.streamEngine.pushBatch(batchSessionId, mapped);
+      const result = this.streamEngine.pushBatch(root.id, mapped);
 
       subscriber.next({
         ack: {
-          sessionId: batchSessionId,
+          sessionId: root.id,
           receivedCount: result.totalReceived,
           droppedCount: result.totalDropped,
           maxSamplesPerSecond: this.streamEngine.maxSamplesPerSecond,
@@ -152,7 +151,7 @@ export class ModuleBiometricStreamGrpcController {
 
       if (result.droppedCount > 0) {
         this.logger.warn(
-          `Sample(s) dropped for sessionId=${batchSessionId} userId=${userId}: buffer cap reached`,
+          `Sample(s) dropped for sessionId=${root.id} userId=${userId}: buffer cap reached`,
         );
       }
     } catch (err: unknown) {

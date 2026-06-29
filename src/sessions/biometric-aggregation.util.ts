@@ -390,7 +390,7 @@ export function reshapeLttbRows(
     const sortedFields = Object.keys(data).sort();
     const dataSorted: Record<string, number> = {};
     for (const f of sortedFields) {
-      dataSorted[f] = data[f] as number;
+      dataSorted[f] = data[f];
     }
 
     result.push({ timestamp: start + midOffset, sampleType, data: dataSorted });

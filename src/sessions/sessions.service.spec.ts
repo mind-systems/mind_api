@@ -277,7 +277,6 @@ describe('SessionsService.listRuns', () => {
     entities: Partial<ModuleSession>[],
     raw: Record<string, unknown>[],
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const qb: any = {
       leftJoin: jest.fn(),
       addSelect: jest.fn(),
