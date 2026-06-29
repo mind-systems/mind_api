@@ -574,6 +574,49 @@ describe('ActivityEngine', () => {
     });
   });
 
+  describe('ensureRoot', () => {
+    it('concurrent calls create exactly one root row (repo.create and repo.save called once)', async () => {
+      const rootSession = makeSession({
+        id: 'root-1',
+        activityType: ActivityType.ROOT,
+        rootSessionId: null,
+      });
+      repo.create.mockImplementation((e: Partial<ModuleSession>) => e);
+      repo.save.mockResolvedValue(rootSession);
+
+      const [a, b] = await Promise.all([
+        engine.ensureRoot('u'),
+        engine.ensureRoot('u'),
+      ]);
+
+      // Primary discriminator: only one DB round-trip
+      expect(repo.create).toHaveBeenCalledTimes(1);
+      expect(repo.save).toHaveBeenCalledTimes(1);
+      // Secondary: both callers receive the same root
+      expect(a.id).toBe('root-1');
+      expect(b.id).toBe('root-1');
+    });
+
+    it('returns synthesized root without DB access when root already exists in store', async () => {
+      const now = new Date();
+      // Pre-seed via the real store so both getRoot and getRootId are consistent
+      activitySessionStore.setRoot('u', 'existing-root', {
+        sessionId: 'existing-root',
+        activityType: ActivityType.ROOT,
+        startedAt: now,
+        lastActivityAt: now,
+        isPaused: false,
+        rootSessionId: null,
+      });
+
+      const result = await engine.ensureRoot('u');
+
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(result.id).toBe('existing-root');
+    });
+  });
+
   describe('resumeActivity', () => {
     it('happy path: sets status=ACTIVE, clears disconnectedAt, updates lastActivityAt, returns session', async () => {
       const session = makeSession({ status: SessionStatus.DISCONNECTED });

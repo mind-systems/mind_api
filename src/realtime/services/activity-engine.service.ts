@@ -24,6 +24,8 @@ import { WsErrorCode } from '../constants/ws-error-codes';
 export class ActivityEngine {
   private readonly logger = new Logger(ActivityEngine.name);
 
+  private readonly ensureRootInFlight = new Map<string, Promise<ModuleSession>>();
+
   constructor(
     @InjectRepository(ModuleSession)
     private readonly repo: Repository<ModuleSession>,
@@ -65,6 +67,29 @@ export class ActivityEngine {
   }
 
   /**
+   * Synthesize a root ModuleSession from in-memory state without touching the
+   * DB. Returns null when the store has no rootSessionId recorded for the user
+   * (defensive branch — callers fall through to the create path).
+   */
+  private reconstructRoot(
+    userId: string,
+    state: ActivityState,
+  ): ModuleSession | null {
+    const rootId = this.activitySessionStore.getRootId(userId);
+    if (!rootId) return null;
+    return {
+      id: rootId,
+      userId,
+      activityType: ActivityType.ROOT,
+      activityRefId: undefined,
+      rootSessionId: null,
+      status: SessionStatus.ACTIVE,
+      startedAt: state.startedAt,
+      lastActivityAt: state.lastActivityAt,
+    } as ModuleSession;
+  }
+
+  /**
    * Materialize a lazy root ModuleSession for a user connection.
    * Idempotent: if a root is already in the store, returns a synthesized
    * ModuleSession with no DB access (no repo.create, no repo.save).
@@ -74,47 +99,63 @@ export class ActivityEngine {
     userId: string,
     clientTimestampMs?: number | { toNumber?: () => number } | string,
   ): Promise<ModuleSession> {
+    // Fast path: root already in store — no lock needed.
     const existingRootState = this.activitySessionStore.getRoot(userId);
     if (existingRootState) {
-      const rootId = this.activitySessionStore.getRootId(userId)!;
-      return {
-        id: rootId,
+      const r = this.reconstructRoot(userId, existingRootState);
+      if (r) return r;
+    }
+
+    // Join path: a concurrent call for the same user is already creating the
+    // root — piggyback on its promise instead of racing to create a second row.
+    const inflight = this.ensureRootInFlight.get(userId);
+    if (inflight) return inflight;
+
+    // Critical section: one caller reaches here at a time (per userId) because
+    // the promise is registered synchronously before the first await.
+    const p = (async () => {
+      // Re-check after acquiring the lock in case another call completed between
+      // the fast-path miss above and this point.
+      const recheckState = this.activitySessionStore.getRoot(userId);
+      if (recheckState) {
+        const r = this.reconstructRoot(userId, recheckState);
+        if (r) return r;
+      }
+
+      const now = new Date();
+      const session = this.repo.create({
         userId,
         activityType: ActivityType.ROOT,
         activityRefId: undefined,
-        rootSessionId: null,
         status: SessionStatus.ACTIVE,
-        startedAt: existingRootState.startedAt,
-        lastActivityAt: existingRootState.lastActivityAt,
-      } as ModuleSession;
+        startedAt: this.coerceClientTs(clientTimestampMs) ?? now,
+        lastActivityAt: now,
+        rootSessionId: null,
+      });
+      const saved = await this.repo.save(session);
+
+      this.activitySessionStore.setRoot(userId, saved.id, {
+        sessionId: saved.id,
+        activityType: ActivityType.ROOT,
+        startedAt: saved.startedAt,
+        lastActivityAt: saved.lastActivityAt,
+        isPaused: false,
+        rootSessionId: null,
+      });
+
+      this.logger.log(
+        `Root session created: userId=${userId} rootSessionId=${saved.id}`,
+      );
+
+      return saved;
+    })();
+
+    this.ensureRootInFlight.set(userId, p);
+    try {
+      return await p;
+    } finally {
+      this.ensureRootInFlight.delete(userId);
     }
-
-    const now = new Date();
-    const session = this.repo.create({
-      userId,
-      activityType: ActivityType.ROOT,
-      activityRefId: undefined,
-      status: SessionStatus.ACTIVE,
-      startedAt: this.coerceClientTs(clientTimestampMs) ?? now,
-      lastActivityAt: now,
-      rootSessionId: null,
-    });
-    const saved = await this.repo.save(session);
-
-    this.activitySessionStore.setRoot(userId, saved.id, {
-      sessionId: saved.id,
-      activityType: ActivityType.ROOT,
-      startedAt: saved.startedAt,
-      lastActivityAt: saved.lastActivityAt,
-      isPaused: false,
-      rootSessionId: null,
-    });
-
-    this.logger.log(
-      `Root session created: userId=${userId} rootSessionId=${saved.id}`,
-    );
-
-    return saved;
   }
 
   async startActivity(
