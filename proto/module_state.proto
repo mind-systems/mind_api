@@ -9,11 +9,14 @@ package mind;
 // Maps to ActivityType enum in src/realtime/enums/activity-type.enum.ts.
 // ACTIVITY_TYPE_UNSPECIFIED = 0 is the sentinel to prevent uninitialized fields
 // from silently matching a real value.
+// ROOT = 3 is the client-addressable root session marker — the client opens it
+// via activity:start { activity_type: ROOT } and learns its id from the response.
 // Extension point for future activity types.
 enum ActivityType {
   ACTIVITY_TYPE_UNSPECIFIED = 0;
   BREATH = 1;
   MEDITATION = 2;
+  ROOT = 3;
 }
 
 // Maps to SessionStatus enum in src/realtime/enums/session-status.enum.ts.
@@ -78,10 +81,13 @@ message ActivityResumeCmd {
 // ---------------------------------------------------------------------------
 
 // Maps to SessionStateDto in src/realtime/dto/session-state.dto.ts.
+// activity_type = 4 is the per-frame discriminator: ROOT ⇒ the frame describes
+// the root session; BREATH/MEDITATION ⇒ the frame describes a child session.
 message StateEvent {
   string module_session_id = 1;
   ActivityStatus status = 2;
   optional bool is_paused = 3;
+  ActivityType activity_type = 4;
 }
 
 // Maps to SessionErrorDto in src/realtime/dto/session-error.dto.ts.

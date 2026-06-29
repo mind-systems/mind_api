@@ -76,6 +76,7 @@ function makeActivityEngine() {
     // Accessed via (activityEngine as any).<method> throughout — do NOT use directly.
     listLiveSessions: jest.fn().mockReturnValue([]),
     getSoleChild: jest.fn().mockReturnValue(undefined),
+    getRootId: jest.fn().mockReturnValue(null),
   };
 }
 

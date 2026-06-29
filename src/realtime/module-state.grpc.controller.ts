@@ -44,6 +44,8 @@ function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
       return InternalActivityType.BREATH;
     case ProtoActivityType.MEDITATION:
       return InternalActivityType.MEDITATION;
+    case ProtoActivityType.ROOT:
+      return InternalActivityType.ROOT;
     case ProtoActivityType.ACTIVITY_TYPE_UNSPECIFIED:
     case ProtoActivityType.UNRECOGNIZED:
       throw new RpcException({
@@ -59,6 +61,30 @@ function mapProtoActivityType(proto: ProtoActivityType): InternalActivityType {
         code: GrpcStatus.INVALID_ARGUMENT,
         message: `Unsupported activity type: ${proto as number}`,
       });
+    }
+  }
+}
+
+/**
+ * Total reverse mapper: internal → proto ActivityType.
+ * Returns ACTIVITY_TYPE_UNSPECIFIED (0) for any type not explicitly mapped so
+ * that optional/missing `activityType` fields on mocked session/state objects
+ * produce a safe sentinel rather than throwing and replacing a valid frame with
+ * INTERNAL_ERROR.
+ */
+function mapInternalActivityType(internal: InternalActivityType): ProtoActivityType {
+  switch (internal) {
+    case InternalActivityType.BREATH:
+      return ProtoActivityType.BREATH;
+    case InternalActivityType.MEDITATION:
+      return ProtoActivityType.MEDITATION;
+    case InternalActivityType.ROOT:
+      return ProtoActivityType.ROOT;
+    default: {
+      // Compile-time exhaustiveness hint only — must not throw at runtime.
+      const _exhaustive: never = internal;
+      void _exhaustive;
+      return ProtoActivityType.ACTIVITY_TYPE_UNSPECIFIED;
     }
   }
 }
@@ -128,10 +154,13 @@ export class ModuleStateGrpcController {
         if (result !== null) {
           if ('abandoned' in result) {
             if (!clientSessionId) return;
+            // ABANDONED: only clientSessionId is available; no session object to
+            // derive activityType from — stamp ACTIVITY_TYPE_UNSPECIFIED (0).
             subscriber.next({
               sessionState: {
                 moduleSessionId: clientSessionId,
                 status: ActivityStatus.ABANDONED,
+                activityType: ProtoActivityType.ACTIVITY_TYPE_UNSPECIFIED,
               },
             });
           } else {
@@ -140,6 +169,7 @@ export class ModuleStateGrpcController {
                 moduleSessionId: result.id,
                 status: ActivityStatus.RESUMED,
                 isPaused: false,
+                activityType: mapInternalActivityType(result.activityType),
               },
             });
             this.logger.log(
@@ -333,28 +363,8 @@ export class ModuleStateGrpcController {
       return;
     }
 
-    // Idempotency dedup: if clientActivityId is set and the window has not expired,
-    // return the cached session id without calling startActivity again.
-    const clientActivityId = (cmd as any).clientActivityId as
-      | string
-      | undefined;
-    if (clientActivityId !== undefined) {
-      const idempotencyKey = `${userId}:${clientActivityId}`;
-      const cachedId = this.idempotency.lookup(
-        idempotencyKey,
-        this.idempotencyWindowMs,
-      );
-      if (cachedId !== undefined) {
-        subscriber.next({
-          sessionState: {
-            moduleSessionId: cachedId,
-            status: ActivityStatus.ACTIVE,
-          },
-        });
-        return;
-      }
-    }
-
+    // Resolve and validate the activity type before any dedup short-circuit so
+    // the local variable is available for every emission (including cache hits).
     let activityType: InternalActivityType;
     try {
       activityType = mapProtoActivityType(cmd.activityType);
@@ -369,11 +379,39 @@ export class ModuleStateGrpcController {
       return;
     }
 
-    const session = await this.activityEngine.startActivity(userId, {
-      activityType,
-      activityRefId: cmd.refId,
-      clientTimestampMs: cmd.clientTimestampMs,
-    });
+    // Idempotency dedup: if clientActivityId is set and the window has not expired,
+    // return the cached session id without calling startActivity/ensureRoot again.
+    const clientActivityId = (cmd as any).clientActivityId as
+      | string
+      | undefined;
+    if (clientActivityId !== undefined) {
+      const idempotencyKey = `${userId}:${clientActivityId}`;
+      const cachedId = this.idempotency.lookup(
+        idempotencyKey,
+        this.idempotencyWindowMs,
+      );
+      if (cachedId !== undefined) {
+        subscriber.next({
+          sessionState: {
+            moduleSessionId: cachedId,
+            status: ActivityStatus.ACTIVE,
+            activityType: mapInternalActivityType(activityType),
+          },
+        });
+        return;
+      }
+    }
+
+    // Route ROOT starts through ensureRoot (idempotent by userId, sets
+    // rootSessionId=null). Child types go through the regular startActivity path.
+    const session =
+      activityType === InternalActivityType.ROOT
+        ? await this.activityEngine.ensureRoot(userId, cmd.clientTimestampMs)
+        : await this.activityEngine.startActivity(userId, {
+            activityType,
+            activityRefId: cmd.refId,
+            clientTimestampMs: cmd.clientTimestampMs,
+          });
 
     // Record the new session id in the idempotency map so retries are deduped.
     if (clientActivityId !== undefined) {
@@ -385,10 +423,11 @@ export class ModuleStateGrpcController {
       sessionState: {
         moduleSessionId: session.id,
         status: ActivityStatus.ACTIVE,
+        activityType: mapInternalActivityType(activityType),
       },
     });
     this.logger.log(
-      `Activity started: userId=${userId} sessionId=${session.id}`,
+      `Activity started: userId=${userId} sessionId=${session.id} activityType=${activityType}`,
     );
   }
 
@@ -403,6 +442,20 @@ export class ModuleStateGrpcController {
       subscriber,
     );
     if (!resolved.ok) return;
+    // Double-defense: the engine already rejects root internally (endActivity
+    // returns null for root), but this guard upgrades that silent no-op into an
+    // explicit client-facing CANNOT_END_ROOT frame.
+    const endRootId = this.activityEngine.getRootId(userId);
+    if (resolved.sessionId !== undefined && resolved.sessionId === endRootId) {
+      subscriber.next({
+        sessionError: {
+          code: 'CANNOT_END_ROOT',
+          message: 'Root session cannot be ended by the client',
+          timestamp: Date.now(),
+        },
+      });
+      return;
+    }
     const session = await this.activityEngine.endActivity(
       userId,
       resolved.sessionId,
@@ -413,6 +466,7 @@ export class ModuleStateGrpcController {
       sessionState: {
         moduleSessionId: session.id,
         status: ActivityStatus.COMPLETED,
+        activityType: mapInternalActivityType(session.activityType),
       },
     });
     this.logger.log(`Activity ended: userId=${userId} sessionId=${session.id}`);
@@ -429,6 +483,20 @@ export class ModuleStateGrpcController {
       subscriber,
     );
     if (!resolved.ok) return;
+    // Double-defense: the engine already rejects root internally (stopActivity
+    // returns null for root), but this guard upgrades that silent no-op into an
+    // explicit client-facing CANNOT_END_ROOT frame.
+    const stopRootId = this.activityEngine.getRootId(userId);
+    if (resolved.sessionId !== undefined && resolved.sessionId === stopRootId) {
+      subscriber.next({
+        sessionError: {
+          code: 'CANNOT_END_ROOT',
+          message: 'Root session cannot be ended by the client',
+          timestamp: Date.now(),
+        },
+      });
+      return;
+    }
     const session = await this.activityEngine.stopActivity(
       userId,
       resolved.sessionId,
@@ -438,6 +506,7 @@ export class ModuleStateGrpcController {
       sessionState: {
         moduleSessionId: session.id,
         status: ActivityStatus.INTERRUPTED,
+        activityType: mapInternalActivityType(session.activityType),
       },
     });
     this.logger.log(
@@ -466,6 +535,7 @@ export class ModuleStateGrpcController {
           moduleSessionId: state.sessionId,
           status: ActivityStatus.ACTIVE,
           isPaused: true,
+          activityType: mapInternalActivityType(state.activityType),
         },
       });
     } catch (err: unknown) {
@@ -501,6 +571,7 @@ export class ModuleStateGrpcController {
           moduleSessionId: state.sessionId,
           status: ActivityStatus.ACTIVE,
           isPaused: false,
+          activityType: mapInternalActivityType(state.activityType),
         },
       });
     } catch (err: unknown) {
