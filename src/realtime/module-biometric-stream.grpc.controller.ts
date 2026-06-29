@@ -121,15 +121,6 @@ export class ModuleBiometricStreamGrpcController {
         return;
       }
 
-      // Step 6: session ID must match root session id
-      if (root.id !== batch.samples[0].sessionId) {
-        emitError(
-          WsErrorCode.SESSION_MISMATCH,
-          'Session ID does not match root session',
-        );
-        return;
-      }
-
       // Happy path
       const mapped: BioSampleInternal[] = batch.samples.map((s) => ({
         timestamp: Number(s.timestamp),
