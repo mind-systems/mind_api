@@ -135,28 +135,6 @@ export class ActivitySessionStore {
     return bucket.children.values().next().value as ActivityState;
   }
 
-  // ── Grace timers — userId-keyed (legacy, preserved for store spec) ────────
-
-  startGraceTimer(userId: string, onExpiry: () => void | Promise<void>): void {
-    this.cancelGraceTimer(userId);
-    const handle = setTimeout(() => {
-      this.timers.delete(userId);
-      void onExpiry();
-    }, this.graceMs);
-    this.timers.set(userId, handle);
-  }
-
-  cancelGraceTimer(userId: string): void {
-    const handle = this.timers.get(userId);
-    if (handle === undefined) return;
-    clearTimeout(handle);
-    this.timers.delete(userId);
-  }
-
-  hasPendingGraceTimer(userId: string): boolean {
-    return this.timers.has(userId);
-  }
-
   // ── Grace timers — sessionId-keyed (engine callers, multi-session) ────────
 
   startGraceTimerForSession(
