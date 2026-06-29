@@ -41,7 +41,8 @@ function makeStreamEngine() {
 
 function makeActivityEngine() {
   return {
-    getActiveSession: jest.fn().mockReturnValue(undefined),
+    getActiveSession: jest.fn().mockReturnValue(undefined), // kept — pause suite + current controller still use it
+    getSession: jest.fn().mockReturnValue(undefined), // added — used by the new ownership target cases
   };
 }
 
@@ -212,6 +213,126 @@ describe('ModuleInstructionStreamGrpcController', () => {
         'user-1',
         expect.any(Subscriber),
       );
+      sub.unsubscribe();
+    });
+  });
+
+  // ── Batch hygiene ─────────────────────────────────────────────────────────
+
+  describe('streamData — batch hygiene', () => {
+    it('should emit INVALID_ARGUMENT error frame and not call push when sessionId is empty', () => {
+      const request$ = new Subject<StreamSample>();
+      const frames: StreamResponse[] = [];
+
+      const sub = controller.streamData(request$, makeUser()).subscribe({
+        next: (v) => frames.push(v),
+        error: () => {},
+      });
+
+      request$.next(makeBreathPhaseSample(''));
+
+      const dataFrames = frames.filter((f) => !f.ready);
+
+      expect(streamEngine.push).not.toHaveBeenCalled();
+      expect(dataFrames.some((f) => f.error?.code === 'INVALID_ARGUMENT')).toBe(
+        true,
+      );
+
+      sub.unsubscribe();
+    });
+  });
+
+  // ── Ownership routing (RED until note 36 swaps controller to getSession) ───
+
+  describe('streamData — ownership routing (target, RED until note 36)', () => {
+    it('should accept pushes for two concurrent child sessions', () => {
+      activityEngine.getSession.mockImplementation((_u: string, sid: string) =>
+        ['child-A', 'child-B'].includes(sid)
+          ? makePausedSession({ sessionId: sid })
+          : undefined,
+      );
+
+      const request$ = new Subject<StreamSample>();
+      const frames: StreamResponse[] = [];
+
+      const sub = controller.streamData(request$, makeUser()).subscribe({
+        next: (v) => frames.push(v),
+        error: () => {},
+      });
+
+      request$.next(makeBreathPhaseSample('child-A'));
+      request$.next(makeBreathPhaseSample('child-B'));
+
+      // Skip leading ready frame
+      const dataFrames = frames.filter((f) => !f.ready);
+
+      expect(streamEngine.push).toHaveBeenCalledWith(
+        'child-A',
+        expect.objectContaining({ moduleId: 'breath' }),
+      );
+      expect(streamEngine.push).toHaveBeenCalledWith(
+        'child-B',
+        expect.objectContaining({ moduleId: 'breath' }),
+      );
+      expect(streamEngine.push).toHaveBeenCalledTimes(2);
+      expect(dataFrames.filter((f) => f.ack)).toHaveLength(2);
+      expect(dataFrames.filter((f) => f.error)).toHaveLength(0);
+
+      sub.unsubscribe();
+    });
+
+    it('should accept a root-tagged mark pushed under root.id', () => {
+      activityEngine.getSession.mockImplementation((_u: string, sid: string) =>
+        sid === 'root-1'
+          ? makePausedSession({ sessionId: 'root-1' })
+          : undefined,
+      );
+
+      const request$ = new Subject<StreamSample>();
+      const frames: StreamResponse[] = [];
+
+      const sub = controller.streamData(request$, makeUser()).subscribe({
+        next: (v) => frames.push(v),
+        error: () => {},
+      });
+
+      request$.next(makeBreathPhaseSample('root-1'));
+
+      const dataFrames = frames.filter((f) => !f.ready);
+
+      expect(streamEngine.push).toHaveBeenCalledWith(
+        'root-1',
+        expect.objectContaining({ moduleId: 'breath' }),
+      );
+      expect(dataFrames.some((f) => f.ack)).toBe(true);
+      expect(dataFrames.some((f) => f.error)).toBe(false);
+
+      sub.unsubscribe();
+    });
+
+    it('should reject a sample for an unowned session with SESSION_NOT_FOUND', () => {
+      activityEngine.getSession.mockReturnValue(undefined);
+
+      const request$ = new Subject<StreamSample>();
+      const frames: StreamResponse[] = [];
+
+      const sub = controller.streamData(request$, makeUser()).subscribe({
+        next: (v) => frames.push(v),
+        error: () => {},
+      });
+
+      request$.next(makeBreathPhaseSample('someone-else'));
+
+      const dataFrames = frames.filter((f) => !f.ready);
+
+      expect(streamEngine.push).not.toHaveBeenCalledWith(
+        'someone-else',
+        expect.anything(),
+      );
+      expect(
+        dataFrames.some((f) => f.error?.code === 'SESSION_NOT_FOUND'),
+      ).toBe(true);
+
       sub.unsubscribe();
     });
   });

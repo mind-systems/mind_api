@@ -86,7 +86,9 @@ export class BackfillRootSessions1782703116805 implements MigrationInterface {
     do {
       const res = await queryRunner.query(bioUpSql, undefined, true);
       affected =
-        res !== null && typeof res === 'object' && typeof res.affected === 'number'
+        res !== null &&
+        typeof res === 'object' &&
+        typeof res.affected === 'number'
           ? res.affected
           : 0;
     } while (affected > 0);
@@ -155,7 +157,9 @@ export class BackfillRootSessions1782703116805 implements MigrationInterface {
     do {
       const res = await queryRunner.query(bioDownSql, undefined, true);
       affected =
-        res !== null && typeof res === 'object' && typeof res.affected === 'number'
+        res !== null &&
+        typeof res === 'object' &&
+        typeof res.affected === 'number'
           ? res.affected
           : 0;
     } while (affected > 0);

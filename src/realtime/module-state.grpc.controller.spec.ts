@@ -153,7 +153,9 @@ describe('ModuleStateGrpcController', () => {
       activityEngine.handleReconnect.mockResolvedValue(
         makeSession({ id: 'resumed-session' }),
       );
-      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+      activityEngine.ensureRoot.mockResolvedValue(
+        makeSession({ id: 'root-1' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -199,7 +201,9 @@ describe('ModuleStateGrpcController', () => {
 
     it('should emit the root frame on a fresh connect when handleReconnect returns null (RED until feature 34)', async () => {
       activityEngine.handleReconnect.mockResolvedValue(null);
-      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+      activityEngine.ensureRoot.mockResolvedValue(
+        makeSession({ id: 'root-1' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -279,7 +283,9 @@ describe('ModuleStateGrpcController', () => {
     // (b) Abandoned path — emits [ABANDONED, ROOT] (RED until feature 34 adds the root frame)
     it('(b) should emit sessionState ABANDONED followed by the root frame when handleReconnect returns { abandoned: true }', async () => {
       activityEngine.handleReconnect.mockResolvedValue({ abandoned: true });
-      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+      activityEngine.ensureRoot.mockResolvedValue(
+        makeSession({ id: 'root-1' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -308,7 +314,9 @@ describe('ModuleStateGrpcController', () => {
     // (c) Fresh connect with no clientSessionId → emits root frame (RED until feature 34)
     it('(c) should emit the root frame on connect when handleReconnect returns null and no clientSessionId is provided (RED until feature 34)', async () => {
       activityEngine.handleReconnect.mockResolvedValue(null);
-      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+      activityEngine.ensureRoot.mockResolvedValue(
+        makeSession({ id: 'root-1' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -331,7 +339,9 @@ describe('ModuleStateGrpcController', () => {
 
     it('should emit a session:state carrying the root id on a fresh connect (RED until feature 34)', async () => {
       activityEngine.handleReconnect.mockResolvedValue(null);
-      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+      activityEngine.ensureRoot.mockResolvedValue(
+        makeSession({ id: 'root-1' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -343,15 +353,21 @@ describe('ModuleStateGrpcController', () => {
 
       await flushMicrotasks();
 
-      expect(values.some((v) => v.sessionState?.moduleSessionId === 'root-1')).toBe(true);
+      expect(
+        values.some((v) => v.sessionState?.moduleSessionId === 'root-1'),
+      ).toBe(true);
 
       sub.unsubscribe();
     });
 
     it('should distinguish the root frame from a child by isRoot === true (RED until feature 34)', async () => {
       activityEngine.handleReconnect.mockResolvedValue(null);
-      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
-      activityEngine.startActivity.mockResolvedValue(makeSession({ id: 'child-1' }));
+      activityEngine.ensureRoot.mockResolvedValue(
+        makeSession({ id: 'root-1' }),
+      );
+      activityEngine.startActivity.mockResolvedValue(
+        makeSession({ id: 'child-1' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -388,7 +404,9 @@ describe('ModuleStateGrpcController', () => {
       activityEngine.handleReconnect.mockResolvedValue(
         makeSession({ id: 'resumed' }),
       );
-      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+      activityEngine.ensureRoot.mockResolvedValue(
+        makeSession({ id: 'root-1' }),
+      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -417,7 +435,9 @@ describe('ModuleStateGrpcController', () => {
     //     After feature 34: connect emits [ABANDONED, ROOT] before activityStart (RED until feature 34)
     it('(d) stream stays open after abandoned emit — subsequent activityStart routes to ACTIVE', async () => {
       activityEngine.handleReconnect.mockResolvedValue({ abandoned: true });
-      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+      activityEngine.ensureRoot.mockResolvedValue(
+        makeSession({ id: 'root-1' }),
+      );
       const startedSession = makeSession({ id: 'new-session' });
       activityEngine.startActivity.mockResolvedValue(startedSession);
 
