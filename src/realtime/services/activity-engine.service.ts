@@ -173,7 +173,7 @@ export class ActivityEngine {
       sessionId ?? this.activitySessionStore.getSoleChild(userId)?.sessionId;
     if (!sid) {
       this.logger.warn(
-        `endActivity: no active session in memory for userId=${userId}`,
+        `endActivity: no resolvable session id for userId=${userId}`,
       );
       return null;
     }
@@ -181,7 +181,7 @@ export class ActivityEngine {
     const state = this.activitySessionStore.getSession(userId, sid);
     if (!state) {
       this.logger.warn(
-        `endActivity: no active session in memory for userId=${userId}`,
+        `endActivity: session ${sid} not in memory for userId=${userId}`,
       );
       return null;
     }

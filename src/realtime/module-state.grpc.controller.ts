@@ -383,9 +383,7 @@ export class ModuleStateGrpcController {
 
     // Idempotency dedup: if clientActivityId is set and the window has not expired,
     // return the cached session id without calling startActivity/ensureRoot again.
-    const clientActivityId = (cmd as any).clientActivityId as
-      | string
-      | undefined;
+    const clientActivityId = cmd.clientActivityId;
     if (clientActivityId !== undefined) {
       const idempotencyKey = `${userId}:${clientActivityId}`;
       const cachedId = this.idempotency.lookup(
@@ -440,7 +438,7 @@ export class ModuleStateGrpcController {
   ): Promise<void> {
     const resolved = this.resolveTargetSession(
       userId,
-      (cmd as any).sessionId as string | undefined,
+      cmd.sessionId,
       subscriber,
     );
     if (!resolved.ok) return;
@@ -481,7 +479,7 @@ export class ModuleStateGrpcController {
   ): Promise<void> {
     const resolved = this.resolveTargetSession(
       userId,
-      (cmd as any).sessionId as string | undefined,
+      cmd.sessionId,
       subscriber,
     );
     if (!resolved.ok) return;
@@ -523,7 +521,7 @@ export class ModuleStateGrpcController {
   ): Promise<void> {
     const resolved = this.resolveTargetSession(
       userId,
-      (cmd as any).sessionId as string | undefined,
+      cmd.sessionId,
       subscriber,
     );
     if (!resolved.ok) return;
@@ -559,7 +557,7 @@ export class ModuleStateGrpcController {
   ): Promise<void> {
     const resolved = this.resolveTargetSession(
       userId,
-      (cmd as any).sessionId as string | undefined,
+      cmd.sessionId,
       subscriber,
     );
     if (!resolved.ok) return;
