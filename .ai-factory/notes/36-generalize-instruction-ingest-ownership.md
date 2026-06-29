@@ -3,7 +3,7 @@
 **Date:** 2026-06-29
 **Source:** conversation context (handoff 06-generic-session-data-flow §F3)
 
-Feature task — the meaty one. Tested by [[33-test-instruction-ownership]]. Enables **N concurrent activities' phase streams** (the core vision) and **root-level client marks**. Depends on [[34-deliver-root-id-on-connect]] (the client now knows the root id, itself a valid owned session to tag a mark with).
+Feature task — the meaty one. Tested by [[33-test-instruction-ownership]]; its pause-suite wiring is corrected by [[38-test-instruction-pause-dual-mock]]. Enables **N concurrent activities' phase streams** (the core vision) and **root-level client marks**. Depends on [[34-deliver-root-id-on-connect]] (the client learns `root.id` from its `activity:start { activity_type: ROOT }` response — itself a valid owned session to tag a mark with).
 
 ## Problem today — `src/realtime/module-instruction-stream.grpc.controller.ts`
 The per-sample handler in `streamData` (`:64-140`) accepts **only the single active child**:
@@ -71,7 +71,7 @@ The miss is a real ownership error, not "not the single active one." Emit the li
 
 ## Why this is ownership, not single-session
 - **Concurrent children:** two activities (e.g. breath inside meditation) each push `breath_phase` tagged with their own child id; both ids are owned & live → both accepted, buffered separately.
-- **Root marks:** the client, now knowing the root id (F1), pushes a mark tagged with `root.id`; the root is an owned live session → accepted, buffered under the root.
+- **Root marks:** the client, knowing the root id from its ROOT-start response ([[34-deliver-root-id-on-connect]]), pushes a mark tagged with `root.id`; the root is an owned live session → accepted, buffered under the root.
 - **Rejection is genuine:** a `sessionId` not in the user's bucket (someone else's session, or a dead/unknown id) → `SESSION_NOT_FOUND`. This is the only rejection; "not the sole active child" is no longer an error.
 
 ## Guards / gotchas
@@ -86,11 +86,5 @@ The miss is a real ownership error, not "not the single active one." Emit the li
 - Missing `sessionId` → `INVALID_ARGUMENT` (unchanged).
 - A paused owned session's `breath_phase` → still acked (no `SESSION_PAUSED`).
 
-## Anti-targets (enumerated by file:line — invert in the test note)
-In `src/realtime/module-instruction-stream.grpc.controller.spec.ts` the mock wiring pins the retired `getActiveSession` mechanism. These flip when the controller calls `getSession` instead:
-- **`:42-46`** `makeActivityEngine()` exposes only `getActiveSession: jest.fn().mockReturnValue(undefined)` → **INVERT**: expose `getSession: jest.fn()` (keyed by `(userId, sessionId)`).
-- **`:114`** `activityEngine.getActiveSession.mockReturnValue(makePausedSession({ sessionId }))` → **INVERT** to `getSession`.
-- **`:136`** same → **INVERT** to `getSession`.
-- **`:159`** same → **INVERT** to `getSession`.
-
-There is no committed test asserting the `NO_SESSION` or `SESSION_MISMATCH` error frames (the spec only exercises auth + pause pass-through), so those two guards have no test to invert — they are simply deleted. The four lines above are the full anti-target set; full enumeration + the new target cases live in [[33-test-instruction-ownership]].
+## Anti-targets (handled by the corrective test task, not here)
+T3 ([[33-test-instruction-ownership]], committed `e15674a`) already added the ownership target cases and a dual-method mock factory: `module-instruction-stream.grpc.controller.spec.ts:42-46` now exposes **both** `getActiveSession` and `getSession`. What remains is the pause pass-through suite — specifically the **three cases that push a sample** (`:113/:135/:159`), which still seed only `getActiveSession` (`:115/:137/:161`) — so when this feature swaps the controller resolver to `getSession`, those characterization cases lose their stub and false-RED. (The fourth pause case, `:183`, only asserts the synchronous `ready` frame and pushes nothing, so it never hits the resolver — not at risk.) That fix is a **committed-test change → its own task**: [[38-test-instruction-pause-dual-mock]] dual-seeds both methods. Do **not** edit the frozen T3 note 33. There is no committed test asserting the retired `NO_SESSION`/`SESSION_MISMATCH` frames (the spec covers only auth + pause + ownership), so those guards are simply deleted with no test to invert.

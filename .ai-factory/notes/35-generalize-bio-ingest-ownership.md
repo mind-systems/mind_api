@@ -3,12 +3,12 @@
 **Date:** 2026-06-29
 **Source:** conversation context (handoff 06-generic-session-data-flow §F2)
 
-Feature task. Tested by [[32-test-bio-ownership]]. Depends on [[34-deliver-root-id-on-connect]] (the client can now learn the root id). Minor task. Builds on the shipped bio-root binding ([[10-bio-ingest-to-root]]).
+Feature task. Tested by [[32-test-bio-ownership]]. Depends on [[34-deliver-root-id-on-connect]] (the client learns `root.id` from its `activity:start { activity_type: ROOT }` response). Minor task. Builds on the shipped bio-root binding ([[10-bio-ingest-to-root]]).
 
 ## Decision (locked)
 **Simplify to "store under the server-resolved root; ignore the client echo."** Bio is connection-level and always binds to the user's own root — which the server resolves itself from `userId` via `ensureRoot`. The client's echoed `session_id` therefore adds no information and only creates a way to falsely reject a valid batch. Drop the echo-match check (controller step 6); always push under `root.id`.
 
-Rationale vs the alternative (keep step 6 as an ownership/consistency check): for bio there is exactly one valid owner per user (the root), and the server already holds it — a cross-check against a client-supplied id guards nothing real and, before F1, was outright unsatisfiable. The generic-ownership principle here reduces to "the owner is the user's root, period."
+Rationale vs the alternative (keep step 6 as an ownership/consistency check): for bio there is exactly one valid owner per user (the root), and the server already holds it — a cross-check against a client-supplied id guards nothing real (and before the client could learn `root.id` via the ROOT-start response, it was outright unsatisfiable). The generic-ownership principle here reduces to "the owner is the user's root, period."
 
 Trade-off (accepted): a malformed/stale client echo is silently absorbed rather than surfaced. Acceptable — bio owner is server-authoritative; batch hygiene (steps 1–4) still rejects malformed batches loudly.
 

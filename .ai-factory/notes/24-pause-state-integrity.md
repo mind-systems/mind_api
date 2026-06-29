@@ -28,7 +28,7 @@ The reconnect emission today hardcodes `isPaused: false` at `module-state.grpc.c
 So surface the live flag **through the `ActivityEngine`** (which owns the store): either have `handleReconnect` return the resumed session's live `isPaused` alongside it, or expose `activityEngine.getSession(userId, resolvedId)?.isPaused` for the controller to read at emission time. Pick one and pin it here before implementing. The live `isPaused` comes from the in-memory `ActivityState` (preserved by change #1), **not** from the entity or any column.
 
 ### Anti-target (invert when this lands)
-- `module-state.grpc.controller.spec.ts:152-174` — `it('…RESUMED and isPaused false…')` asserts `toMatchObject({ status: RESUMED, isPaused: false })` (the old hardcode). **Invert** into two cases: resumed-unpaused → `isPaused: false`, resumed-paused → `isPaused: true` (read from the surfaced live flag).
+- `module-state.grpc.controller.spec.ts` — the `(a)` RESUMED reconnect case (`:151-180` in `5221b38`) asserts `toMatchObject({ status: RESUMED, isPaused: false })` (the old hardcode). The generic corrective test [[37-test-root-as-activity-type]] lands first and reverts this case to `[RESUMED]` `toHaveLength(1)` (no connect ROOT frame — the pivot made the root a client-started `activity_type=ROOT` session). On that len-1 shape, **invert** into two cases: resumed-unpaused → `isPaused: false`, resumed-paused → `isPaused: true` (read from the surfaced live flag).
 
 ### Inlined contracts
 - After this change the server changes pause state **only** via `pauseActivity` / `unpauseActivity` (explicit client commands). Disconnect/reconnect preserve it.
