@@ -112,9 +112,9 @@ describe('ModuleInstructionStreamGrpcController', () => {
   describe('streamData — pause pass-through', () => {
     it('should call streamEngine.push when session is paused and sample instructionType is breath_phase', (done) => {
       const sessionId = 'session-1';
-      activityEngine.getActiveSession.mockReturnValue(
-        makePausedSession({ sessionId }),
-      );
+      const paused = makePausedSession({ sessionId });
+      activityEngine.getActiveSession.mockReturnValue(paused);
+      activityEngine.getSession.mockReturnValue(paused); // a3 resolver, keyed by (userId, sessionId)
 
       const request$ = new Subject<StreamSample>();
 
@@ -134,9 +134,9 @@ describe('ModuleInstructionStreamGrpcController', () => {
 
     it('should respond with ack (not SESSION_PAUSED error) for breath_phase when paused', (done) => {
       const sessionId = 'session-1';
-      activityEngine.getActiveSession.mockReturnValue(
-        makePausedSession({ sessionId }),
-      );
+      const paused = makePausedSession({ sessionId });
+      activityEngine.getActiveSession.mockReturnValue(paused);
+      activityEngine.getSession.mockReturnValue(paused); // a3 resolver, keyed by (userId, sessionId)
 
       const request$ = new Subject<StreamSample>();
 
@@ -158,9 +158,9 @@ describe('ModuleInstructionStreamGrpcController', () => {
 
     it('should not emit an error frame for a paused session with a breath_phase sample', (done) => {
       const sessionId = 'session-1';
-      activityEngine.getActiveSession.mockReturnValue(
-        makePausedSession({ sessionId }),
-      );
+      const paused = makePausedSession({ sessionId });
+      activityEngine.getActiveSession.mockReturnValue(paused);
+      activityEngine.getSession.mockReturnValue(paused); // a3 resolver, keyed by (userId, sessionId)
 
       const request$ = new Subject<StreamSample>();
       const errorFrames: StreamResponse[] = [];
