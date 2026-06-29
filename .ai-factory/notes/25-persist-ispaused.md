@@ -14,7 +14,7 @@
 ### Current state
 - `StreamEngine` ctor: `(sampleRepo: Repository<SessionStreamSample>, moduleSessionRepo: Repository<ModuleSession>, configService)` (`stream-engine.service.ts:39-44`).
 - `push(sessionId, sample): PushResult` (`:83`) is **synchronous** — appends to an in-memory `buffers` map after a byte-cap check. Durability is via `doFlush(sessionId)` (`:130`), which does `sampleRepo.save(sampleRepo.create({ moduleSessionId: sessionId, samples, flushedAt: now }))`, called by the periodic `flushAll` and on lifecycle events.
-- The 7 marker emitters in `activity-engine.service.ts` (lines ~153, 230, 304, 353, 424, 477, 518) all call `push(sid, { timestamp, data: { dataType: StreamDataType.SESSION_EVENT, event } })`.
+- The 7 marker emitters in `activity-engine.service.ts` (the `this.streamEngine.push(...)` calls at `:150, :227, :301, :350, :421, :474, :515` against HEAD) all call `push(sid, { timestamp, data: { dataType: StreamDataType.SESSION_EVENT, event } })`.
 - The continuous instruction stream (`module-instruction-stream.grpc.controller.ts`) calls `push(sid, { timestamp, moduleId, instructionType, data })` where `data` is the raw payload — it carries **no** `data.dataType`.
 - `StreamDataType` (`constants/stream-data-types.ts`) = `{ SESSION_EVENT: 'session_event', BREATH_PHASE: 'breath_phase' }`. Only the marker samples set `data.dataType`.
 

@@ -12,7 +12,7 @@ Covers feature task [[24-pause-state-integrity]]. Written **before** the feature
 - **L4 — escalation valve:** the pause/unpause guards are characterization. A RED there after note 24 = regression, escalate.
 
 ## Why this area (silent-failure filter)
-The server flips pause state it does not own: `resumeActivity` resets `state.isPaused = false` on **every** reconnect (`activity-engine.service.ts:573`) and the reconnect `session:state` reports `isPaused: false` **hardcoded** (`module-state.grpc.controller.ts:142`). A session the user paused silently returns active, and the next `activity:resume` is silently rejected `NOT_PAUSED` (`:508`). No error, no crash — pure silent state corruption.
+The server flips pause state it does not own: `resumeActivity` resets `state.isPaused = false` on **every** reconnect (`activity-engine.service.ts:581`) and the reconnect `session:state` reports `isPaused: false` **hardcoded** (`module-state.grpc.controller.ts:173`). A session the user paused silently returns active, and the next `activity:resume` is silently rejected `NOT_PAUSED` (`:508`). No error, no crash — pure silent state corruption.
 
 ## Scope boundary — durability is elsewhere
 This note tests pause **correctness** (the server must not flip pause it does not own, and must report the real flag). Marker **durability** — that the `PAUSED`/`RESUMED` marker survives a crash — is the foundational task [[25-persist-ispaused]] (all `SESSION_EVENT` markers persist immediately at emit), tested by [[30-test-immediate-marker-persistence]]. Not retested here.
@@ -31,7 +31,7 @@ But the controller has **no `ActivitySessionStore` dependency** — its ctor is 
 
 ## Test cases
 ### Resume preserves pause (target → 24)
-- After `resumeActivity` on a session seeded `isPaused: true`, `store.getSession(userId, sid)?.isPaused` is **still `true`** (the `:573` reset is gone). RED now (reset to false) → GREEN after.
+- After `resumeActivity` on a session seeded `isPaused: true`, `store.getSession(userId, sid)?.isPaused` is **still `true`** (the `:581` reset is gone). RED now (reset to false) → GREEN after.
 - A subsequent `unpauseActivity(userId, sid)` **does not throw** `NOT_PAUSED` (it was still paused). RED now → GREEN after.
 ### Reconnect emission (target → 24)
 - The reconnect `session:state` reports `isPaused` reflecting the **actual** resumed state (true when paused) — not hardcoded `false`. Drive via the engine-surfaced flag (pinned mechanism), assert `sessionState.isPaused === true`.
@@ -39,9 +39,9 @@ But the controller has **no `ActivitySessionStore` dependency** — its ctor is 
 - `pauseActivity` on an already-paused session still throws `ALREADY_PAUSED`; `unpauseActivity` on a non-paused session still throws `NOT_PAUSED`; both still write `true`/`false`; `pauseActivity` still pushes the `PAUSED` marker.
 
 ## Anti-targets (DELETE or INVERT — enumerated by file:line)
-- **`module-state.grpc.controller.spec.ts` — the `(a)` RESUMED reconnect case** (`:151-180` in the committed `5221b38`) asserts `toMatchObject({ status: RESUMED, isPaused: false })` on the RESUMED frame (the **OLD hardcoded** `isPaused: false`, `module-state.grpc.controller.ts:142`). After note 24 the emission reflects the actual flag, so this false-REDs. **INVERT into two cases:** (a) resumed **unpaused** → `isPaused: false`; (b) resumed **paused** → `isPaused: true` (read from the surfaced live flag). Note 24 updates this case when it lands.
+- **`module-state.grpc.controller.spec.ts` — the `(a)` RESUMED reconnect case** (`:152-176` at HEAD — `toHaveLength(1)` at `:169`, `toMatchObject` at `:170-173`) asserts `toMatchObject({ status: RESUMED, isPaused: false })` on the RESUMED frame (the **OLD hardcoded** `isPaused: false`, `module-state.grpc.controller.ts:173`). After note 24 the emission reflects the actual flag, so this false-REDs. **INVERT into two cases:** (a) resumed **unpaused** → `isPaused: false`; (b) resumed **paused** → `isPaused: true` (read from the surfaced live flag). Note 24 updates this case when it lands.
   - **Cross-epic collision — DISSOLVED.** This case was once also an anti-target in the generic epic (the withdrawn design appended a root `session:state` on connect → `[RESUMED, ROOT]` len 2). The architecture pivoted (handoff 08): the root is now a **client-started `activity_type=ROOT`** session, there is **no connect-time root frame**, and the generic corrective test [[37-test-root-as-activity-type]] (which lands **first**) **reverts** `(a)` to `[RESUMED]` `toHaveLength(1)`. So there is no length-2 shape to reconcile against — assert `isPaused` on the single `values[0]` RESUMED frame.
-- **`activity-engine.service.spec.ts` `resumeActivity` block (`:577-606`)** — NOT an anti-target. It asserts only `status`/`disconnectedAt`/`lastActivityAt`/`repo.save`/store `lastActivityAt`; the `isPaused: false` at `:585` (and `:621`) are **fixture seeds**, not assertions. Removing the `state.isPaused = false` line breaks no assertion here. Stated explicitly so the implementer does not "fix" a fixture.
+- **`activity-engine.service.spec.ts` `resumeActivity` block (`:577-630`)** — NOT an anti-target. It asserts only `status`/`disconnectedAt`/`lastActivityAt`/`repo.save`/store `lastActivityAt`; the `isPaused: false` at `:585` (and `:621`) are **fixture seeds**, not assertions. Removing the `state.isPaused = false` line breaks no assertion here. Stated explicitly so the implementer does not "fix" a fixture.
 - No other committed case asserts the old `isPaused`-reset or hardcoded-`false` behavior.
 
 ## Gotchas
@@ -52,4 +52,4 @@ But the controller has **no `ActivitySessionStore` dependency** — its ctor is 
 ## Findings / escalation to note 24
 1. Remove `state.isPaused = false` from `resumeActivity`.
 2. Surface the live `isPaused` to the reconnect emission **through the `ActivityEngine`** (the controller has no store) — pin the exact shape (return value vs `activityEngine.getSession`).
-3. Update anti-target `module-state.grpc.controller.spec.ts:151-180` (invert to actual-state assertions).
+3. Update anti-target `module-state.grpc.controller.spec.ts:152-176` (invert to actual-state assertions).
