@@ -37,6 +37,7 @@ function makeActivityEngine() {
     pauseActivity: jest.fn(),
     unpauseActivity: jest.fn(),
     getSoleChild: jest.fn().mockReturnValue(undefined),
+    getRootId: jest.fn(),
     listLiveSessions: jest
       .fn()
       .mockReturnValue([{ sessionId: 'session-1', activityType: 'breath' }]),
@@ -148,13 +149,10 @@ describe('ModuleStateGrpcController', () => {
   // ── Task 3: Reconnect path ────────────────────────────────────────────────
 
   describe('trackActivity — reconnect path', () => {
-    // (a) RESUMED path — emits [RESUMED, ROOT] (RED until feature 34 adds the root frame)
+    // (a) RESUMED path — emits [RESUMED]
     it('should emit StateResponse.sessionState with status RESUMED and isPaused false when handleReconnect returns a session', async () => {
       activityEngine.handleReconnect.mockResolvedValue(
         makeSession({ id: 'resumed-session' }),
-      );
-      activityEngine.ensureRoot.mockResolvedValue(
-        makeSession({ id: 'root-1' }),
       );
 
       const user = makeUser();
@@ -167,14 +165,12 @@ describe('ModuleStateGrpcController', () => {
 
       await flushMicrotasks();
 
-      // Expect [RESUMED, ROOT] — root frame appended after reconnect (RED until feature 34)
-      expect(values).toHaveLength(2);
+      // Expect [RESUMED] only — no root frame on reconnect
+      expect(values).toHaveLength(1);
       expect(values[0].sessionState).toMatchObject({
         status: ActivityStatus.RESUMED,
         isPaused: false,
       });
-      expect(values[1]?.sessionState?.moduleSessionId).toBe('root-1');
-      expect((values[1]?.sessionState as any)?.isRoot).toBe(true);
 
       sub.unsubscribe();
     });
@@ -199,11 +195,8 @@ describe('ModuleStateGrpcController', () => {
       sub.unsubscribe();
     });
 
-    it('should emit the root frame on a fresh connect when handleReconnect returns null (RED until feature 34)', async () => {
+    it('should not emit any frame on a fresh connect', async () => {
       activityEngine.handleReconnect.mockResolvedValue(null);
-      activityEngine.ensureRoot.mockResolvedValue(
-        makeSession({ id: 'root-1' }),
-      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -215,9 +208,7 @@ describe('ModuleStateGrpcController', () => {
 
       await flushMicrotasks();
 
-      expect(values).toHaveLength(1);
-      expect(values[0]?.sessionState?.moduleSessionId).toBe('root-1');
-      expect((values[0]?.sessionState as any)?.isRoot).toBe(true);
+      expect(values).toHaveLength(0);
 
       sub.unsubscribe();
     });
@@ -280,12 +271,9 @@ describe('ModuleStateGrpcController', () => {
       expect(values).toHaveLength(0);
     });
 
-    // (b) Abandoned path — emits [ABANDONED, ROOT] (RED until feature 34 adds the root frame)
-    it('(b) should emit sessionState ABANDONED followed by the root frame when handleReconnect returns { abandoned: true }', async () => {
+    // (b) Abandoned path — emits [ABANDONED]
+    it('(b) should emit sessionState ABANDONED when handleReconnect returns { abandoned: true }', async () => {
       activityEngine.handleReconnect.mockResolvedValue({ abandoned: true });
-      activityEngine.ensureRoot.mockResolvedValue(
-        makeSession({ id: 'root-1' }),
-      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -299,24 +287,19 @@ describe('ModuleStateGrpcController', () => {
 
       await flushMicrotasks();
 
-      // Expect [ABANDONED, ROOT] — root frame appended after reconnect (RED until feature 34)
-      expect(values).toHaveLength(2);
+      // Expect [ABANDONED] only — no root frame on reconnect
+      expect(values).toHaveLength(1);
       expect(values[0].sessionState).toMatchObject({
         status: ActivityStatus.ABANDONED,
         moduleSessionId: 'client-session-id',
       });
-      expect(values[1]?.sessionState?.moduleSessionId).toBe('root-1');
-      expect((values[1]?.sessionState as any)?.isRoot).toBe(true);
 
       sub.unsubscribe();
     });
 
-    // (c) Fresh connect with no clientSessionId → emits root frame (RED until feature 34)
-    it('(c) should emit the root frame on connect when handleReconnect returns null and no clientSessionId is provided (RED until feature 34)', async () => {
+    // (c) Fresh connect with no clientSessionId → emits no frame
+    it('(c) should not emit any frame on connect when handleReconnect returns null and no clientSessionId is provided', async () => {
       activityEngine.handleReconnect.mockResolvedValue(null);
-      activityEngine.ensureRoot.mockResolvedValue(
-        makeSession({ id: 'root-1' }),
-      );
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -328,116 +311,14 @@ describe('ModuleStateGrpcController', () => {
 
       await flushMicrotasks();
 
-      expect(values).toHaveLength(1);
-      expect(values[0]?.sessionState?.moduleSessionId).toBe('root-1');
-      expect((values[0]?.sessionState as any)?.isRoot).toBe(true);
-
-      sub.unsubscribe();
-    });
-
-    // ── Target tests (RED until feature 34) ──────────────────────────────────
-
-    it('should emit a session:state carrying the root id on a fresh connect (RED until feature 34)', async () => {
-      activityEngine.handleReconnect.mockResolvedValue(null);
-      activityEngine.ensureRoot.mockResolvedValue(
-        makeSession({ id: 'root-1' }),
-      );
-
-      const user = makeUser();
-      const request$ = new Subject<StateRequest>();
-      const values: StateResponse[] = [];
-      const sub = controller.trackActivity(request$, user).subscribe({
-        next: (v) => values.push(v),
-        error: () => {},
-      });
-
-      await flushMicrotasks();
-
-      expect(
-        values.some((v) => v.sessionState?.moduleSessionId === 'root-1'),
-      ).toBe(true);
-
-      sub.unsubscribe();
-    });
-
-    it('should distinguish the root frame from a child by isRoot === true (RED until feature 34)', async () => {
-      activityEngine.handleReconnect.mockResolvedValue(null);
-      activityEngine.ensureRoot.mockResolvedValue(
-        makeSession({ id: 'root-1' }),
-      );
-      activityEngine.startActivity.mockResolvedValue(
-        makeSession({ id: 'child-1' }),
-      );
-
-      const user = makeUser();
-      const request$ = new Subject<StateRequest>();
-      const values: StateResponse[] = [];
-      const sub = controller.trackActivity(request$, user).subscribe({
-        next: (v) => values.push(v),
-        error: () => {},
-      });
-
-      await flushMicrotasks();
-
-      // Drive an activity:start so we also have a non-root ACTIVE frame
-      request$.next({ activityStart: { activityType: ActivityType.BREATH } });
-      await flushMicrotasks();
-
-      // Root frame: moduleSessionId === 'root-1', isRoot must be true (RED until feature 34)
-      const rootFrame = values.find(
-        (v) => v.sessionState?.moduleSessionId === 'root-1',
-      );
-      expect(rootFrame).toBeDefined();
-      expect((rootFrame?.sessionState as any)?.isRoot).toBe(true);
-
-      // Non-root frame: the child ACTIVE frame must NOT be flagged as root
-      const childFrame = values.find(
-        (v) => v.sessionState?.moduleSessionId === 'child-1',
-      );
-      expect(childFrame).toBeDefined();
-      expect((childFrame?.sessionState as any)?.isRoot).toBeFalsy();
-
-      sub.unsubscribe();
-    });
-
-    it('should announce the root id after the RESUMED frame on a resumed-child reconnect (RED until feature 34)', async () => {
-      activityEngine.handleReconnect.mockResolvedValue(
-        makeSession({ id: 'resumed' }),
-      );
-      activityEngine.ensureRoot.mockResolvedValue(
-        makeSession({ id: 'root-1' }),
-      );
-
-      const user = makeUser();
-      const request$ = new Subject<StateRequest>();
-      const values: StateResponse[] = [];
-      const sub = controller.trackActivity(request$, user).subscribe({
-        next: (v) => values.push(v),
-        error: () => {},
-      });
-
-      await flushMicrotasks();
-
-      // Expect two frames: [RESUMED(resumed), ROOT(root-1)]
-      expect(values).toHaveLength(2);
-      expect(values[0]?.sessionState).toMatchObject({
-        status: ActivityStatus.RESUMED,
-        moduleSessionId: 'resumed',
-      });
-      // Root frame follows RESUMED and carries isRoot === true (RED until feature 34)
-      expect(values[1]?.sessionState?.moduleSessionId).toBe('root-1');
-      expect((values[1]?.sessionState as any)?.isRoot).toBe(true);
+      expect(values).toHaveLength(0);
 
       sub.unsubscribe();
     });
 
     // (d) Stream stays open after abandoned emit — subsequent activity:start produces ACTIVE
-    //     After feature 34: connect emits [ABANDONED, ROOT] before activityStart (RED until feature 34)
     it('(d) stream stays open after abandoned emit — subsequent activityStart routes to ACTIVE', async () => {
       activityEngine.handleReconnect.mockResolvedValue({ abandoned: true });
-      activityEngine.ensureRoot.mockResolvedValue(
-        makeSession({ id: 'root-1' }),
-      );
       const startedSession = makeSession({ id: 'new-session' });
       activityEngine.startActivity.mockResolvedValue(startedSession);
 
@@ -454,21 +335,186 @@ describe('ModuleStateGrpcController', () => {
 
       await flushMicrotasks();
 
-      // After connect: [ABANDONED, ROOT] (ROOT frame RED until feature 34)
-      expect(values).toHaveLength(2);
+      // After connect: [ABANDONED]
+      expect(values).toHaveLength(1);
       expect(values[0].sessionState?.status).toBe(ActivityStatus.ABANDONED);
-      expect(values[1]?.sessionState?.moduleSessionId).toBe('root-1');
 
       // Stream must still be open (complete() was not called)
       expect(sub.closed).toBe(false);
 
-      // Send activityStart — should produce ACTIVE at values[2]
+      // Send activityStart — should produce ACTIVE at values[1]
       request$.next({ activityStart: { activityType: ActivityType.BREATH } });
       await flushMicrotasks();
 
-      expect(values).toHaveLength(3);
-      expect(values[2].sessionState?.status).toBe(ActivityStatus.ACTIVE);
-      expect(values[2].sessionState?.moduleSessionId).toBe('new-session');
+      expect(values).toHaveLength(2);
+      expect(values[1].sessionState?.status).toBe(ActivityStatus.ACTIVE);
+      expect(values[1].sessionState?.moduleSessionId).toBe('new-session');
+
+      sub.unsubscribe();
+    });
+  });
+
+  // ── Client-started root (RED until a1) ───────────────────────────────────
+
+  describe('trackActivity — client-started root', () => {
+    // a1 adds ActivityType.ROOT = 3; use a numeric cast until proto stub is regenerated
+    const ROOT_ACTIVITY_TYPE = 3 as ActivityType;
+
+    it('should emit an ACTIVE sessionState frame with activityType === ROOT (3) when activity:start ROOT is received', async () => {
+      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller.trackActivity(request$, user).subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+
+      request$.next({ activityStart: { activityType: ROOT_ACTIVITY_TYPE } });
+      await flushMicrotasks();
+
+      // RED today: mapProtoActivityType throws on ROOT → sessionError INVALID_ACTIVITY_TYPE
+      // GREEN after a1: one sessionState with moduleSessionId 'root-1', status ACTIVE, activityType 3
+      expect(values).toHaveLength(1);
+      expect(values[0].sessionState?.moduleSessionId).toBe('root-1');
+      expect(values[0].sessionState?.status).toBe(ActivityStatus.ACTIVE);
+      // ts-proto camelCases activity_type → activityType; cast as any until stub is regenerated
+      expect((values[0].sessionState as any).activityType).toBe(3);
+
+      sub.unsubscribe();
+    });
+
+    it('should route activity:start ROOT through ensureRoot, not startActivity', async () => {
+      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const sub = controller.trackActivity(request$, user).subscribe({
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+      // Clear the connect-time ensureRoot call so only the command's call is observed
+      activityEngine.ensureRoot.mockClear();
+
+      request$.next({ activityStart: { activityType: ROOT_ACTIVITY_TYPE } });
+      await flushMicrotasks();
+
+      // RED today: ROOT throws in mapProtoActivityType before any per-command ensureRoot call
+      // GREEN after a1: ROOT routes to ensureRoot
+      expect(activityEngine.ensureRoot).toHaveBeenCalled();
+      expect(activityEngine.startActivity).not.toHaveBeenCalled();
+
+      sub.unsubscribe();
+    });
+
+    it('should be idempotent — two activity:start ROOT commands both emit sessionState with moduleSessionId root-1', async () => {
+      activityEngine.ensureRoot.mockResolvedValue(makeSession({ id: 'root-1' }));
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller.trackActivity(request$, user).subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+
+      request$.next({ activityStart: { activityType: ROOT_ACTIVITY_TYPE } });
+      await flushMicrotasks();
+
+      request$.next({ activityStart: { activityType: ROOT_ACTIVITY_TYPE } });
+      await flushMicrotasks();
+
+      // RED today: both commands emit sessionError (moduleSessionId undefined)
+      // GREEN after a1: both frames are sessionState with moduleSessionId 'root-1'
+      expect(values).toHaveLength(2);
+      expect(values[0]?.sessionState?.moduleSessionId).toBe('root-1');
+      expect(values[1]?.sessionState?.moduleSessionId).toBe('root-1');
+
+      sub.unsubscribe();
+    });
+
+    it('should emit a sessionState frame with activityType !== ROOT (3) for a child BREATH activity', async () => {
+      activityEngine.startActivity.mockResolvedValue(makeSession({ id: 'child-1' }));
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller.trackActivity(request$, user).subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+
+      request$.next({ activityStart: { activityType: ActivityType.BREATH } });
+      await flushMicrotasks();
+
+      // The child frame must not be flagged as ROOT — negative discriminator guard
+      expect((values[0]?.sessionState as any)?.activityType).not.toBe(3);
+
+      sub.unsubscribe();
+    });
+
+    it('should emit sessionError CANNOT_END_ROOT and not call endActivity when activityEnd targets the root session', async () => {
+      activityEngine.getRootId.mockReturnValue('root-1');
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller.trackActivity(request$, user).subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+      // Drain connect-phase frames (none on fresh connect, but guard future changes)
+      values.length = 0;
+
+      request$.next({ activityEnd: { sessionId: 'root-1' } });
+      await flushMicrotasks();
+
+      // RED today: no guard exists — endActivity is called (returns null → no frame, len 0); both
+      //   toHaveLength(1) and not.toHaveBeenCalled() fail
+      // GREEN after a1: sessionError CANNOT_END_ROOT emitted, endActivity not called
+      expect(values).toHaveLength(1);
+      expect(values[0]?.sessionError?.code).toBe('CANNOT_END_ROOT');
+      expect(activityEngine.endActivity).not.toHaveBeenCalled();
+      expect(values[0]?.sessionState?.status).not.toBe(ActivityStatus.COMPLETED);
+
+      sub.unsubscribe();
+    });
+
+    it('should emit sessionError CANNOT_END_ROOT and not call stopActivity when activityStop targets the root session', async () => {
+      activityEngine.getRootId.mockReturnValue('root-1');
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller.trackActivity(request$, user).subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+      // Drain connect-phase frames (none on fresh connect, but guard future changes)
+      values.length = 0;
+
+      request$.next({ activityStop: { sessionId: 'root-1' } });
+      await flushMicrotasks();
+
+      // RED today: no guard exists — stopActivity is called (returns null → no frame, len 0); both
+      //   toHaveLength(1) and not.toHaveBeenCalled() fail
+      // GREEN after a1: sessionError CANNOT_END_ROOT emitted, stopActivity not called
+      expect(values).toHaveLength(1);
+      expect(values[0]?.sessionError?.code).toBe('CANNOT_END_ROOT');
+      expect(activityEngine.stopActivity).not.toHaveBeenCalled();
+      expect(values[0]?.sessionState?.status).not.toBe(ActivityStatus.INTERRUPTED);
 
       sub.unsubscribe();
     });
@@ -754,9 +800,9 @@ describe('ModuleStateGrpcController', () => {
       });
 
       await flushMicrotasks();
-      // Drain any connect-phase frames (e.g. root frame emitted by feature 34) so that
-      // command-routing tests always start with an empty values array and their
-      // existing index assertions remain stable after the root-on-connect feature lands.
+      // Drain any connect-phase frames so command-routing tests start with an empty
+      // values array and index assertions remain stable. On the default
+      // handleReconnect → null path no frames are emitted, so this is a no-op.
       values.length = 0;
       return { sub, request$, values };
     }
