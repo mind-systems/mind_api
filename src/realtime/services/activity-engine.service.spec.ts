@@ -9,6 +9,7 @@ import {
   StreamDataType,
   StreamSessionEvent,
 } from '../constants/stream-data-types';
+import { WsErrorCode } from '../constants/ws-error-codes';
 
 function makeRepo() {
   return {
@@ -1007,6 +1008,142 @@ describe('ActivityEngine', () => {
         expect(savedArg).toBeDefined();
         expect(savedArg!.endedAt).toEqual(disconnectedAt);
       });
+    });
+  });
+
+  // ── Pause/unpause guard characterization ─────────────────────────────────
+  // These must pass NOW and stay GREEN after spec 24-pause-state-integrity.
+  // A failure here after spec 24 is a regression — escalate, do not weaken.
+
+  describe('pause/unpause guards — characterization', () => {
+    it('pauseActivity throws ALREADY_PAUSED when the child session is already paused', () => {
+      const now = new Date();
+      activitySessionStore.addChild('user-1', 'session-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        rootSessionId: null,
+        startedAt: now,
+        lastActivityAt: now,
+        isPaused: true,
+      });
+
+      expect(() => engine.pauseActivity('user-1', 'session-1')).toThrow(
+        WsErrorCode.ALREADY_PAUSED,
+      );
+    });
+
+    it('unpauseActivity throws NOT_PAUSED when the child session is not paused', () => {
+      const now = new Date();
+      activitySessionStore.addChild('user-1', 'session-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        rootSessionId: null,
+        startedAt: now,
+        lastActivityAt: now,
+        isPaused: false,
+      });
+
+      expect(() => engine.unpauseActivity('user-1', 'session-1')).toThrow(
+        WsErrorCode.NOT_PAUSED,
+      );
+    });
+
+    it('pauseActivity on a non-paused child writes isPaused = true in the store', () => {
+      const now = new Date();
+      activitySessionStore.addChild('user-1', 'session-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        rootSessionId: null,
+        startedAt: now,
+        lastActivityAt: now,
+        isPaused: false,
+      });
+
+      engine.pauseActivity('user-1', 'session-1');
+
+      expect(
+        activitySessionStore.getSession('user-1', 'session-1')?.isPaused,
+      ).toBe(true);
+    });
+
+    it('unpauseActivity on a paused child writes isPaused = false in the store', () => {
+      const now = new Date();
+      activitySessionStore.addChild('user-1', 'session-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        rootSessionId: null,
+        startedAt: now,
+        lastActivityAt: now,
+        isPaused: true,
+      });
+
+      engine.unpauseActivity('user-1', 'session-1');
+
+      expect(
+        activitySessionStore.getSession('user-1', 'session-1')?.isPaused,
+      ).toBe(false);
+    });
+  });
+
+  // ── Pause integrity across reconnect — RED until spec 24 ─────────────────
+  // These tests define the target behavior fixed by spec 24-pause-state-integrity.
+  // They MUST fail (RED) now because resumeActivity unconditionally resets
+  // state.isPaused = false. Do NOT weaken or skip after spec 24 — escalate if
+  // they remain RED once the fix lands.
+
+  describe('pause integrity across resume — RED until spec 24-pause-state-integrity', () => {
+    it('Case A — resume preserves pause: resumeActivity must not reset isPaused when session was paused before reconnect', async () => {
+      const startedAt = new Date();
+      const lastActivityAt = new Date();
+      activitySessionStore.addChild('user-1', 'session-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        rootSessionId: null,
+        startedAt,
+        lastActivityAt,
+        isPaused: true,
+      });
+      repo.findOne.mockResolvedValue(
+        makeSession({ status: SessionStatus.DISCONNECTED }),
+      );
+      repo.save.mockImplementation((s: ModuleSession) =>
+        Promise.resolve({ ...s }),
+      );
+
+      await engine.resumeActivity('user-1', 'session-1');
+
+      // RED until spec 24-pause-state-integrity:
+      // resumeActivity currently hard-resets state.isPaused = false → expect true after fix
+      expect(
+        activitySessionStore.getSession('user-1', 'session-1')?.isPaused,
+      ).toBe(true);
+    });
+
+    it('Case B — unpause succeeds after resume: NOT_PAUSED must not fire when session was paused before reconnect', async () => {
+      const startedAt = new Date();
+      const lastActivityAt = new Date();
+      activitySessionStore.addChild('user-1', 'session-1', {
+        sessionId: 'session-1',
+        activityType: ActivityType.BREATH,
+        rootSessionId: null,
+        startedAt,
+        lastActivityAt,
+        isPaused: true,
+      });
+      repo.findOne.mockResolvedValue(
+        makeSession({ status: SessionStatus.DISCONNECTED }),
+      );
+      repo.save.mockImplementation((s: ModuleSession) =>
+        Promise.resolve({ ...s }),
+      );
+
+      await engine.resumeActivity('user-1', 'session-1');
+
+      // RED until spec 24-pause-state-integrity:
+      // after the buggy reset, isPaused=false → unpauseActivity throws NOT_PAUSED
+      expect(() =>
+        engine.unpauseActivity('user-1', 'session-1'),
+      ).not.toThrow();
     });
   });
 });

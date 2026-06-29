@@ -30,6 +30,11 @@ function makeActivityEngine() {
     handleReconnect: jest.fn().mockResolvedValue(null),
     ensureRoot: jest.fn().mockResolvedValue(makeSession()),
     getActiveSession: jest.fn().mockReturnValue(undefined),
+    // getSession: load-bearing for spec 24 — note 24 reads isPaused via
+    // this.activityEngine.getSession(userId, result.id)?.isPaused ?? false
+    // in the reconnect emission block. Default undefined → ?? false keeps all
+    // pre-note-24 cases green.
+    getSession: jest.fn().mockReturnValue(undefined),
     handleTransportDisconnect: jest.fn().mockResolvedValue(undefined),
     startActivity: jest.fn().mockResolvedValue(makeSession()),
     endActivity: jest.fn().mockResolvedValue(null),
@@ -149,11 +154,13 @@ describe('ModuleStateGrpcController', () => {
   // ── Task 3: Reconnect path ────────────────────────────────────────────────
 
   describe('trackActivity — reconnect path', () => {
-    // (a) RESUMED path — emits [RESUMED]
-    it('should emit StateResponse.sessionState with status RESUMED and isPaused false when handleReconnect returns a session', async () => {
+    // (a) RESUMED path — unpaused branch (getSession returns undefined → ?? false)
+    // Characterization: must stay GREEN now and after spec 24-pause-state-integrity.
+    it('(a) should emit sessionState RESUMED with isPaused false when handleReconnect returns a session and getSession returns undefined', async () => {
       activityEngine.handleReconnect.mockResolvedValue(
         makeSession({ id: 'resumed-session' }),
       );
+      // getSession defaults to undefined → isPaused ?? false = false (unpaused branch)
 
       const user = makeUser();
       const request$ = new Subject<StateRequest>();
@@ -170,6 +177,37 @@ describe('ModuleStateGrpcController', () => {
       expect(values[0].sessionState).toMatchObject({
         status: ActivityStatus.RESUMED,
         isPaused: false,
+      });
+
+      sub.unsubscribe();
+    });
+
+    // (b) RESUMED path — paused branch — RED until spec 24-pause-state-integrity
+    // Controller currently hardcodes isPaused: false in the reconnect emission block.
+    // After spec 24 lands it reads this.activityEngine.getSession(userId, result.id)?.isPaused ?? false.
+    // Do NOT weaken or skip after spec 24 — escalate if still RED.
+    it('(b) RED until spec 24-pause-state-integrity — should emit sessionState RESUMED with isPaused true when getSession returns a paused session', async () => {
+      activityEngine.handleReconnect.mockResolvedValue(
+        makeSession({ id: 'resumed-session' }),
+      );
+      activityEngine.getSession.mockReturnValue({ isPaused: true } as any);
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller.trackActivity(request$, user).subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+
+      // RED now: controller hardcodes isPaused: false → actual emitted value is false
+      // GREEN after spec 24: controller reads getSession()?.isPaused ?? false → true
+      expect(values).toHaveLength(1);
+      expect(values[0].sessionState).toMatchObject({
+        status: ActivityStatus.RESUMED,
+        isPaused: true,
       });
 
       sub.unsubscribe();
