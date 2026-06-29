@@ -671,4 +671,342 @@ describe('ActivityEngine', () => {
       expect(activitySessionStore.has('user-1')).toBe(false);
     });
   });
+
+  // ── connection-loss: scaffolding + characterization + RED targets ─────────
+
+  describe('connection-loss', () => {
+    const userId = 'user-multi';
+    const rootId = 'root-session-1';
+    const childId1 = 'child-session-1';
+    const childId2 = 'child-session-2';
+
+    // Fake timers prevent handleTransportDisconnect's real 30 s grace timers
+    // from dangling after each test. Timers are cleared and restored in afterEach.
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
+    /** Seed root + 2 children into the real ActivitySessionStore. */
+    function seedMultiSession(): void {
+      const now = new Date();
+      activitySessionStore.setRoot(userId, rootId, {
+        sessionId: rootId,
+        activityType: ActivityType.ROOT,
+        rootSessionId: null,
+        startedAt: now,
+        lastActivityAt: now,
+        isPaused: false,
+      });
+      activitySessionStore.addChild(userId, childId1, {
+        sessionId: childId1,
+        activityType: ActivityType.BREATH,
+        rootSessionId: rootId,
+        startedAt: now,
+        lastActivityAt: now,
+        isPaused: false,
+      });
+      activitySessionStore.addChild(userId, childId2, {
+        sessionId: childId2,
+        activityType: ActivityType.BREATH,
+        rootSessionId: rootId,
+        startedAt: now,
+        lastActivityAt: now,
+        isPaused: false,
+      });
+    }
+
+    // ── Phase 1: Characterization — locked current behavior ──────────────────
+    // These must stay GREEN now AND after spec 23-connection-loss-markers.
+    // A failure here after spec 23 is a genuine regression — escalate.
+
+    describe('characterization — locked current behavior', () => {
+      it('handleTransportDisconnect calls repo.update with DISCONNECTED + disconnectedAt for root and each child, and arms a grace timer per session', async () => {
+        seedMultiSession();
+        repo.update.mockResolvedValue({});
+
+        await engine.handleTransportDisconnect(userId);
+
+        expect(repo.update).toHaveBeenCalledWith(
+          rootId,
+          expect.objectContaining({
+            status: SessionStatus.DISCONNECTED,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            disconnectedAt: expect.any(Date),
+          }),
+        );
+        expect(repo.update).toHaveBeenCalledWith(
+          childId1,
+          expect.objectContaining({
+            status: SessionStatus.DISCONNECTED,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            disconnectedAt: expect.any(Date),
+          }),
+        );
+        expect(repo.update).toHaveBeenCalledWith(
+          childId2,
+          expect.objectContaining({
+            status: SessionStatus.DISCONNECTED,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            disconnectedAt: expect.any(Date),
+          }),
+        );
+
+        expect(
+          activitySessionStore.hasPendingGraceTimerForSession(rootId),
+        ).toBe(true);
+        expect(
+          activitySessionStore.hasPendingGraceTimerForSession(childId1),
+        ).toBe(true);
+        expect(
+          activitySessionStore.hasPendingGraceTimerForSession(childId2),
+        ).toBe(true);
+
+        // Explicit cancel per grace-timer hygiene (afterEach clears as backup)
+        activitySessionStore.cancelGraceTimerForSession(rootId);
+        activitySessionStore.cancelGraceTimerForSession(childId1);
+        activitySessionStore.cancelGraceTimerForSession(childId2);
+      });
+
+      it('abandonStale: stale ACTIVE row with disconnectedAt=null saves endedAt ≈ now (now fallback survives)', async () => {
+        const session = makeSession({
+          status: SessionStatus.ACTIVE,
+          disconnectedAt: null,
+        });
+        repo.findOne.mockResolvedValue(session);
+        repo.save.mockImplementation((s: ModuleSession) =>
+          Promise.resolve({ ...s }),
+        );
+
+        const before = Date.now();
+        await engine.abandonStale('user-1', 'session-1');
+        const after = Date.now();
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const savedArg: ModuleSession = repo.save.mock.calls[0][0];
+        expect(savedArg.endedAt).toEqual(expect.any(Date));
+        expect(savedArg.endedAt!.getTime()).toBeGreaterThanOrEqual(before);
+        expect(savedArg.endedAt!.getTime()).toBeLessThanOrEqual(after);
+      });
+
+      it('startActivity pushes SESSION_EVENT / STARTED on the new session id', async () => {
+        const dto: ActivityStartDto = { activityType: ActivityType.BREATH };
+        const session = makeSession();
+        repo.create.mockReturnValue(session);
+        repo.save.mockResolvedValue(session);
+
+        await engine.startActivity('user-1', dto);
+
+        expect(streamEngine.push).toHaveBeenCalledWith(
+          'session-1',
+          expect.objectContaining({
+            data: expect.objectContaining({
+              dataType: StreamDataType.SESSION_EVENT,
+              event: StreamSessionEvent.STARTED,
+            }),
+          }),
+        );
+      });
+
+      it('endActivity pushes SESSION_EVENT / ENDED on the session id', async () => {
+        const session = makeSession();
+        activitySessionStore.set('user-1', {
+          sessionId: 'session-1',
+          activityType: ActivityType.BREATH,
+          startedAt: session.startedAt,
+          lastActivityAt: session.lastActivityAt,
+          isPaused: false,
+        });
+        repo.findOne.mockResolvedValue(session);
+        repo.save.mockImplementation((s: ModuleSession) =>
+          Promise.resolve({ ...s }),
+        );
+
+        await engine.endActivity('user-1');
+
+        expect(streamEngine.push).toHaveBeenCalledWith(
+          'session-1',
+          expect.objectContaining({
+            data: expect.objectContaining({
+              dataType: StreamDataType.SESSION_EVENT,
+              event: StreamSessionEvent.ENDED,
+            }),
+          }),
+        );
+      });
+
+      it('abandonActivity pushes SESSION_EVENT / ABANDONED on the session id', async () => {
+        const session = makeSession({ status: SessionStatus.DISCONNECTED });
+        activitySessionStore.set('user-1', {
+          sessionId: 'session-1',
+          activityType: ActivityType.BREATH,
+          startedAt: session.startedAt,
+          lastActivityAt: session.lastActivityAt,
+          isPaused: false,
+        });
+        repo.findOne.mockResolvedValue(session);
+        repo.save.mockImplementation((s: ModuleSession) =>
+          Promise.resolve({ ...s }),
+        );
+
+        await engine.abandonActivity('user-1');
+
+        expect(streamEngine.push).toHaveBeenCalledWith(
+          'session-1',
+          expect.objectContaining({
+            data: expect.objectContaining({
+              dataType: StreamDataType.SESSION_EVENT,
+              event: StreamSessionEvent.ABANDONED,
+            }),
+          }),
+        );
+      });
+
+      it('pauseActivity pushes SESSION_EVENT / PAUSED on the child session id', () => {
+        const now = new Date();
+        activitySessionStore.addChild('user-1', 'session-1', {
+          sessionId: 'session-1',
+          activityType: ActivityType.BREATH,
+          startedAt: now,
+          lastActivityAt: now,
+          isPaused: false,
+        });
+
+        engine.pauseActivity('user-1', 'session-1');
+
+        expect(streamEngine.push).toHaveBeenCalledWith(
+          'session-1',
+          expect.objectContaining({
+            data: expect.objectContaining({
+              dataType: StreamDataType.SESSION_EVENT,
+              event: StreamSessionEvent.PAUSED,
+            }),
+          }),
+        );
+      });
+
+      it('unpauseActivity pushes SESSION_EVENT / RESUMED on the child session id', () => {
+        const now = new Date();
+        activitySessionStore.addChild('user-1', 'session-1', {
+          sessionId: 'session-1',
+          activityType: ActivityType.BREATH,
+          startedAt: now,
+          lastActivityAt: now,
+          isPaused: true,
+        });
+
+        engine.unpauseActivity('user-1', 'session-1');
+
+        expect(streamEngine.push).toHaveBeenCalledWith(
+          'session-1',
+          expect.objectContaining({
+            data: expect.objectContaining({
+              dataType: StreamDataType.SESSION_EVENT,
+              event: StreamSessionEvent.RESUMED,
+            }),
+          }),
+        );
+      });
+    });
+
+    // ── Phase 2: Target tests — RED until spec 23-connection-loss-markers ─────
+    // These tests define the desired behavior for spec 23. They MUST fail
+    // (RED) when committed now, and turn GREEN once spec 23 lands.
+    // Do NOT weaken assertions if they remain RED after spec 23 — escalate.
+
+    describe('RED until spec 23-connection-loss-markers', () => {
+      it('handleTransportDisconnect emits exactly one disconnected event keyed to rootId — never per-child (spam guard)', async () => {
+        seedMultiSession();
+        repo.update.mockResolvedValue({});
+
+        await engine.handleTransportDisconnect(userId);
+
+        // Use literal string: StreamSessionEvent.DISCONNECTED does not exist yet
+        // (stream-data-types.ts will add it in spec 23)
+        const disconnectedCalls = streamEngine.push.mock.calls.filter(
+          ([, payload]) =>
+            (payload as { data?: { event?: string } })?.data?.event ===
+            'disconnected',
+        );
+        expect(disconnectedCalls).toHaveLength(1);
+        expect(disconnectedCalls[0][0]).toBe(rootId);
+        expect(disconnectedCalls[0][1]).toMatchObject({
+          data: { dataType: StreamDataType.SESSION_EVENT },
+        });
+
+        activitySessionStore.cancelGraceTimerForSession(rootId);
+        activitySessionStore.cancelGraceTimerForSession(childId1);
+        activitySessionStore.cancelGraceTimerForSession(childId2);
+      });
+
+      it('handleReconnect emits exactly one reconnected event keyed to rootId', async () => {
+        seedMultiSession();
+        const disconnectedAt = new Date(Date.now() - 5_000);
+        repo.findOne.mockImplementation((options: any) =>
+          Promise.resolve(
+            makeSession({
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+              id: options.where.id as string,
+              status: SessionStatus.DISCONNECTED,
+              disconnectedAt,
+            }),
+          ),
+        );
+        repo.save.mockImplementation((s: ModuleSession) =>
+          Promise.resolve({
+            ...s,
+            status: SessionStatus.ACTIVE,
+            disconnectedAt: null,
+          }),
+        );
+
+        await engine.handleReconnect(userId, 'client-session-id');
+
+        // Use literal string: StreamSessionEvent.RECONNECTED does not exist yet
+        const reconnectedCalls = streamEngine.push.mock.calls.filter(
+          ([, payload]) =>
+            (payload as { data?: { event?: string } })?.data?.event ===
+            'reconnected',
+        );
+        expect(reconnectedCalls).toHaveLength(1);
+        expect(reconnectedCalls[0][0]).toBe(rootId);
+        expect(reconnectedCalls[0][1]).toMatchObject({
+          data: { dataType: StreamDataType.SESSION_EVENT },
+        });
+      });
+
+      it('abandonActivity uses disconnectedAt as endedAt — not now — for a DISCONNECTED session', async () => {
+        const disconnectedAt = new Date(Date.now() - 30_000);
+        const now = new Date();
+        activitySessionStore.addChild('user-1', 'session-1', {
+          sessionId: 'session-1',
+          activityType: ActivityType.BREATH,
+          startedAt: now,
+          lastActivityAt: now,
+          isPaused: false,
+        });
+        const session = makeSession({
+          status: SessionStatus.DISCONNECTED,
+          disconnectedAt,
+        });
+        repo.findOne.mockResolvedValue(session);
+        let savedArg: ModuleSession | undefined;
+        repo.save.mockImplementation((s: ModuleSession) => {
+          savedArg = { ...s };
+          return Promise.resolve(savedArg);
+        });
+
+        await engine.abandonActivity('user-1', 'session-1');
+
+        // spec 23 will change line ~339: `session.endedAt = disconnectedAt ?? now`
+        // Until then: endedAt = now (not disconnectedAt) → RED
+        expect(savedArg).toBeDefined();
+        expect(savedArg!.endedAt).toEqual(disconnectedAt);
+      });
+    });
+  });
 });
