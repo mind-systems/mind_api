@@ -2,6 +2,7 @@ import { StreamEngine } from './stream-engine.service';
 import { SessionStreamSample } from '../entities/session-stream-sample.entity';
 import { InstructionSample } from '../interfaces/session-buffer.interface';
 import { RealtimeConfig } from '../constants/realtime-config';
+import { StreamDataType } from '../constants/stream-data-types';
 
 function makeRepo() {
   return {
@@ -32,6 +33,13 @@ function makeConfig(overrides: Record<string, number> = {}) {
 
 function makeSample(data = 'x', timestamp = 1000): InstructionSample {
   return { timestamp, data };
+}
+
+function makeMarkerSample(
+  event = 'paused',
+  timestamp = 1000,
+): InstructionSample {
+  return { timestamp, data: { dataType: StreamDataType.SESSION_EVENT, event } };
 }
 
 describe('StreamEngine', () => {
@@ -239,6 +247,59 @@ describe('StreamEngine', () => {
   describe('maxSamplesPerSecond', () => {
     it('returns value from config', () => {
       expect(engine.maxSamplesPerSecond).toBe(50);
+    });
+  });
+
+  describe('immediate marker persistence', () => {
+    it('single marker writes immediately (RED until spec 25-persist-ispaused)', () => {
+      repo.save.mockResolvedValue({});
+      engine.push('s1', makeMarkerSample('paused'));
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          moduleSessionId: 's1',
+          samples: [makeMarkerSample('paused')],
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          flushedAt: expect.any(Date),
+        }),
+      );
+      expect(repo.save).toHaveBeenCalled();
+    });
+
+    it('two distinct markers write two immediate one-element saves (RED until spec 25-persist-ispaused)', () => {
+      repo.save.mockResolvedValue({});
+      engine.push('s1', makeMarkerSample('paused'));
+      engine.push('s1', makeMarkerSample('resumed'));
+
+      expect(repo.save).toHaveBeenCalledTimes(2);
+      expect(repo.create).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ samples: [makeMarkerSample('paused')] }),
+      );
+      expect(repo.create).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ samples: [makeMarkerSample('resumed')] }),
+      );
+    });
+
+    it('breath_phase push does not write immediately — buffers until flush', async () => {
+      repo.save.mockResolvedValue({});
+      engine.push('s1', { timestamp: 1000, data: { phase: 'exhale' } });
+
+      expect(repo.save).not.toHaveBeenCalled();
+
+      await engine.flush('s1');
+      expect(repo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('makeSample (string data) path is unchanged — buffered, saved only on flush', async () => {
+      repo.save.mockResolvedValue({});
+      engine.push('s1', makeSample());
+
+      expect(repo.save).not.toHaveBeenCalled();
+
+      await engine.flush('s1');
+      expect(repo.save).toHaveBeenCalledTimes(1);
     });
   });
 
