@@ -273,8 +273,7 @@ describe('ModuleBiometricStreamGrpcController', () => {
       );
     });
 
-    it('[RED until spec 10-bio-ingest-to-root] should reject a batch whose session_id is a child id with SESSION_MISMATCH', async () => {
-      // P1: ensureRoot returns root-1, but batch carries child-9
+    it('[RED until note 35] child-id echo is accepted and stored under root', async () => {
       activityEngine.ensureRoot.mockResolvedValue(makeRoot({ id: 'root-1' }));
 
       const request$ = new Subject<BioSampleBatch>();
@@ -285,10 +284,33 @@ describe('ModuleBiometricStreamGrpcController', () => {
         makeBatch('child-9'),
       );
 
-      // P3, L1: error code is the literal string 'SESSION_MISMATCH'
-      expect(frame.error).toBeDefined();
-      expect(frame.error!.code).toBe('SESSION_MISMATCH');
-      expect(streamEngine.pushBatch).not.toHaveBeenCalled();
+      expect(frame.ack).toBeDefined();
+      expect(frame.error).toBeUndefined();
+      expect(frame.ack!.sessionId).toBe('root-1');
+      expect(streamEngine.pushBatch).toHaveBeenCalledWith(
+        'root-1',
+        expect.any(Array),
+      );
+    });
+
+    it('[RED until note 35] stale/arbitrary echo is accepted under root', async () => {
+      activityEngine.ensureRoot.mockResolvedValue(makeRoot({ id: 'root-1' }));
+
+      const request$ = new Subject<BioSampleBatch>();
+      const frame = await firstNonReadyFrame(
+        controller,
+        request$,
+        makeUser(),
+        makeBatch('whatever'),
+      );
+
+      expect(frame.ack).toBeDefined();
+      expect(frame.error).toBeUndefined();
+      expect(frame.ack!.sessionId).toBe('root-1');
+      expect(streamEngine.pushBatch).toHaveBeenCalledWith(
+        'root-1',
+        expect.any(Array),
+      );
     });
 
     it('[RED until spec 10-bio-ingest-to-root] should emit NO_ROOT_SESSION when ensureRoot yields nothing', async () => {
@@ -326,6 +348,27 @@ describe('ModuleBiometricStreamGrpcController', () => {
       expect(frame.ack).toBeDefined();
       expect(frame.error).toBeUndefined();
       expect(streamEngine.pushBatch).toHaveBeenCalled();
+    });
+
+    it('[characterization — must stay GREEN] overflow surfaces droppedCount in ack', async () => {
+      activityEngine.ensureRoot.mockResolvedValue(makeRoot({ id: 'root-1' }));
+      streamEngine.pushBatch.mockReturnValue({
+        acceptedCount: 0,
+        droppedCount: 1,
+        totalReceived: 1,
+        totalDropped: 1,
+      });
+
+      const request$ = new Subject<BioSampleBatch>();
+      const frame = await firstNonReadyFrame(
+        controller,
+        request$,
+        makeUser(),
+        makeBatch('root-1'),
+      );
+
+      expect(frame.ack).toBeDefined();
+      expect(frame.ack!.droppedCount).toBe(1);
     });
   });
 });
