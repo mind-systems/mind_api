@@ -9,6 +9,7 @@ import {
   StateResponse,
 } from '../../proto/generated/module_state';
 import type { JwtPayload } from '../users/interfaces/auth.interface';
+import { StreamService } from './constants/stream-service';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ function makeActivityEngine() {
     // pre-note-24 cases green.
     getSession: jest.fn().mockReturnValue(undefined),
     handleTransportDisconnect: jest.fn().mockResolvedValue(undefined),
+    supersedeChildren: jest.fn().mockResolvedValue(undefined),
     startActivity: jest.fn().mockResolvedValue(makeSession()),
     endActivity: jest.fn().mockResolvedValue(null),
     stopActivity: jest.fn().mockResolvedValue(null),
@@ -60,7 +62,7 @@ function makeRateLimiterService() {
 function makeActiveStreamRegistry() {
   return {
     register: jest.fn(),
-    deregister: jest.fn(),
+    deregister: jest.fn().mockReturnValue(false),
     closeAll: jest.fn(),
   };
 }
@@ -146,7 +148,9 @@ describe('ModuleStateGrpcController', () => {
         .subscribe({ error: () => {} });
       expect(activeStreamRegistry.register).toHaveBeenCalledWith(
         user.sub,
+        StreamService.STATE,
         expect.any(Subscriber),
+        expect.any(Function),
       );
       sub.unsubscribe();
     });
@@ -747,7 +751,9 @@ describe('ModuleStateGrpcController', () => {
       // register is called synchronously in the subscriber function — before setup() even starts
       expect(activeStreamRegistry.register).toHaveBeenCalledWith(
         user.sub,
+        StreamService.STATE,
         expect.any(Subscriber),
+        expect.any(Function),
       );
     });
   });
@@ -781,6 +787,7 @@ describe('ModuleStateGrpcController', () => {
 
       expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(
         user.sub,
+        StreamService.STATE,
         expect.any(Subscriber),
       );
     });
@@ -794,6 +801,9 @@ describe('ModuleStateGrpcController', () => {
       expect(activityEngine.handleTransportDisconnect).toHaveBeenCalledWith(
         user.sub,
       );
+      // Genuine drop (deregister returns false by default) must never route
+      // through the eviction/takeover branch.
+      expect(activityEngine.supersedeChildren).not.toHaveBeenCalled();
     });
 
     it("should call rateLimiterService.evict('activity-start:{userId}') on teardown", async () => {
@@ -874,6 +884,7 @@ describe('ModuleStateGrpcController', () => {
 
       expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(
         user.sub,
+        StreamService.STATE,
         expect.any(Subscriber),
       );
     });
@@ -887,8 +898,48 @@ describe('ModuleStateGrpcController', () => {
 
       expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(
         user.sub,
+        StreamService.STATE,
         expect.any(Subscriber),
       );
+    });
+
+    it('should call activityEngine.supersedeChildren (not handleTransportDisconnect) when the teardown was caused by eviction (registry.deregister returns true)', async () => {
+      activeStreamRegistry.deregister.mockReturnValue(true); // simulates: this subscriber was evicted by a newer connect
+      const user = makeUser();
+      const { sub } = await setupConnectedStream(user);
+
+      sub.unsubscribe();
+
+      expect(activityEngine.supersedeChildren).toHaveBeenCalledWith(user.sub);
+      expect(activityEngine.handleTransportDisconnect).not.toHaveBeenCalled();
+    });
+
+    it('should register the STATE stream with an onEvict callback that pushes a CONNECTION_SUPERSEDED session_error on the evicted subscriber', () => {
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const sub = controller
+        .trackActivity(request$, user)
+        .subscribe({ error: () => {} });
+
+      expect(activeStreamRegistry.register).toHaveBeenCalledWith(
+        user.sub,
+        StreamService.STATE,
+        expect.any(Subscriber),
+        expect.any(Function),
+      );
+
+      // Simulate what the real registry does on eviction: invoke the captured callback
+      // against a fake "evicted" subscriber and assert the frame it pushes.
+      const onEvict = activeStreamRegistry.register.mock.calls[0][3];
+      const evictedNext = jest.fn();
+      onEvict({ next: evictedNext } as any);
+      expect(evictedNext).toHaveBeenCalledWith({
+        sessionError: expect.objectContaining({
+          code: 'CONNECTION_SUPERSEDED',
+        }),
+      });
+
+      sub.unsubscribe();
     });
   });
 

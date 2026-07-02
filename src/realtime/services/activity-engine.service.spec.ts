@@ -475,6 +475,146 @@ describe('ActivityEngine', () => {
     });
   });
 
+  describe('supersedeChildren', () => {
+    it('should clear the store synchronously, before the first DB await resolves', async () => {
+      activitySessionStore.setRoot('user-1', 'root-1', {
+        sessionId: 'root-1',
+        activityType: ActivityType.ROOT,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+        isPaused: false,
+      });
+      activitySessionStore.addChild('user-1', 'child-1', {
+        sessionId: 'child-1',
+        activityType: ActivityType.BREATH,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+        isPaused: false,
+      });
+
+      let resolveFindOne!: (v: any) => void;
+      repo.findOne.mockReturnValue(
+        new Promise((resolve) => {
+          resolveFindOne = resolve;
+        }),
+      );
+      // The note's race-safety snippet stubs only repo.findOne, but after the
+      // promise resolves supersedeChildren calls repo.save, then reads
+      // saved.id — a default jest.fn() (→ undefined) would throw there and
+      // reject `pending`, failing this test even against a correct
+      // implementation. Stub it explicitly.
+      repo.save.mockImplementation((s: any) => Promise.resolve(s));
+
+      const pending = engine.supersedeChildren('user-1');
+      // The DB round-trip hasn't resolved yet — but the store must already be clear.
+      expect(activitySessionStore.listChildren('user-1')).toHaveLength(0);
+
+      resolveFindOne(makeSession({ id: 'child-1' }));
+      await pending;
+    });
+
+    it('ends children (terminal status), leaves the root ACTIVE', async () => {
+      const rootState = {
+        sessionId: 'root-1',
+        activityType: ActivityType.ROOT,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+        isPaused: false,
+      };
+      activitySessionStore.setRoot('user-1', 'root-1', rootState);
+      activitySessionStore.addChild('user-1', 'child-1', {
+        sessionId: 'child-1',
+        activityType: ActivityType.BREATH,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+        isPaused: false,
+      });
+      activitySessionStore.addChild('user-1', 'child-2', {
+        sessionId: 'child-2',
+        activityType: ActivityType.MEDITATION,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+        isPaused: false,
+      });
+      repo.findOne
+        .mockResolvedValueOnce(makeSession({ id: 'child-1' }))
+        .mockResolvedValueOnce(makeSession({ id: 'child-2' }));
+      repo.save.mockImplementation((s: any) => Promise.resolve(s));
+
+      await engine.supersedeChildren('user-1');
+
+      // Children: terminal status, ended now.
+      expect(repo.save).toHaveBeenCalledTimes(2); // never a 3rd call for the root
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'child-1',
+          status: SessionStatus.INTERRUPTED,
+          endedAt: expect.any(Date),
+        }),
+      );
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'child-2',
+          status: SessionStatus.INTERRUPTED,
+          endedAt: expect.any(Date),
+        }),
+      );
+      expect(activitySessionStore.listChildren('user-1')).toHaveLength(0);
+
+      // Root: untouched — same in-memory state object, still resolvable, never persisted.
+      expect(activitySessionStore.getRootId('user-1')).toBe('root-1');
+      expect(activitySessionStore.getRoot('user-1')).toBe(rootState); // same reference — never mutated or replaced
+      expect(repo.findOne).not.toHaveBeenCalledWith({
+        where: { id: 'root-1' },
+      });
+      expect(repo.save).not.toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'root-1' }),
+      );
+
+      // Per-child side effects, mirroring the ABANDONED cases' shape.
+      expect(streamEngine.push).toHaveBeenCalledWith(
+        'child-1',
+        expect.objectContaining({
+          data: expect.objectContaining({
+            dataType: StreamDataType.SESSION_EVENT,
+            event: StreamSessionEvent.INTERRUPTED,
+          }),
+        }),
+      );
+      expect(streamEngine.push).toHaveBeenCalledWith(
+        'child-2',
+        expect.objectContaining({
+          data: expect.objectContaining({
+            dataType: StreamDataType.SESSION_EVENT,
+            event: StreamSessionEvent.INTERRUPTED,
+          }),
+        }),
+      );
+      expect(emitter.emit).toHaveBeenCalledWith(
+        SessionEvents.INTERRUPTED,
+        expect.objectContaining({ sessionId: 'child-1', userId: 'user-1' }),
+      );
+      expect(emitter.emit).toHaveBeenCalledWith(
+        SessionEvents.INTERRUPTED,
+        expect.objectContaining({ sessionId: 'child-2', userId: 'user-1' }),
+      );
+    });
+
+    it('no-op when there are no children', async () => {
+      activitySessionStore.setRoot('user-1', 'root-1', {
+        sessionId: 'root-1',
+        activityType: ActivityType.ROOT,
+        startedAt: new Date(),
+        lastActivityAt: new Date(),
+        isPaused: false,
+      });
+
+      await engine.supersedeChildren('user-1');
+
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getActiveSession', () => {
     it('returns entry from store', () => {
       const state = {
@@ -1141,9 +1281,7 @@ describe('ActivityEngine', () => {
 
       // RED until spec 24-pause-state-integrity:
       // after the buggy reset, isPaused=false → unpauseActivity throws NOT_PAUSED
-      expect(() =>
-        engine.unpauseActivity('user-1', 'session-1'),
-      ).not.toThrow();
+      expect(() => engine.unpauseActivity('user-1', 'session-1')).not.toThrow();
     });
   });
 });
