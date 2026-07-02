@@ -563,6 +563,10 @@ export class ActivityEngine {
     return this.activitySessionStore.getRootId(userId);
   }
 
+  listChildren(userId: string): ActivityState[] {
+    return this.activitySessionStore.listChildren(userId);
+  }
+
   listLiveSessions(userId: string): ActivityState[] {
     const root = this.activitySessionStore.getRoot(userId);
     const children = this.activitySessionStore.listChildren(userId);

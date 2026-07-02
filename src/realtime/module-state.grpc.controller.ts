@@ -166,19 +166,36 @@ export class ModuleStateGrpcController {
               },
             });
           } else {
-            subscriber.next({
-              sessionState: {
-                moduleSessionId: result.id,
-                status: ActivityStatus.RESUMED,
-                isPaused:
-                  this.activityEngine.getSession(userId, result.id)
-                    ?.isPaused ?? false,
-                activityType: mapInternalActivityType(result.activityType),
-              },
-            });
-            this.logger.log(
-              `Session resumed on reconnect: userId=${userId} sessionId=${result.id}`,
-            );
+            const children = this.activityEngine.listChildren(userId);
+            if (children.length > 0) {
+              for (const child of children) {
+                subscriber.next({
+                  sessionState: {
+                    moduleSessionId: child.sessionId,
+                    status: ActivityStatus.RESUMED,
+                    isPaused: child.isPaused,
+                    activityType: mapInternalActivityType(child.activityType),
+                  },
+                });
+              }
+              this.logger.log(
+                `Sessions resumed on reconnect: userId=${userId} count=${children.length}`,
+              );
+            } else {
+              subscriber.next({
+                sessionState: {
+                  moduleSessionId: result.id,
+                  status: ActivityStatus.RESUMED,
+                  isPaused:
+                    this.activityEngine.getSession(userId, result.id)
+                      ?.isPaused ?? false,
+                  activityType: mapInternalActivityType(result.activityType),
+                },
+              });
+              this.logger.log(
+                `Session resumed on reconnect: userId=${userId} sessionId=${result.id}`,
+              );
+            }
           }
         }
 
