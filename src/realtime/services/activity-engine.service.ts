@@ -595,7 +595,6 @@ export class ActivityEngine {
     session.lastActivityAt = now;
     const saved = await this.repo.save(session);
     state.lastActivityAt = now;
-    state.isPaused = false;
     this.logger.log(
       `Session resumed: userId=${userId} sessionId=${saved.id} downtimeMs=${downtimeMs}`,
     );

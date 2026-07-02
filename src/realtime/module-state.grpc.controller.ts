@@ -170,7 +170,9 @@ export class ModuleStateGrpcController {
               sessionState: {
                 moduleSessionId: result.id,
                 status: ActivityStatus.RESUMED,
-                isPaused: false,
+                isPaused:
+                  this.activityEngine.getSession(userId, result.id)
+                    ?.isPaused ?? false,
                 activityType: mapInternalActivityType(result.activityType),
               },
             });
