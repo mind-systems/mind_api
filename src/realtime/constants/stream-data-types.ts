@@ -10,4 +10,6 @@ export const StreamSessionEvent = {
   INTERRUPTED: 'session_interrupted',
   PAUSED: 'paused',
   RESUMED: 'resumed',
+  DISCONNECTED: 'disconnected',
+  RECONNECTED: 'reconnected',
 } as const;

@@ -37,9 +37,13 @@ export class ActivityEngine {
   /** Push a discrete SESSION_EVENT marker. `serverMarker: true` is never set
    *  by the gRPC controller, so it reliably marks this as server-originated
    *  for StreamEngine.push()'s immediate-persist branch. */
-  private pushSessionEventMarker(sessionId: string, event: string): void {
+  private pushSessionEventMarker(
+    sessionId: string,
+    event: string,
+    timestampMs?: number,
+  ): void {
     this.streamEngine.push(sessionId, {
-      timestamp: Date.now(),
+      timestamp: timestampMs ?? Date.now(),
       serverMarker: true,
       data: {
         dataType: StreamDataType.SESSION_EVENT,
@@ -338,7 +342,7 @@ export class ActivityEngine {
     }
 
     session.status = SessionStatus.ABANDONED;
-    session.endedAt = now;
+    session.endedAt = session.disconnectedAt ?? now;
     const saved = await this.repo.save(session);
 
     this.pushSessionEventMarker(sid, StreamSessionEvent.ABANDONED);
@@ -614,6 +618,7 @@ export class ActivityEngine {
       let soleChildResult: ModuleSession | null = null;
       let rootResult: ModuleSession | null = null;
 
+      const reconnectedAt = Date.now();
       for (const sid of sessionIds) {
         this.activitySessionStore.cancelGraceTimerForSession(sid);
         const resumed = await this.resumeActivity(userId, sid);
@@ -622,6 +627,14 @@ export class ActivityEngine {
         } else {
           soleChildResult = resumed;
         }
+      }
+
+      if (rootId && rootResult) {
+        this.pushSessionEventMarker(
+          rootId,
+          StreamSessionEvent.RECONNECTED,
+          reconnectedAt,
+        );
       }
 
       return soleChildResult ?? rootResult ?? null;
@@ -649,6 +662,7 @@ export class ActivityEngine {
     const sessionIds = ([rootId, ...childIds] as (string | null)[]).filter(
       (id): id is string => Boolean(id),
     );
+    const disconnectedAt = Date.now();
 
     for (const sid of sessionIds) {
       await this.onDisconnect(userId, sid);
@@ -660,6 +674,14 @@ export class ActivityEngine {
           );
         });
       });
+    }
+
+    if (rootId) {
+      this.pushSessionEventMarker(
+        rootId,
+        StreamSessionEvent.DISCONNECTED,
+        disconnectedAt,
+      );
     }
   }
 }
