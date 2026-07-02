@@ -50,18 +50,9 @@ Write all logs through NestJS's **`Logger`** from `@nestjs/common` — instantia
 
 ## Architecture
 
-**Pattern:** Modular Monolith. Each domain (auth, breath-sessions, mail) is a self-contained NestJS feature module. Modules communicate only through their exported providers — never by importing internals from another module's files.
+**Pattern:** Modular Monolith. Each domain under `src/` is a self-contained NestJS feature module. Modules communicate only through their exported providers — never by importing internals from another module's files. The module set is read from `src/` and `app.module.ts` — it is not duplicated here; boundary rules and the module template live in `.ai-factory/ARCHITECTURE.md`.
 
-### Module dependency graph
-
-```
-AppModule
-  ├── MailModule (@Global)          ← ConfigModule
-  ├── AuthModule                    ← MailModule (implicit via global), ScheduleModule
-  └── BreathSessionsModule          ← AuthModule (for JwtAuthGuard + @CurrentUser)
-```
-
-`ConfigModule` is also global (`isGlobal: true`), available everywhere without explicit import.
+`ConfigModule` (`isGlobal: true`) and `MailModule` (`@Global()`) are available everywhere without explicit import.
 
 ### Auth system
 
