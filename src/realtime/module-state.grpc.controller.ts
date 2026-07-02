@@ -26,6 +26,7 @@ import { ActivityEngine } from './services/activity-engine.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
 import { ActivityIdempotencyStore } from './services/activity-idempotency.store';
+import { StreamService } from './constants/stream-service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
@@ -142,7 +143,20 @@ export class ModuleStateGrpcController {
 
       const userId = user.sub;
 
-      this.activeStreamRegistry.register(userId, subscriber);
+      this.activeStreamRegistry.register(
+        userId,
+        StreamService.STATE,
+        subscriber,
+        (evicted) => {
+          evicted.next({
+            sessionError: {
+              code: 'CONNECTION_SUPERSEDED',
+              message: 'Superseded by a new connection',
+              timestamp: Date.now(),
+            },
+          });
+        },
+      );
 
       let connectedAt = 0;
 
@@ -241,20 +255,35 @@ export class ModuleStateGrpcController {
 
       // Teardown
       subscriber.add(() => {
-        this.activeStreamRegistry.deregister(userId, subscriber);
+        const wasEvicted = this.activeStreamRegistry.deregister(
+          userId,
+          StreamService.STATE,
+          subscriber,
+        );
         const connectedDurationMs = connectedAt ? Date.now() - connectedAt : 0;
         this.logger.log(
-          `Disconnected: userId=${userId} connectedDurationMs=${connectedDurationMs}`,
+          `Disconnected: userId=${userId} connectedDurationMs=${connectedDurationMs} evicted=${wasEvicted}`,
         );
 
-        (async () => {
-          await this.activityEngine.handleTransportDisconnect(userId);
-        })().catch((err: unknown) => {
-          this.logger.error(
-            `Failed to record disconnect: userId=${userId}`,
-            err,
-          );
-        });
+        if (wasEvicted) {
+          (async () => {
+            await this.activityEngine.supersedeChildren(userId);
+          })().catch((err: unknown) => {
+            this.logger.error(
+              `Failed to supersede children: userId=${userId}`,
+              err,
+            );
+          });
+        } else {
+          (async () => {
+            await this.activityEngine.handleTransportDisconnect(userId);
+          })().catch((err: unknown) => {
+            this.logger.error(
+              `Failed to record disconnect: userId=${userId}`,
+              err,
+            );
+          });
+        }
 
         this.rateLimiterService.evict(`activity-start:${userId}`);
         this.idempotency.evictUser(userId);

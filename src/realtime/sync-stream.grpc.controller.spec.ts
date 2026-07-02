@@ -149,6 +149,7 @@ describe('SyncStreamGrpcController', () => {
         .subscribe({ error: () => {} });
       expect(activeStreamRegistry.register).toHaveBeenCalledWith(
         user.sub,
+        'sync',
         expect.any(Subscriber),
       );
       sub.unsubscribe();
@@ -1162,6 +1163,7 @@ describe('SyncStreamGrpcController', () => {
       sub.unsubscribe();
       expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(
         user.sub,
+        'sync',
         expect.any(Subscriber),
       );
     });
@@ -1287,6 +1289,7 @@ describe('SyncStreamGrpcController', () => {
       expect(activeStreamRegistry.deregister).toHaveBeenCalledTimes(1);
       expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(
         user.sub,
+        'sync',
         expect.any(Subscriber),
       );
     });
@@ -1434,6 +1437,7 @@ describe('SyncStreamGrpcController', () => {
 
       expect(activeStreamRegistry.deregister).toHaveBeenCalledWith(
         user.sub,
+        'sync',
         expect.any(Subscriber),
       );
       expect(syncStreamService.deregister).toHaveBeenCalledWith(

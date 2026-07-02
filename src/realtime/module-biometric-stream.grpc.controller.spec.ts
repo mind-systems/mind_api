@@ -169,6 +169,7 @@ describe('ModuleBiometricStreamGrpcController', () => {
         .subscribe({ error: () => {} });
       expect(activeStreamRegistry.register).toHaveBeenCalledWith(
         'user-1',
+        'bio',
         expect.any(Subscriber),
       );
       sub.unsubscribe();

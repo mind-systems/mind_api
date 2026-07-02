@@ -202,6 +202,7 @@ describe('ModuleInstructionStreamGrpcController', () => {
         .subscribe({ error: () => {} });
       expect(activeStreamRegistry.register).toHaveBeenCalledWith(
         'user-1',
+        'instruction',
         expect.any(Subscriber),
       );
       sub.unsubscribe();

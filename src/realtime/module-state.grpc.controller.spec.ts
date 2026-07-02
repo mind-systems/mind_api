@@ -296,7 +296,7 @@ describe('ModuleStateGrpcController', () => {
       // Capture the subscriber via register so we can close it before reconnect resolves
       let capturedSubscriber: Subscriber<StateResponse> | undefined;
       activeStreamRegistry.register = jest.fn(
-        (_userId, sub: Subscriber<StateResponse>) => {
+        (_userId, _service, sub: Subscriber<StateResponse>) => {
           capturedSubscriber = sub;
         },
       );

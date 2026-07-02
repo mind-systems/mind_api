@@ -24,7 +24,10 @@ import { WsErrorCode } from '../constants/ws-error-codes';
 export class ActivityEngine {
   private readonly logger = new Logger(ActivityEngine.name);
 
-  private readonly ensureRootInFlight = new Map<string, Promise<ModuleSession>>();
+  private readonly ensureRootInFlight = new Map<
+    string,
+    Promise<ModuleSession>
+  >();
 
   constructor(
     @InjectRepository(ModuleSession)
@@ -686,5 +689,35 @@ export class ActivityEngine {
         disconnectedAt,
       );
     }
+  }
+
+  async supersedeChildren(userId: string): Promise<void> {
+    const children = this.activitySessionStore.listChildren(userId);
+    // Clear the store SYNCHRONOUSLY, before any DB await — see spec §Safety-2.
+    for (const child of children) {
+      this.activitySessionStore.removeChild(userId, child.sessionId);
+    }
+    const now = new Date();
+    for (const child of children) {
+      const session = await this.repo.findOne({
+        where: { id: child.sessionId },
+      });
+      if (!session) continue; // already gone from DB — nothing to persist
+      session.status = SessionStatus.INTERRUPTED;
+      session.endedAt = now;
+      const saved = await this.repo.save(session);
+      this.pushSessionEventMarker(saved.id, StreamSessionEvent.INTERRUPTED);
+      this.eventEmitter.emit(SessionEvents.INTERRUPTED, {
+        sessionId: saved.id,
+        userId,
+        startedAt: saved.startedAt,
+        endedAt: saved.endedAt,
+        activityType: saved.activityType,
+        activityRefId: saved.activityRefId,
+      });
+    }
+    this.logger.log(
+      `Sessions superseded (eviction takeover): userId=${userId} count=${children.length}`,
+    );
   }
 }

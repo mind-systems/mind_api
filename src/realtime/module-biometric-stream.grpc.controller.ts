@@ -15,6 +15,7 @@ import {
 import { BiometricStreamEngine } from './services/biometric-stream-engine.service';
 import { ActivityEngine } from './services/activity-engine.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
+import { StreamService } from './constants/stream-service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
@@ -54,7 +55,7 @@ export class ModuleBiometricStreamGrpcController {
 
       const userId = user.sub;
 
-      this.activeStreamRegistry.register(userId, subscriber);
+      this.activeStreamRegistry.register(userId, StreamService.BIO, subscriber);
 
       subscriber.next({
         ready: {
@@ -72,7 +73,11 @@ export class ModuleBiometricStreamGrpcController {
       });
 
       subscriber.add(() => {
-        this.activeStreamRegistry.deregister(userId, subscriber);
+        this.activeStreamRegistry.deregister(
+          userId,
+          StreamService.BIO,
+          subscriber,
+        );
         sub.unsubscribe();
         this.logger.log(`Disconnected: userId=${userId}`);
       });

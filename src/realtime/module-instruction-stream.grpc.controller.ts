@@ -15,6 +15,7 @@ import {
 import { StreamEngine } from './services/stream-engine.service';
 import { ActivityEngine } from './services/activity-engine.service';
 import { ActiveStreamRegistry } from './services/active-stream-registry.service';
+import { StreamService } from './constants/stream-service';
 import { GrpcExceptionFilter } from '../grpc/grpc-exception.filter';
 import { GrpcAuthInterceptor } from '../grpc/grpc-auth.interceptor';
 import { GrpcCurrentUser } from '../grpc/decorators/grpc-current-user.decorator';
@@ -52,7 +53,11 @@ export class ModuleInstructionStreamGrpcController {
 
       const userId = user.sub;
 
-      this.activeStreamRegistry.register(userId, subscriber);
+      this.activeStreamRegistry.register(
+        userId,
+        StreamService.INSTRUCTION,
+        subscriber,
+      );
 
       subscriber.next({
         ready: {
@@ -132,7 +137,11 @@ export class ModuleInstructionStreamGrpcController {
       });
 
       subscriber.add(() => {
-        this.activeStreamRegistry.deregister(userId, subscriber);
+        this.activeStreamRegistry.deregister(
+          userId,
+          StreamService.INSTRUCTION,
+          subscriber,
+        );
         sub.unsubscribe();
         this.logger.log(`Disconnected: userId=${userId}`);
       });

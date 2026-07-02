@@ -125,6 +125,30 @@ describe('ActiveStreamRegistry', () => {
       );
     });
 
+    it('should keep the new subscriber live when the evicted subscriber is the last entry and its teardown synchronously deregisters (mirrors real controller wiring)', () => {
+      const makeWithTeardown = (service: StreamService) => {
+        const sub = makeSubscriber();
+        sub.add(() => registry.deregister('user1', service, sub));
+        return sub;
+      };
+
+      const sub1 = makeWithTeardown(StreamService.STATE);
+      registry.register('user1', StreamService.STATE, sub1);
+
+      const sub2 = makeWithTeardown(StreamService.STATE);
+      registry.register('user1', StreamService.STATE, sub2);
+
+      expect(registry.size).toBe(1);
+      expect(registry.hasLiveSubscriber('user1')).toBe(true);
+
+      // A third register must still evict sub2 (proves sub2 is actually tracked).
+      const sub3 = makeSubscriber();
+      const spy2 = jest.spyOn(sub2, 'complete');
+      registry.register('user1', StreamService.STATE, sub3);
+      expect(spy2).toHaveBeenCalledTimes(1);
+      expect(registry.size).toBe(1);
+    });
+
     it('should be idempotent when the same subscriber reference is registered twice for the same userId', () => {
       const sub = makeSubscriber();
       registry.register('user1', StreamService.STATE, sub);
