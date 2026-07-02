@@ -46,6 +46,7 @@ function makeActivityEngine() {
     listLiveSessions: jest
       .fn()
       .mockReturnValue([{ sessionId: 'session-1', activityType: 'breath' }]),
+    listChildren: jest.fn().mockReturnValue([]),
   };
 }
 
@@ -154,6 +155,21 @@ describe('ModuleStateGrpcController', () => {
   // ── Task 3: Reconnect path ────────────────────────────────────────────────
 
   describe('trackActivity — reconnect path', () => {
+    function makeLiveChild(
+      overrides?: Partial<{
+        sessionId: string;
+        activityType: string;
+        isPaused: boolean;
+      }>,
+    ) {
+      return {
+        sessionId: 'child-1',
+        activityType: 'breath',
+        isPaused: false,
+        ...overrides,
+      };
+    }
+
     // (a) RESUMED path — unpaused branch (getSession returns undefined → ?? false)
     // Characterization: must stay GREEN now and after spec 24-pause-state-integrity.
     it('(a) should emit sessionState RESUMED with isPaused false when handleReconnect returns a session and getSession returns undefined', async () => {
@@ -387,6 +403,97 @@ describe('ModuleStateGrpcController', () => {
       expect(values).toHaveLength(2);
       expect(values[1].sessionState?.status).toBe(ActivityStatus.ACTIVE);
       expect(values[1].sessionState?.moduleSessionId).toBe('new-session');
+
+      sub.unsubscribe();
+    });
+
+    // ── per-child RESUMED frames on reconnect (RED until spec 45) ────────────
+
+    it('two live children → two RESUMED frames', async () => {
+      activityEngine.handleReconnect.mockResolvedValue(makeSession());
+      activityEngine.listChildren.mockReturnValue([
+        makeLiveChild({ sessionId: 'child-1', activityType: 'breath' }),
+        makeLiveChild({
+          sessionId: 'child-2',
+          activityType: 'meditation',
+          isPaused: true,
+        }),
+      ]);
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller.trackActivity(request$, user).subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+
+      expect(values).toHaveLength(2);
+      expect(values[0].sessionState).toMatchObject({
+        moduleSessionId: 'child-1',
+        status: ActivityStatus.RESUMED,
+        isPaused: false,
+        activityType: ActivityType.BREATH,
+      });
+      expect(values[1].sessionState).toMatchObject({
+        moduleSessionId: 'child-2',
+        status: ActivityStatus.RESUMED,
+        isPaused: true,
+        activityType: ActivityType.MEDITATION,
+      });
+
+      sub.unsubscribe();
+    });
+
+    it('single live child → exactly one RESUMED frame via the new path', async () => {
+      activityEngine.handleReconnect.mockResolvedValue(makeSession());
+      activityEngine.listChildren.mockReturnValue([
+        makeLiveChild({ sessionId: 'child-1' }),
+      ]);
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller.trackActivity(request$, user).subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+      });
+
+      await flushMicrotasks();
+
+      expect(values).toHaveLength(1);
+      expect(values[0].sessionState?.moduleSessionId).toBe('child-1');
+
+      sub.unsubscribe();
+    });
+
+    // (optional reinforcement) ABANDONED unaffected by children present
+    it('ABANDONED unaffected by children present', async () => {
+      activityEngine.handleReconnect.mockResolvedValue({
+        abandoned: true,
+      } as any);
+      activityEngine.listChildren.mockReturnValue([makeLiveChild()]);
+
+      const user = makeUser();
+      const request$ = new Subject<StateRequest>();
+      const values: StateResponse[] = [];
+      const sub = controller
+        .trackActivity(request$, user, 'client-session-id')
+        .subscribe({
+          next: (v) => values.push(v),
+          error: () => {},
+        });
+
+      await flushMicrotasks();
+
+      expect(values).toHaveLength(1);
+      expect(values[0].sessionState).toMatchObject({
+        status: ActivityStatus.ABANDONED,
+        moduleSessionId: 'client-session-id',
+      });
+      expect(activityEngine.listChildren).not.toHaveBeenCalled();
 
       sub.unsubscribe();
     });
