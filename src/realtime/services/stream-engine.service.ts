@@ -16,6 +16,7 @@ import {
 } from '../interfaces/session-buffer.interface';
 import { SessionEvents } from '../events/session.events';
 import { RealtimeConfig } from '../constants/realtime-config';
+import { StreamDataType } from '../constants/stream-data-types';
 
 export interface PushResult {
   accepted: boolean;
@@ -81,6 +82,50 @@ export class StreamEngine
   }
 
   push(sessionId: string, sample: InstructionSample): PushResult {
+    // `serverMarker` is set only by ActivityEngine.pushSessionEventMarker()
+    // and is never a key the gRPC controller copies from the wire, so a
+    // client cannot forge it (unlike moduleId/instructionType, which
+    // deserialize to undefined when simply left unset — not a safe
+    // discriminator).
+    const isServerMarker =
+      sample.serverMarker === true &&
+      (sample.data as { dataType?: string } | undefined)?.dataType ===
+        StreamDataType.SESSION_EVENT;
+
+    if (isServerMarker) {
+      const now = new Date();
+
+      void this.sampleRepo
+        .save(
+          this.sampleRepo.create({
+            moduleSessionId: sessionId,
+            samples: [sample],
+            flushedAt: now,
+          }),
+        )
+        .catch((err: unknown) => {
+          this.logger.error(
+            `Failed to persist marker for sessionId=${sessionId}`,
+            err,
+          );
+        });
+
+      this.moduleSessionRepo
+        .update({ id: sessionId }, { lastActivityAt: now })
+        .catch((err: unknown) => {
+          this.logger.error(
+            `Failed to update lastActivityAt for sessionId=${sessionId}`,
+            err,
+          );
+        });
+
+      return {
+        accepted: true,
+        droppedCount: 0,
+        totalReceived: this.buffers.get(sessionId)?.totalReceived ?? 0,
+      };
+    }
+
     let buffer = this.buffers.get(sessionId);
 
     if (!buffer) {

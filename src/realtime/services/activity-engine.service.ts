@@ -34,6 +34,20 @@ export class ActivityEngine {
     private readonly streamEngine: StreamEngine,
   ) {}
 
+  /** Push a discrete SESSION_EVENT marker. `serverMarker: true` is never set
+   *  by the gRPC controller, so it reliably marks this as server-originated
+   *  for StreamEngine.push()'s immediate-persist branch. */
+  private pushSessionEventMarker(sessionId: string, event: string): void {
+    this.streamEngine.push(sessionId, {
+      timestamp: Date.now(),
+      serverMarker: true,
+      data: {
+        dataType: StreamDataType.SESSION_EVENT,
+        event,
+      },
+    });
+  }
+
   /**
    * Coerce a client-supplied timestamp (may be number, Long, or string from
    * ts-proto int64 fields) into a Date.  Returns null when the value is absent,
@@ -188,13 +202,7 @@ export class ActivityEngine {
     };
     this.activitySessionStore.addChild(userId, saved.id, state);
 
-    this.streamEngine.push(saved.id, {
-      timestamp: Date.now(),
-      data: {
-        dataType: StreamDataType.SESSION_EVENT,
-        event: StreamSessionEvent.STARTED,
-      },
-    });
+    this.pushSessionEventMarker(saved.id, StreamSessionEvent.STARTED);
 
     this.logger.log(
       `Session started: userId=${userId} sessionId=${saved.id} activityType=${saved.activityType}`,
@@ -265,13 +273,7 @@ export class ActivityEngine {
     session.endedAt = endedAt;
     const saved = await this.repo.save(session);
 
-    this.streamEngine.push(sid, {
-      timestamp: Date.now(),
-      data: {
-        dataType: StreamDataType.SESSION_EVENT,
-        event: StreamSessionEvent.ENDED,
-      },
-    });
+    this.pushSessionEventMarker(sid, StreamSessionEvent.ENDED);
 
     this.removeSessionFromStore(userId, sid);
     const durationMs = saved.endedAt
@@ -339,13 +341,7 @@ export class ActivityEngine {
     session.endedAt = now;
     const saved = await this.repo.save(session);
 
-    this.streamEngine.push(sid, {
-      timestamp: Date.now(),
-      data: {
-        dataType: StreamDataType.SESSION_EVENT,
-        event: StreamSessionEvent.ABANDONED,
-      },
-    });
+    this.pushSessionEventMarker(sid, StreamSessionEvent.ABANDONED);
 
     this.removeSessionFromStore(userId, sid);
     this.logger.log(
@@ -388,13 +384,7 @@ export class ActivityEngine {
     session.endedAt = now;
     const saved = await this.repo.save(session);
 
-    this.streamEngine.push(sessionId, {
-      timestamp: Date.now(),
-      data: {
-        dataType: StreamDataType.SESSION_EVENT,
-        event: StreamSessionEvent.ABANDONED,
-      },
-    });
+    this.pushSessionEventMarker(sessionId, StreamSessionEvent.ABANDONED);
 
     if (this.activitySessionStore.getSession(userId, sessionId)) {
       this.removeSessionFromStore(userId, sessionId);
@@ -459,13 +449,7 @@ export class ActivityEngine {
       session.endedAt = now;
       const saved = await this.repo.save(session);
 
-      this.streamEngine.push(sid, {
-        timestamp: Date.now(),
-        data: {
-          dataType: StreamDataType.SESSION_EVENT,
-          event: StreamSessionEvent.INTERRUPTED,
-        },
-      });
+      this.pushSessionEventMarker(sid, StreamSessionEvent.INTERRUPTED);
 
       const durationMs = saved.endedAt
         ? saved.endedAt.getTime() - saved.startedAt.getTime()
@@ -512,13 +496,7 @@ export class ActivityEngine {
     state.isPaused = true;
     state.lastActivityAt = new Date();
 
-    this.streamEngine.push(sid, {
-      timestamp: Date.now(),
-      data: {
-        dataType: StreamDataType.SESSION_EVENT,
-        event: StreamSessionEvent.PAUSED,
-      },
-    });
+    this.pushSessionEventMarker(sid, StreamSessionEvent.PAUSED);
 
     this.eventEmitter.emit(MODULE_SESSION_PAUSED, {
       sessionId: sid,
@@ -553,13 +531,7 @@ export class ActivityEngine {
     state.isPaused = false;
     state.lastActivityAt = new Date();
 
-    this.streamEngine.push(sid, {
-      timestamp: Date.now(),
-      data: {
-        dataType: StreamDataType.SESSION_EVENT,
-        event: StreamSessionEvent.RESUMED,
-      },
-    });
+    this.pushSessionEventMarker(sid, StreamSessionEvent.RESUMED);
 
     this.eventEmitter.emit(MODULE_SESSION_UNPAUSED, {
       sessionId: sid,

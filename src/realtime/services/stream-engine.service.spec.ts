@@ -39,7 +39,11 @@ function makeMarkerSample(
   event = 'paused',
   timestamp = 1000,
 ): InstructionSample {
-  return { timestamp, data: { dataType: StreamDataType.SESSION_EVENT, event } };
+  return {
+    timestamp,
+    serverMarker: true,
+    data: { dataType: StreamDataType.SESSION_EVENT, event },
+  };
 }
 
 describe('StreamEngine', () => {
