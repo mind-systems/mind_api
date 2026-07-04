@@ -31,12 +31,14 @@ async function bootstrap() {
     logDestination === 'grafana' || logDestination === 'both';
   const otlpEndpoint =
     process.env.OTLP_ENDPOINT ?? 'http://localhost:3100/otlp/v1/logs';
+  const otlpAuthToken = process.env.OTLP_AUTH_TOKEN;
 
   if (logToGrafana) {
     init({
       project: 'mind',
       service: 'mind_api',
       endpoint: otlpEndpoint,
+      headers: otlpAuthToken ? { Authorization: `Bearer ${otlpAuthToken}` } : undefined,
       onError: isProd ? undefined : (err) => console.error('[observe-js]', err),
     });
   }
