@@ -6,7 +6,7 @@ Mind Awake API is structured as a **Modular Monolith** — a single deployable N
 This pattern fits the project well: small team, clear domain boundaries (auth, mail, breath sessions), single PostgreSQL database, and Docker-based single-container deployment. NestJS's module system enforces these boundaries naturally via the `@Module` decorator's `imports`/`exports` declarations.
 
 ## Decision Rationale
-- **Project type:** REST API backend for a mobile mindfulness app
+- **Project type:** gRPC-first backend for a mobile mindfulness app, with a secondary REST surface for the web dashboard and the OAuth redirect callback
 - **Tech stack:** TypeScript, NestJS 11, PostgreSQL + TypeORM
 - **Team size:** Small (1-5 developers)
 - **Domain complexity:** Low-Medium (auth + CRUD, no complex business rules)
@@ -54,12 +54,13 @@ AppModule
 
 ## Layer / Module Communication
 
-Within a module, the standard NestJS layers apply:
+Within a module, the standard NestJS layers apply. The primary transport is gRPC, serving the mobile client; a secondary REST surface serves the web dashboard and the OAuth redirect callback. Both transports terminate at a thin controller that maps the request/response and delegates to the service layer — the layers below the controller are transport-agnostic.
 
 ```
-HTTP Request
+gRPC call     (mobile client — primary transport)
+REST request  (web dashboard, OAuth callback — secondary surface)
      ↓
-Controller          (validates input via DTOs + pipes, delegates to service)
+Controller          (maps request/response, delegates to service)
      ↓
 Service             (business logic, orchestration, calls repository)
      ↓
@@ -128,34 +129,49 @@ export class MeditationsModule {}
 
 ### Thin Controller, Logic in Service
 
-```typescript
-// Controller: HTTP concerns only
-@Controller('meditations')
-@UseGuards(JwtAuthGuard)
-export class MeditationsController {
-  constructor(private readonly meditationsService: MeditationsService) {}
+The primary controller is proto-backed: it implements the interface generated from the module's `.proto` file (see [`proto/README.md`](../proto/README.md) for the `proto:gen` toolchain and where stubs land), binds the RPC methods with the generated `@<Service>ControllerMethods()` decorator, and delegates every RPC to the service. Request/response types are the generated proto messages, not hand-written DTOs.
 
-  @Post()
-  @HttpCode(HttpStatus.CREATED)
-  create(
-    @Body() dto: CreateMeditationDto,
-    @CurrentUser() user: User,
-  ) {
-    return this.meditationsService.create(dto, user.id);
+```typescript
+// gRPC controller: proto contract mapping only
+import { PingRequest, PingResponse, DeviceServiceController, DeviceServiceControllerMethods } from '../../proto/generated/device';
+
+@Controller()
+@DeviceServiceControllerMethods()
+@UseFilters(GrpcExceptionFilter)
+export class DeviceGrpcController implements DeviceServiceController {
+  constructor(private readonly deviceService: DeviceService) {}
+
+  async ping(request: PingRequest): Promise<PingResponse> {
+    await this.deviceService.ping(request);
+    return {};
   }
 }
 
 // Service: business logic + data access
 @Injectable()
-export class MeditationsService {
+export class DeviceService {
   constructor(
-    @InjectRepository(Meditation)
-    private readonly meditationsRepo: Repository<Meditation>,
+    @InjectRepository(Device)
+    private readonly deviceRepo: Repository<Device>,
   ) {}
 
-  async create(dto: CreateMeditationDto, userId: string): Promise<Meditation> {
-    const meditation = this.meditationsRepo.create({ ...dto, userId });
-    return this.meditationsRepo.save(meditation);
+  async ping(dto: PingRequest): Promise<void> {
+    // upsert device presence by installationId ...
+  }
+}
+```
+
+Secondary REST controllers (web dashboard reads, the OAuth callback) follow the same thin delegation, but declare an HTTP path and verbs and guard the route with `JwtAuthGuard` + `@CurrentUser()`:
+
+```typescript
+@Controller('nfb-calibrations')
+@UseGuards(JwtAuthGuard)
+export class NfbCalibrationRestController {
+  constructor(private readonly nfbCalibrationService: NfbCalibrationService) {}
+
+  @Get()
+  list(@Query() query: ListNfbCalibrationsQueryDto, @CurrentUser() user: JwtPayload) {
+    return this.nfbCalibrationService.list(user.sub, query.deviceSerial, query.limit, query.offset);
   }
 }
 ```
@@ -206,16 +222,16 @@ npm run migration:revert
 | **Auth** | |
 | Email OTP auth | f0d36b7 |
 | Google Sign-In | 9b78a07 |
-| User profile | |
+| User profile | 21ff889 |
 | Personal access tokens | cfd8706 |
-| Device ping | |
+| Device ping | 76f00cd e0a857b |
 | **Breath sessions** | |
 | Breath session CRUD | 2e497e7 f684c24 |
-| Time-of-day suggestions | |
-| Session statistics (streak, duration, complexity) | |
+| Time-of-day suggestions | 049ba15 af4f31f ab363f1 |
+| Session statistics (streak, duration, complexity) | 5abaf32 |
 | **Sync** | |
-| Sync change journal (TTL, purge) | |
-| Sync unary (cursor, full-resync sentinel) | |
+| Sync change journal (TTL, purge) | 78c28c8 5b2d1e6 |
+| Sync unary (cursor, full-resync sentinel) | ae278ff c7842dc |
 | Sync change stream | 733e428 19935b7 |
 | **Realtime** | |
 | gRPC transport | f39c8bd |
